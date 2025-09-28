@@ -1,0 +1,50 @@
+# LICS Grafana Dashboards Provisioning Configuration
+# Configuration for automatically loading Grafana dashboards
+
+apiVersion: 1
+
+providers:
+  # LICS System Dashboards
+  - name: 'lics-system'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/system
+
+  # LICS Application Dashboards
+  - name: 'lics-application'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/application
+
+  # LICS Device Dashboards
+  - name: 'lics-devices'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/devices
+
+  # LICS Experiment Dashboards
+  - name: 'lics-experiments'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/experiments
+
+  # Infrastructure Monitoring Dashboards
+  - name: 'lics-infrastructure'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards/infrastructure
