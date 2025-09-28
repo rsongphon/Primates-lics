@@ -1,0 +1,6 @@
+# PgBouncer user authentication file
+# Format: "username" "password_hash"
+# Generate hash with: echo -n "passwordusername" | md5sum
+
+# Default LICS user (password: lics123)
+"lics" "md5a9b8e1e9a9b8e1e9a9b8e1e9a9b8e1e9"

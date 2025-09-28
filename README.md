@@ -203,6 +203,31 @@ lics/
    make lint
    ```
 
+4. **Database operations:**
+   ```bash
+   # Database migrations (standalone)
+   cd infrastructure/database && alembic upgrade head
+   cd infrastructure/database && alembic revision --autogenerate -m "description"
+
+   # Database management CLI
+   python3 infrastructure/database/manage.py migrate           # Apply migrations
+   python3 infrastructure/database/manage.py backup           # Create backup
+   python3 infrastructure/database/manage.py health-check     # Check health
+   python3 infrastructure/database/manage.py list-backups     # List backups
+
+   # Database maintenance and cleanup
+   ./infrastructure/database/cleanup.sh full                  # Full cleanup
+   ./infrastructure/database/cleanup.sh maintenance          # Database maintenance
+   python3 infrastructure/database/maintenance.py            # Automated maintenance
+
+   # Health monitoring
+   python3 infrastructure/monitoring/database/health_check.py # Check all services
+   python3 infrastructure/monitoring/database/health_check.py --format json
+
+   # Automated scheduling
+   sudo ./infrastructure/database/cron-maintenance.sh install # Install cron jobs
+   ```
+
 ### Contributing
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
@@ -287,7 +312,11 @@ For security issues, please see our [Security Policy](SECURITY.md).
 
 ### Current Phase: Foundation (v1.0)
 - [x] Core infrastructure setup
-- [x] Basic device management
+- [x] Database layer foundation (PostgreSQL + TimescaleDB, Redis, InfluxDB)
+- [x] Database migration and management tools
+- [x] Monitoring and health check systems
+- [ ] Message broker and storage layer
+- [ ] FastAPI backend implementation
 - [ ] Task builder system
 - [ ] Video streaming
 - [ ] Real-time analytics

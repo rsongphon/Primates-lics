@@ -77,15 +77,38 @@ make performance-test         # Run performance tests
 
 ### Database Operations
 ```bash
-# Backend migrations
-cd services/backend && alembic upgrade head
-cd services/backend && alembic revision --autogenerate -m "description"
+# Database migrations (standalone Alembic)
+cd infrastructure/database && alembic upgrade head
+cd infrastructure/database && alembic revision --autogenerate -m "description"
+cd infrastructure/database && alembic current
+cd infrastructure/database && alembic history
 
-# Database management (via Makefile)
-make db-migrate               # Apply migrations
-make db-rollback              # Rollback last migration
-make db-reset                 # Reset database (destroys data)
-make db-seed                  # Seed with development data
+# Database management CLI
+python3 infrastructure/database/manage.py migrate           # Apply migrations
+python3 infrastructure/database/manage.py create-migration "Description"
+python3 infrastructure/database/manage.py backup           # Create backup
+python3 infrastructure/database/manage.py restore backup.sql
+python3 infrastructure/database/manage.py health-check     # Check health
+python3 infrastructure/database/manage.py list-backups     # List backups
+python3 infrastructure/database/manage.py validate-backup backup.sql
+
+# Database maintenance and cleanup
+./infrastructure/database/cleanup.sh full                  # Full cleanup
+./infrastructure/database/cleanup.sh maintenance          # Database maintenance only
+./infrastructure/database/cleanup.sh quick                # Quick log cleanup
+python3 infrastructure/database/maintenance.py            # Python-based maintenance
+python3 infrastructure/database/maintenance.py --tasks postgres_maintenance redis_maintenance
+
+# Health monitoring for all database services
+python3 infrastructure/monitoring/database/health_check.py # Check all services
+python3 infrastructure/monitoring/database/health_check.py --format json
+python3 infrastructure/monitoring/database/health_check.py --service postgres
+
+# Automated maintenance scheduling
+sudo ./infrastructure/database/cron-maintenance.sh install # Install cron jobs
+./infrastructure/database/cron-maintenance.sh list        # List current jobs
+./infrastructure/database/cron-maintenance.sh test        # Test scripts
+sudo ./infrastructure/database/cron-maintenance.sh remove # Remove cron jobs
 ```
 
 ### Infrastructure Commands
@@ -184,10 +207,21 @@ Valid scopes: frontend, backend, edge-agent, infrastructure, docs, api, ui, auth
 - Real-time updates with <100ms latency
 
 ### Data Pipeline Architecture
-- TimescaleDB for time-series telemetry data
-- Redis for caching and pub/sub messaging
-- MinIO/S3 for object storage (videos, exports)
-- Prometheus metrics with Grafana visualization
+- **PostgreSQL with TimescaleDB**: Primary database with time-series extension for telemetry data
+- **Redis**: Caching layer, session storage, and pub/sub messaging
+- **InfluxDB**: Dedicated time-series database for metrics and telemetry
+- **PgBouncer**: Connection pooling for PostgreSQL scalability
+- **MinIO/S3**: Object storage for videos, exports, and large files
+- **Prometheus metrics** with Grafana visualization
+
+### Database Layer Components
+- **Standalone Alembic**: Database migration management independent of FastAPI
+- **Management CLI**: Comprehensive database operations tool (`infrastructure/database/manage.py`)
+- **Health Monitoring**: Multi-service health checking with JSON/text output
+- **Automated Maintenance**: Python and shell scripts for database cleanup and optimization
+- **Performance Tuning**: Production and development optimized PostgreSQL configurations
+- **Backup System**: Automated backup, restore, and validation procedures
+- **Cron Integration**: Scheduled maintenance tasks with flexible timing
 
 The project is currently in Phase 1 (Foundation Setup) with repository structure, version control, development environment, and CI/CD pipeline foundation completed. Next phases involve implementing core services, database layer, and API development.
 
@@ -201,12 +235,25 @@ The project is currently in Phase 1 (Foundation Setup) with repository structure
 - ✅ Git hooks and code quality enforcement
 - ✅ CI/CD Pipeline Foundation with comprehensive GitHub Actions workflows
 
-### 🔧 Current Phase: Week 2 - Database and Core Services Setup
+### ✅ Phase 1 Week 2: Database and Core Services Setup (Day 1-2 COMPLETED)
+- ✅ Database layer setup (PostgreSQL + TimescaleDB, Redis, InfluxDB)
+- ✅ Standalone Alembic migration framework
+- ✅ PgBouncer connection pooling for production scalability
+- ✅ Comprehensive database management and health monitoring tools
+- ✅ Automated maintenance and cleanup procedures
+- ✅ Performance-optimized database configurations
+
+### 🔧 Current Phase: Week 2 - Day 3-4 Message Broker and Storage
 Next implementation steps:
-- Database layer setup (PostgreSQL + TimescaleDB)
 - Message broker configuration (MQTT)
+- MinIO object storage setup
+- Message queue patterns in Redis
+- Documentation of messaging architecture
+
+### 🔮 Upcoming Phase: Week 3 - FastAPI Backend Implementation
 - Core FastAPI backend implementation
 - Authentication and authorization system
+- Integration with database layer
 
 ## CI/CD Pipeline Features
 

@@ -107,6 +107,8 @@ services:
     volumes:
       - postgres_data:/home/postgres/pgdata/data
       - ./infrastructure/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./infrastructure/database/postgresql.conf:/etc/postgresql/postgresql.conf
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
     networks:
       - lics-network
     restart: unless-stopped
@@ -115,6 +117,35 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # PgBouncer Connection Pooler
+  pgbouncer:
+    image: pgbouncer/pgbouncer:latest
+    ports:
+      - "6432:6432"
+    environment:
+      - DATABASES_HOST=postgres
+      - DATABASES_PORT=5432
+      - DATABASES_USER=lics
+      - DATABASES_PASSWORD=lics123
+      - DATABASES_DBNAME=lics
+      - POOL_MODE=transaction
+      - MAX_CLIENT_CONN=200
+      - DEFAULT_POOL_SIZE=25
+    volumes:
+      - ./infrastructure/pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini
+      - ./infrastructure/pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt
+    networks:
+      - lics-network
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "psql", "-h", "localhost", "-p", "6432", "-U", "lics", "-d", "lics", "-c", "SELECT 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # Redis Cache
   redis:
@@ -187,6 +218,31 @@ services:
       - lics-network
     restart: unless-stopped
 
+  # InfluxDB Time Series Database
+  influxdb:
+    image: influxdb:2.7-alpine
+    ports:
+      - "8086:8086"
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=licsInflux123
+      - DOCKER_INFLUXDB_INIT_ORG=lics
+      - DOCKER_INFLUXDB_INIT_BUCKET=telemetry
+      - DOCKER_INFLUXDB_INIT_RETENTION=30d
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=lics-admin-token-change-in-production
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+      - ./infrastructure/influxdb/init.sh:/docker-entrypoint-initdb.d/init.sh
+    networks:
+      - lics-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
   # Grafana Dashboards
   grafana:
     image: grafana/grafana:latest
@@ -205,6 +261,7 @@ services:
     restart: unless-stopped
     depends_on:
       - prometheus
+      - influxdb
 
   # Nginx Reverse Proxy
   nginx:
@@ -236,6 +293,8 @@ volumes:
   mqtt_logs:
     driver: local
   minio_data:
+    driver: local
+  influxdb_data:
     driver: local
   prometheus_data:
     driver: local

@@ -122,6 +122,8 @@ services:
     volumes:
       - postgres_dev_data:/home/postgres/pgdata/data
       - ./infrastructure/database/init-dev.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./infrastructure/database/postgresql-dev.conf:/etc/postgresql/postgresql.conf
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
     networks:
       - lics-dev-network
     restart: unless-stopped
@@ -130,6 +132,35 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  # PgBouncer Development Connection Pooler
+  pgbouncer-dev:
+    image: pgbouncer/pgbouncer:latest
+    ports:
+      - "6433:6432"  # Different port to avoid conflicts
+    environment:
+      - DATABASES_HOST=postgres-dev
+      - DATABASES_PORT=5432
+      - DATABASES_USER=lics
+      - DATABASES_PASSWORD=lics123
+      - DATABASES_DBNAME=lics_dev
+      - POOL_MODE=transaction
+      - MAX_CLIENT_CONN=50
+      - DEFAULT_POOL_SIZE=10
+    volumes:
+      - ./infrastructure/pgbouncer/pgbouncer-dev.ini:/etc/pgbouncer/pgbouncer.ini
+      - ./infrastructure/pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt
+    networks:
+      - lics-dev-network
+    restart: unless-stopped
+    depends_on:
+      postgres-dev:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "psql", "-h", "localhost", "-p", "6432", "-U", "lics", "-d", "lics_dev", "-c", "SELECT 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   # Redis Development Cache
   redis-dev:
@@ -206,6 +237,31 @@ services:
       - lics-dev-network
     restart: unless-stopped
 
+  # InfluxDB Development Time Series Database
+  influxdb-dev:
+    image: influxdb:2.7-alpine
+    ports:
+      - "8087:8086"  # Different port to avoid conflicts
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=devInflux123
+      - DOCKER_INFLUXDB_INIT_ORG=lics-dev
+      - DOCKER_INFLUXDB_INIT_BUCKET=telemetry-dev
+      - DOCKER_INFLUXDB_INIT_RETENTION=7d  # Shorter retention for dev
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=lics-dev-admin-token
+    volumes:
+      - influxdb_dev_data:/var/lib/influxdb2
+      - ./infrastructure/influxdb/init-dev.sh:/docker-entrypoint-initdb.d/init.sh
+    networks:
+      - lics-dev-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "influx", "ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
   # PgAdmin (PostgreSQL GUI)
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -263,6 +319,8 @@ volumes:
   mqtt_dev_logs:
     driver: local
   minio_dev_data:
+    driver: local
+  influxdb_dev_data:
     driver: local
   pgadmin_dev_data:
     driver: local

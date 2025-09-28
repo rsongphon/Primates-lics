@@ -1,0 +1,7 @@
+# Database monitoring dependencies
+
+asyncpg==0.29.0
+asyncio-redis==0.16.0
+influxdb-client==1.38.0
+psycopg2-binary==2.9.9
+python-dotenv==1.0.0
