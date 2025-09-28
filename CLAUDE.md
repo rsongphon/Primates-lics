@@ -184,4 +184,4 @@ The project is currently in Phase 1 (Foundation Setup) with repository structure
 - After implement feature in this application, update @Plan.md and @README.md about what you've done (check list if possible)
 - Always update @CLAUDE.md  with lastest implementation.
 - This project is done by sole developer, always adjust the structure for solo developer but have a possibilities for futher collaboration.
-- When commit the project, don't end the message with something like "🤖 Generated with [Claude Code](https://claude.com.claude-code) Co-Authored-By: Claude <noreply@anthropic.com>" " Use my github username instead
+- When commit the project, don't end the commit message with something like "🤖 Generated with [Claude Code](https://claude.com.claude-code) Co-Authored-By: Claude <noreply@anthropic.com>" " Use my github username and my github emial instead
