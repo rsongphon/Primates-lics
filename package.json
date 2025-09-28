@@ -1,0 +1,146 @@
+{
+  "name": "lics",
+  "version": "1.0.0-alpha",
+  "description": "Lab Instrument Control System - A comprehensive platform for laboratory instrument management and experiment execution",
+  "private": true,
+  "workspaces": [
+    "services/frontend"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=services/frontend",
+    "build": "npm run build --workspace=services/frontend",
+    "start": "npm run start --workspace=services/frontend",
+    "test": "npm run test --workspace=services/frontend",
+    "lint": "npm run lint --workspace=services/frontend",
+    "format": "npm run format --workspace=services/frontend",
+    "type-check": "npm run type-check --workspace=services/frontend",
+    "install:frontend": "npm install --workspace=services/frontend",
+    "clean": "npm run clean --workspace=services/frontend",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:dev": "docker-compose -f docker-compose.dev.yml up --build",
+    "setup": "npm run install:frontend && npm run git:hooks",
+    "git:hooks": "./tools/scripts/setup-git-hooks.sh"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rsongphon/Primates-lics.git"
+  },
+  "keywords": [
+    "laboratory",
+    "instrument-control",
+    "experiment-management",
+    "iot",
+    "raspberry-pi",
+    "research",
+    "automation",
+    "behavioral-research",
+    "neuroscience",
+    "psychology",
+    "data-collection",
+    "real-time",
+    "cloud-native",
+    "microservices"
+  ],
+  "author": {
+    "name": "LICS Team",
+    "email": "team@lics.io",
+    "url": "https://github.com/rsongphon/Primates-lics"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/rsongphon/Primates-lics/issues"
+  },
+  "homepage": "https://github.com/rsongphon/Primates-lics#readme",
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^18.4.3",
+    "@commitlint/config-conventional": "^18.4.3",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.2.0",
+    "prettier": "^3.1.1"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ],
+    "*.py": [
+      "black",
+      "ruff --fix"
+    ]
+  },
+  "commitlint": {
+    "extends": [
+      "@commitlint/config-conventional"
+    ],
+    "rules": {
+      "type-enum": [
+        2,
+        "always",
+        [
+          "feat",
+          "fix",
+          "docs",
+          "style",
+          "refactor",
+          "perf",
+          "test",
+          "chore",
+          "build",
+          "ci",
+          "revert"
+        ]
+      ],
+      "scope-enum": [
+        2,
+        "always",
+        [
+          "frontend",
+          "backend",
+          "edge-agent",
+          "infrastructure",
+          "docs",
+          "api",
+          "ui",
+          "auth",
+          "device",
+          "experiment",
+          "task",
+          "video",
+          "mqtt",
+          "database",
+          "cache",
+          "monitoring",
+          "deployment",
+          "security",
+          "deps",
+          "config"
+        ]
+      ]
+    }
+  },
+  "overrides": {
+    "services/frontend": {
+      "engines": {
+        "node": ">=20.0.0"
+      }
+    }
+  },
+  "config": {
+    "commitizen": {
+      "path": "@commitlint/cz-commitlint"
+    }
+  },
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/rsongphon"
+  }
+}

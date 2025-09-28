@@ -1,0 +1,181 @@
+# Python Edge Agent .gitignore
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Edge Agent specific files
+# Local SQLite databases
+*.db
+*.sqlite
+*.sqlite3
+data/
+local_data/
+
+# Device-specific configuration
+device_config.yaml
+device_config.json
+device_*.yaml
+device_*.json
+
+# Hardware calibration data
+calibration/
+*.cal
+
+# Sensor data and logs
+sensor_data/
+telemetry/
+logs/
+*.log
+
+# Video recordings and streams
+recordings/
+streams/
+*.mp4
+*.avi
+*.mov
+*.mkv
+
+# Images and screenshots
+images/
+screenshots/
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+
+# GPIO pin mapping files (device-specific)
+gpio_map.json
+pin_config.yaml
+
+# Temporary experiment data
+experiments/temp/
+temp_data/
+
+# Backup files
+backups/
+*.backup
+*.bak
+
+# SSL certificates and keys
+certs/
+*.pem
+*.key
+*.crt
+*.p12
+
+# MQTT credentials
+mqtt_credentials.json
+*.credentials
+
+# Virtual environments
+venv*/
+.venv*/
+
+# Poetry
+poetry.lock
+
+# pytest
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Hardware simulation files
+simulation/
+mock_hardware/
+
+# Playwright browser data (for web automation)
+.playwright/
+
+# Testing artifacts
+test_outputs/
+test_data/
+
+# Local development
+.env.local
+.env.device
+.env.test
+
+# Performance monitoring
+performance/
+metrics/
+profiling/
+
+# Firmware files
+firmware/
+*.bin
+*.hex
+
+# Network interface configurations
+network_config.yaml
+wifi_config.json
+
+# Local sync cache
+sync_cache/
+.sync/

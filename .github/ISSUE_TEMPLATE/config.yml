@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Community Discussion
+    url: https://github.com/rsongphon/Primates-lics/discussions
+    about: Ask questions and discuss ideas with the community
+  - name: 🔒 Security Issue
+    url: https://github.com/rsongphon/Primates-lics/security/advisories/new
+    about: Report security vulnerabilities privately
+  - name: 📖 Documentation
+    url: https://docs.lics.io
+    about: Check the official documentation
+  - name: 💼 Commercial Support
+    url: mailto:support@lics.io
+    about: Contact us for commercial support and consulting

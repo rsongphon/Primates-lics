@@ -1,0 +1,175 @@
+# Infrastructure .gitignore
+
+# Terraform
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform/
+.terraform.lock.hcl
+.terraform.tfstate.lock.info
+terraform.tfplan
+terraform.tfstate.backup
+*.tfplan
+
+# Terraform provider plugins
+.terraform.d/
+
+# Terraform override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Terraform CLI configuration files
+.terraformrc
+terraform.rc
+
+# Kubernetes
+kubeconfig
+*.kubeconfig
+.kube/
+!.kube/config.example
+
+# Kubernetes secrets
+**/secrets/
+**/secret.yaml
+**/secret.yml
+*-secret.yaml
+*-secret.yml
+
+# Helm
+charts/*/charts/
+charts/*/requirements.lock
+charts/*/Chart.lock
+
+# Helm dependencies
+charts/*/charts/*.tgz
+
+# Ansible
+*.retry
+.ansible/
+inventory/group_vars/all/vault.yml
+inventory/host_vars/*/vault.yml
+.vault_pass
+
+# Ansible Galaxy
+.galaxy_install_info
+
+# Ansible logs
+ansible.log
+
+# SSH keys
+*.pem
+*.key
+!*.key.example
+id_rsa*
+id_ed25519*
+authorized_keys*
+
+# SSL/TLS certificates
+*.crt
+*.cer
+*.der
+*.p12
+*.pfx
+*.csr
+!*.crt.example
+
+# Cloud provider specific
+.aws/
+.gcp/
+.azure/
+aws-*.json
+gcp-*.json
+azure-*.json
+service-account*.json
+
+# Environment specific configurations
+environments/local/
+environments/dev/secrets/
+environments/staging/secrets/
+environments/prod/secrets/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+
+# Logs
+logs/
+*.log
+
+# Monitoring and observability
+monitoring/data/
+prometheus/data/
+grafana/data/
+alertmanager/data/
+
+# Docker
+docker-compose.override.yml
+.dockerignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local development
+local/
+.local/
+dev-tools/
+
+# CI/CD secrets
+.github/secrets/
+.gitlab-ci/secrets/
+
+# Database backups
+*.sql
+*.dump
+backups/
+
+# Binary artifacts
+*.tar.gz
+*.zip
+*.rpm
+*.deb
+
+# Vagrant
+.vagrant/
+Vagrantfile.local
+
+# Local testing
+test/
+testing/output/
+
+# Temporary infrastructure
+temp-infra/
+sandbox/
+
+# Cost optimization reports
+cost-reports/
+*.csv
+
+# Network diagrams and generated docs
+diagrams/*.png
+diagrams/*.svg
+docs/generated/
+
+# Local scripts
+scripts/local/
+local-scripts/
+
+# Operator and CRD manifests (if generated)
+generated-manifests/
+
+# ArgoCD/Flux state
+argocd-state/
+flux-state/

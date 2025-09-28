@@ -1,0 +1,165 @@
+name: 📚 Documentation Issue
+description: Report issues with documentation or request documentation improvements
+title: "[Docs]: "
+labels: ["documentation", "needs-triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve our documentation! Please provide details about the documentation issue.
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      description: Please ensure you've completed the following
+      options:
+        - label: I have searched for existing documentation issues
+          required: true
+        - label: I have checked the latest version of the documentation
+          required: true
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Issue Type
+      description: What type of documentation issue is this?
+      options:
+        - Missing Documentation
+        - Outdated Documentation
+        - Incorrect Information
+        - Unclear Instructions
+        - Broken Links
+        - Formatting Issues
+        - New Documentation Request
+        - Translation Issue
+    validations:
+      required: true
+
+  - type: dropdown
+    id: section
+    attributes:
+      label: Documentation Section
+      description: Which section of documentation is affected?
+      options:
+        - Getting Started
+        - Installation Guide
+        - API Documentation
+        - User Guide
+        - Developer Guide
+        - Architecture Documentation
+        - Deployment Guide
+        - Troubleshooting
+        - FAQ
+        - Contributing Guidelines
+        - Code Examples
+        - Video Tutorials
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: location
+    attributes:
+      label: Documentation Location
+      description: Please provide the specific location of the documentation issue
+      placeholder: |
+        - File path: (e.g., docs/api/devices.md)
+        - URL: (e.g., https://docs.lics.io/getting-started)
+        - Section/heading: (e.g., "Device Registration")
+        - Line numbers: (if applicable)
+    validations:
+      required: true
+
+  - type: textarea
+    id: current_content
+    attributes:
+      label: Current Content
+      description: What does the current documentation say? (copy/paste the relevant section)
+      render: markdown
+      placeholder: Paste the current documentation content here...
+
+  - type: textarea
+    id: issue_description
+    attributes:
+      label: Issue Description
+      description: Describe the documentation issue in detail
+      placeholder: |
+        - What is wrong or missing?
+        - What confusion does this cause?
+        - What specific information is needed?
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggested_content
+    attributes:
+      label: Suggested Content/Fix
+      description: If you have a suggestion for how to fix or improve the documentation, please provide it
+      render: markdown
+      placeholder: |
+        Provide your suggested content or improvements here...
+
+  - type: dropdown
+    id: audience
+    attributes:
+      label: Target Audience
+      description: Who is the primary audience for this documentation?
+      options:
+        - End Users (Researchers)
+        - System Administrators
+        - Developers
+        - DevOps Engineers
+        - API Consumers
+        - All Users
+      multiple: true
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this documentation issue?
+      options:
+        - Critical (Blocking users)
+        - High (Causing significant confusion)
+        - Medium (Minor improvement)
+        - Low (Nice to have)
+    validations:
+      required: true
+
+  - type: textarea
+    id: user_journey
+    attributes:
+      label: User Journey Context
+      description: What was the user trying to accomplish when they encountered this issue?
+      placeholder: |
+        - What task were they performing?
+        - What step in the process?
+        - What was their goal?
+
+  - type: textarea
+    id: related_issues
+    attributes:
+      label: Related Issues/PRs
+      description: Are there any related issues or pull requests?
+      placeholder: |
+        - Issue #123
+        - PR #456
+        - Related discussion
+
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: If applicable, add screenshots to illustrate the issue
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Add any other context about the documentation issue
+      placeholder: Any additional information that might be helpful...

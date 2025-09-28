@@ -1,0 +1,318 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+env:
+  # Global environment variables
+  NODE_VERSION: '20'
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  # Job to detect which services changed
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.changes.outputs.frontend }}
+      backend: ${{ steps.changes.outputs.backend }}
+      edge-agent: ${{ steps.changes.outputs.edge-agent }}
+      infrastructure: ${{ steps.changes.outputs.infrastructure }}
+      docs: ${{ steps.changes.outputs.docs }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Detect changes
+        uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            frontend:
+              - 'services/frontend/**'
+              - 'shared/**'
+            backend:
+              - 'services/backend/**'
+              - 'shared/**'
+            edge-agent:
+              - 'services/edge-agent/**'
+              - 'shared/**'
+            infrastructure:
+              - 'infrastructure/**'
+            docs:
+              - 'docs/**'
+              - '*.md'
+
+  # Frontend CI
+  frontend-ci:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ needs.changes.outputs.frontend == 'true' }}
+    defaults:
+      run:
+        working-directory: services/frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: services/frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linting
+        run: npm run lint
+
+      - name: Run type checking
+        run: npm run type-check
+
+      - name: Run tests
+        run: npm run test
+
+      - name: Build application
+        run: npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: frontend-build
+          path: services/frontend/.next
+          retention-days: 7
+
+  # Backend CI
+  backend-ci:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ needs.changes.outputs.backend == 'true' }}
+    defaults:
+      run:
+        working-directory: services/backend
+
+    services:
+      postgres:
+        image: timescale/timescaledb-ha:pg15-latest
+        env:
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: test_lics
+          POSTGRES_USER: test_user
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('services/backend/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run linting
+        run: |
+          ruff check .
+          black --check .
+
+      - name: Run type checking
+        run: mypy .
+
+      - name: Run tests
+        run: pytest --cov=app --cov-report=xml --cov-report=term
+        env:
+          DATABASE_URL: postgresql://test_user:test_password@localhost:5432/test_lics
+          REDIS_URL: redis://localhost:6379
+          ENVIRONMENT: testing
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: services/backend/coverage.xml
+          flags: backend
+          name: backend-coverage
+
+  # Edge Agent CI
+  edge-agent-ci:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ needs.changes.outputs.edge-agent == 'true' }}
+    defaults:
+      run:
+        working-directory: services/edge-agent
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-edge-pip-${{ hashFiles('services/edge-agent/requirements*.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-edge-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run linting
+        run: |
+          ruff check .
+          black --check .
+
+      - name: Run type checking
+        run: mypy .
+
+      - name: Run tests
+        run: pytest --cov=src --cov-report=xml --cov-report=term
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: services/edge-agent/coverage.xml
+          flags: edge-agent
+          name: edge-agent-coverage
+
+  # Infrastructure validation
+  infrastructure-ci:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ needs.changes.outputs.infrastructure == 'true' }}
+    defaults:
+      run:
+        working-directory: infrastructure
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+
+      - name: Terraform Format Check
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Validation
+        run: |
+          find . -name "*.tf" -execdir terraform init -backend=false \;
+          find . -name "*.tf" -execdir terraform validate \;
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Validate Kubernetes manifests
+        run: |
+          find kubernetes -name "*.yaml" -o -name "*.yml" | xargs -I {} kubectl apply --dry-run=client -f {}
+
+  # Documentation checks
+  docs-ci:
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ needs.changes.outputs.docs == 'true' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js for markdownlint
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install markdownlint
+        run: npm install -g markdownlint-cli
+
+      - name: Run markdown linting
+        run: markdownlint docs/ *.md
+
+      - name: Check for broken links
+        uses: gaurav-nelson/github-action-markdown-link-check@v1
+        with:
+          use-quiet-mode: 'yes'
+          use-verbose-mode: 'yes'
+          config-file: '.markdown-link-check.json'
+
+  # Security scanning
+  security:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # Deployment readiness check
+  deployment-check:
+    runs-on: ubuntu-latest
+    needs: [frontend-ci, backend-ci, edge-agent-ci, infrastructure-ci]
+    if: always() && (needs.frontend-ci.result == 'success' || needs.frontend-ci.result == 'skipped') && (needs.backend-ci.result == 'success' || needs.backend-ci.result == 'skipped') && (needs.edge-agent-ci.result == 'success' || needs.edge-agent-ci.result == 'skipped') && (needs.infrastructure-ci.result == 'success' || needs.infrastructure-ci.result == 'skipped')
+
+    steps:
+      - name: Deployment readiness
+        run: |
+          echo "All CI checks passed. Deployment ready."
+          echo "Frontend: ${{ needs.frontend-ci.result }}"
+          echo "Backend: ${{ needs.backend-ci.result }}"
+          echo "Edge Agent: ${{ needs.edge-agent-ci.result }}"
+          echo "Infrastructure: ${{ needs.infrastructure-ci.result }}"

@@ -1,0 +1,170 @@
+name: ✨ Feature Request
+description: Suggest a new feature or enhancement
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a new feature! Please provide as much detail as possible.
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      description: Please ensure you've completed the following
+      options:
+        - label: I have searched for existing feature requests
+          required: true
+        - label: I have checked the roadmap and documentation
+          required: true
+        - label: This feature aligns with the project goals
+          required: false
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Which component would this feature affect?
+      options:
+        - Frontend (Next.js)
+        - Backend (FastAPI)
+        - Edge Agent (Python)
+        - Infrastructure (Terraform/K8s)
+        - Documentation
+        - Task Builder System
+        - Device Management
+        - Experiment Management
+        - Video Streaming
+        - Analytics & Reporting
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature?
+      options:
+        - Critical (Blocking current work)
+        - High (Important for next release)
+        - Medium (Nice to have)
+        - Low (Future consideration)
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What problem does this feature solve?
+      placeholder: |
+        As a [user type], I want [goal] so that [benefit].
+
+        Current situation:
+        - What is the current workflow?
+        - What are the pain points?
+        - What limitations exist?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe your ideal solution
+      placeholder: |
+        Describe the feature you'd like to see implemented:
+        - How should it work?
+        - What should the user interface look like?
+        - How should it integrate with existing features?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternative Solutions
+      description: Have you considered any alternative approaches?
+      placeholder: |
+        - Alternative approach 1
+        - Alternative approach 2
+        - Why the proposed solution is preferred
+
+  - type: textarea
+    id: use_cases
+    attributes:
+      label: Use Cases
+      description: Provide specific use cases for this feature
+      placeholder: |
+        1. Use case 1: Description
+        2. Use case 2: Description
+        3. Use case 3: Description
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      description: What criteria must be met for this feature to be considered complete?
+      placeholder: |
+        - [ ] Criterion 1
+        - [ ] Criterion 2
+        - [ ] Criterion 3
+        - [ ] Documentation updated
+        - [ ] Tests written
+
+  - type: textarea
+    id: mockups
+    attributes:
+      label: Mockups/Wireframes
+      description: If applicable, add mockups or wireframes
+
+  - type: dropdown
+    id: research_area
+    attributes:
+      label: Research Area
+      description: Which research domain would benefit from this feature?
+      options:
+        - Behavioral Research
+        - Neuroscience
+        - Psychology
+        - Pharmaceutical Testing
+        - General Laboratory Use
+        - Educational
+        - Other
+      multiple: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Expected Impact
+      description: What impact do you expect this feature to have?
+      placeholder: |
+        - User experience improvements
+        - Performance improvements
+        - Workflow efficiency gains
+        - New capabilities enabled
+
+  - type: textarea
+    id: implementation_notes
+    attributes:
+      label: Implementation Notes
+      description: Any technical considerations or implementation notes
+      placeholder: |
+        - API changes required
+        - Database schema changes
+        - Breaking changes
+        - Dependencies
+        - Performance considerations
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Add any other context about the feature request
+      placeholder: Any additional information that might be helpful...
