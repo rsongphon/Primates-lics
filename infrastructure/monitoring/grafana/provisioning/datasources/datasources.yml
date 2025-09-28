@@ -1,0 +1,130 @@
+# LICS Grafana Datasources Configuration
+# Provisioning configuration for Grafana datasources
+
+apiVersion: 1
+
+datasources:
+  # Prometheus - Primary metrics datasource
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true
+    jsonData:
+      httpMethod: POST
+      manageAlerts: true
+      prometheusType: Prometheus
+      prometheusVersion: 2.40.0
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: jaeger-uid
+    secureJsonData: {}
+
+  # PostgreSQL - Database metrics and logs
+  - name: PostgreSQL
+    type: postgres
+    access: proxy
+    url: postgres:5432
+    database: lics
+    user: lics
+    editable: true
+    jsonData:
+      postgresVersion: 1500
+      timescaledb: true
+      sslmode: disable
+    secureJsonData:
+      password: lics123
+
+  # Redis - Cache metrics
+  - name: Redis
+    type: redis-datasource
+    access: proxy
+    url: redis://redis:6379
+    editable: true
+    jsonData:
+      client: standalone
+      poolSize: 5
+      timeout: 10
+      pingInterval: 0
+      pipelineWindow: 0
+    secureJsonData: {}
+
+  # InfluxDB - Time series data (if using InfluxDB)
+  # - name: InfluxDB
+  #   type: influxdb
+  #   access: proxy
+  #   url: http://influxdb:8086
+  #   database: lics_telemetry
+  #   user: admin
+  #   editable: true
+  #   jsonData:
+  #     version: 2.0
+  #     organization: lics
+  #     defaultBucket: telemetry
+  #     tlsSkipVerify: true
+  #   secureJsonData:
+  #     token: your-influxdb-token
+
+  # Loki - Log aggregation (if using Loki)
+  # - name: Loki
+  #   type: loki
+  #   access: proxy
+  #   url: http://loki:3100
+  #   editable: true
+  #   jsonData:
+  #     maxLines: 1000
+  #     derivedFields:
+  #       - datasourceUid: jaeger-uid
+  #         matcherRegex: "trace_id=(\\w+)"
+  #         name: TraceID
+  #         url: "$${__value.raw}"
+
+  # Jaeger - Distributed tracing (if using Jaeger)
+  # - name: Jaeger
+  #   type: jaeger
+  #   uid: jaeger-uid
+  #   access: proxy
+  #   url: http://jaeger:16686
+  #   editable: true
+  #   jsonData:
+  #     tracesToLogs:
+  #       datasourceUid: loki-uid
+  #       tags: ['job', 'instance', 'pod', 'namespace']
+  #       mappedTags: [{ key: 'service.name', value: 'service' }]
+  #       mapTagNamesEnabled: false
+  #       spanStartTimeShift: 1h
+  #       spanEndTimeShift: 1h
+
+  # MQTT Data (custom datasource for MQTT telemetry)
+  - name: LICS-MQTT
+    type: lics-mqtt-datasource
+    access: proxy
+    url: http://backend:8000/api/v1/telemetry
+    editable: false
+    jsonData:
+      timeField: timestamp
+      defaultTopic: lics/devices/+/telemetry
+    secureJsonData: {}
+
+  # Device Analytics (custom datasource for device data)
+  - name: LICS-Devices
+    type: lics-device-datasource
+    access: proxy
+    url: http://backend:8000/api/v1/devices
+    editable: false
+    jsonData:
+      defaultOrganization: all
+      includeOfflineDevices: true
+    secureJsonData: {}
+
+  # Experiment Data (custom datasource for experiment analytics)
+  - name: LICS-Experiments
+    type: lics-experiment-datasource
+    access: proxy
+    url: http://backend:8000/api/v1/experiments
+    editable: false
+    jsonData:
+      defaultTimeRange: 7d
+      includeCompleted: true
+    secureJsonData: {}

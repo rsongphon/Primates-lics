@@ -1,7 +1,7 @@
 # LICS Project Makefile
 # Provides common development tasks and workflows
 
-.PHONY: help install test build clean lint format docker-build docker-up docker-down deploy
+.PHONY: help install test build clean lint format docker-build docker-up docker-down deploy setup-dev-env setup-mac setup-linux setup-windows setup-ssl ssl-install-ca ssl-clean ssl-verify dev-https
 
 # Default target
 .DEFAULT_GOAL := help
@@ -271,6 +271,74 @@ git-hooks-install: ## Install Git hooks
 
 git-hooks-verify: ## Verify Git hooks installation
 	./tools/scripts/setup-git-hooks.sh --verify
+
+## Development Environment Setup
+setup-dev-env: ## Run OS-specific development environment setup
+	@echo "$(YELLOW)Setting up development environment...$(NC)"
+	@if [ "$$(uname)" = "Darwin" ]; then \
+		echo "$(YELLOW)Running macOS setup...$(NC)"; \
+		./tools/scripts/setup-mac.sh; \
+	elif [ "$$(uname)" = "Linux" ]; then \
+		echo "$(YELLOW)Running Linux setup...$(NC)"; \
+		./tools/scripts/setup-linux.sh; \
+	elif [ "$$(uname -o 2>/dev/null)" = "Cygwin" ] || [ "$$(uname -o 2>/dev/null)" = "Msys" ]; then \
+		echo "$(YELLOW)Running Windows setup...$(NC)"; \
+		powershell.exe -ExecutionPolicy Bypass -File tools/scripts/setup-windows.ps1; \
+	else \
+		echo "$(RED)Unsupported operating system: $$(uname)$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)✓ Development environment setup completed$(NC)"
+
+setup-mac: ## Run macOS-specific setup
+	@echo "$(YELLOW)Running macOS setup...$(NC)"
+	./tools/scripts/setup-mac.sh
+
+setup-linux: ## Run Linux-specific setup
+	@echo "$(YELLOW)Running Linux setup...$(NC)"
+	./tools/scripts/setup-linux.sh
+
+setup-windows: ## Run Windows-specific setup
+	@echo "$(YELLOW)Running Windows setup...$(NC)"
+	powershell.exe -ExecutionPolicy Bypass -File tools/scripts/setup-windows.ps1
+
+## SSL Certificate Management
+setup-ssl: ## Generate SSL certificates for local development
+	@echo "$(YELLOW)Setting up SSL certificates...$(NC)"
+	./tools/scripts/setup-ssl.sh
+	@echo "$(GREEN)✓ SSL certificates generated$(NC)"
+
+ssl-install-ca: ## Install mkcert Certificate Authority
+	@echo "$(YELLOW)Installing mkcert Certificate Authority...$(NC)"
+	@if command -v mkcert >/dev/null 2>&1; then \
+		mkcert -install; \
+		echo "$(GREEN)✓ mkcert CA installed$(NC)"; \
+	else \
+		echo "$(RED)mkcert is not installed. Run 'make setup-dev-env' first$(NC)"; \
+		exit 1; \
+	fi
+
+ssl-clean: ## Remove generated SSL certificates
+	@echo "$(YELLOW)Cleaning SSL certificates...$(NC)"
+	rm -rf infrastructure/nginx/ssl/*.pem infrastructure/nginx/ssl/*.crt infrastructure/nginx/ssl/*.key
+	rm -rf infrastructure/certificates/*/
+	@echo "$(GREEN)✓ SSL certificates cleaned$(NC)"
+
+ssl-verify: ## Verify SSL certificate configuration
+	@echo "$(YELLOW)Verifying SSL certificates...$(NC)"
+	@if [ -f "infrastructure/nginx/ssl/localhost.pem" ]; then \
+		echo "$(GREEN)✓ SSL certificates found$(NC)"; \
+		openssl x509 -in infrastructure/nginx/ssl/localhost.pem -text -noout | grep -A1 "Subject Alternative Name" || true; \
+	else \
+		echo "$(RED)✗ SSL certificates not found. Run 'make setup-ssl' first$(NC)"; \
+		exit 1; \
+	fi
+
+## HTTPS Development
+dev-https: ## Start development environment with HTTPS
+	@echo "$(YELLOW)Starting HTTPS development environment...$(NC)"
+	@$(MAKE) ssl-verify
+	COMPOSE_FILE=docker-compose.dev.yml:docker-compose.ssl.yml docker-compose up --build
 
 ## Documentation
 docs-build: ## Build documentation

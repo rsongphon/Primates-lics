@@ -32,14 +32,9 @@ LICS revolutionizes laboratory automation by providing:
 
 ## 🚀 Quick Start
 
-### Prerequisites
+### Automated Setup (Recommended)
 
-- **Docker** and **Docker Compose** (for local development)
-- **Node.js** 20+ (for frontend development)
-- **Python** 3.11+ (for backend and edge agent development)
-- **Git** (for version control)
-
-### Local Development Setup
+For the fastest setup experience, use our automated installation:
 
 1. **Clone the repository**
    ```bash
@@ -47,24 +42,87 @@ LICS revolutionizes laboratory automation by providing:
    cd Primates-lics
    ```
 
-2. **Set up Git hooks** (recommended)
+2. **Run automated setup for your OS**
    ```bash
+   # Automatically detects your OS and sets up everything
+   make setup-dev-env
+   ```
+
+3. **Generate SSL certificates**
+   ```bash
+   make setup-ssl
+   ```
+
+4. **Copy environment configuration**
+   ```bash
+   cp .env.example .env
+   ```
+
+5. **Install dependencies and start development**
+   ```bash
+   make install
+   make dev
+   ```
+
+That's it! Your development environment is now running with:
+- Frontend: https://localhost:3000 (with SSL)
+- Backend API: https://localhost:8000/docs
+- WebSocket: wss://localhost:8001
+- Grafana Monitoring: https://localhost:3001
+
+### Manual Setup
+
+If you prefer manual installation:
+
+#### Prerequisites
+
+- **Docker** and **Docker Compose** (for containerized services)
+- **Node.js** 20+ (for frontend development)
+- **Python** 3.11+ (for backend and edge agent development)
+- **Git** (for version control)
+- **mkcert** (for SSL certificates, installed by setup scripts)
+
+#### Manual Installation Steps
+
+1. **Clone and setup Git hooks**
+   ```bash
+   git clone https://github.com/rsongphon/Primates-lics.git
+   cd Primates-lics
    ./tools/scripts/setup-git-hooks.sh
    ```
 
-3. **Start the development environment**
+2. **Install dependencies manually**
    ```bash
-   # Copy environment template
-   cp .env.example .env
+   # macOS
+   ./tools/scripts/setup-mac.sh
 
-   # Start all services
-   docker-compose up -d
+   # Linux (Ubuntu/CentOS/Arch/openSUSE)
+   ./tools/scripts/setup-linux.sh
+
+   # Windows (PowerShell as Administrator)
+   .\tools\scripts\setup-windows.ps1
    ```
 
-4. **Access the application**
-   - Web Interface: http://localhost:3000
-   - API Documentation: http://localhost:8000/docs
-   - Grafana Monitoring: http://localhost:3001
+3. **Configure SSL and environment**
+   ```bash
+   make setup-ssl
+   cp .env.example .env
+   ```
+
+4. **Start services**
+   ```bash
+   make install
+   make dev
+   ```
+
+### Access Points
+
+Once running, access these services:
+- **Web Interface**: https://localhost:3000
+- **API Documentation**: https://localhost:8000/docs
+- **WebSocket Endpoint**: wss://localhost:8001
+- **Grafana Monitoring**: https://localhost:3001 (admin/admin123)
+- **Traefik Dashboard**: http://localhost:8080
 
 ### Production Deployment
 
@@ -102,7 +160,18 @@ lics/
 
 ### Getting Started
 
-1. **Install dependencies for each service:**
+1. **Install dependencies (automated):**
+   ```bash
+   # Install all service dependencies at once
+   make install
+
+   # Or install individually if needed
+   make install-frontend
+   make install-backend
+   make install-edge-agent
+   ```
+
+   **Manual installation (if needed):**
    ```bash
    # Frontend
    cd services/frontend && npm install

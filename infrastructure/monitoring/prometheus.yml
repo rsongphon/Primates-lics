@@ -1,0 +1,177 @@
+# LICS Prometheus Configuration
+# Monitoring configuration for LICS services
+
+global:
+  scrape_interval: 15s # Default scrape interval
+  evaluation_interval: 15s # Evaluate rules every 15 seconds
+  external_labels:
+    environment: 'lics-production'
+    cluster: 'lics-main'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - alertmanager:9093
+
+# Rule files
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+    scrape_interval: 30s
+    metrics_path: /metrics
+
+  # LICS Backend API
+  - job_name: 'lics-backend'
+    static_configs:
+      - targets: ['backend:8000']
+    scrape_interval: 15s
+    metrics_path: /metrics
+    scheme: http
+    scrape_timeout: 10s
+    honor_labels: true
+    params:
+      format: ['prometheus']
+
+  # LICS Frontend (if metrics enabled)
+  - job_name: 'lics-frontend'
+    static_configs:
+      - targets: ['frontend:3000']
+    scrape_interval: 30s
+    metrics_path: /api/metrics
+    scheme: http
+    scrape_timeout: 10s
+
+  # PostgreSQL Database
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres:5432']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    scheme: http
+    # Note: Requires postgres_exporter sidecar
+
+  # Redis Cache
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    scheme: http
+    # Note: Requires redis_exporter sidecar
+
+  # MQTT Broker
+  - job_name: 'mqtt'
+    static_configs:
+      - targets: ['mqtt:1883']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    scheme: http
+    # Note: Requires mosquitto prometheus plugin
+
+  # MinIO Object Storage
+  - job_name: 'minio'
+    static_configs:
+      - targets: ['minio:9000']
+    scrape_interval: 30s
+    metrics_path: /minio/v2/metrics/cluster
+    scheme: http
+    bearer_token_file: /etc/prometheus/minio-token
+
+  # Nginx Reverse Proxy
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx:8080']
+    scrape_interval: 30s
+    metrics_path: /nginx_status
+    scheme: http
+
+  # Node Exporter (system metrics)
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 15s
+    metrics_path: /metrics
+    scheme: http
+
+  # cAdvisor (container metrics)
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+    scrape_interval: 15s
+    metrics_path: /metrics
+    scheme: http
+
+  # Celery Workers (if metrics enabled)
+  - job_name: 'celery-worker'
+    static_configs:
+      - targets: ['celery-worker:9540']
+    scrape_interval: 30s
+    metrics_path: /metrics
+    scheme: http
+
+  # Edge Devices (dynamic discovery)
+  - job_name: 'edge-devices'
+    file_sd_configs:
+      - files:
+        - '/etc/prometheus/edge-devices.json'
+        refresh_interval: 30s
+    scrape_interval: 60s
+    metrics_path: /metrics
+    scheme: http
+    scrape_timeout: 30s
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 'backend:8000'  # Proxy through backend
+      - target_label: __metrics_path__
+        replacement: /api/v1/devices/proxy/metrics
+
+  # Kubernetes pods (if running on K8s)
+  # - job_name: 'kubernetes-pods'
+  #   kubernetes_sd_configs:
+  #     - role: pod
+  #   relabel_configs:
+  #     - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+  #       action: keep
+  #       regex: true
+  #     - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+  #       action: replace
+  #       target_label: __metrics_path__
+  #       regex: (.+)
+  #     - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+  #       action: replace
+  #       regex: ([^:]+)(?::\d+)?;(\d+)
+  #       replacement: $1:$2
+  #       target_label: __address__
+
+# Remote storage configuration (optional)
+# remote_write:
+#   - url: "https://prometheus.lics.io/api/v1/write"
+#     basic_auth:
+#       username: lics
+#       password: prometheus-password
+
+# remote_read:
+#   - url: "https://prometheus.lics.io/api/v1/read"
+#     basic_auth:
+#       username: lics
+#       password: prometheus-password
+
+# Storage configuration
+storage:
+  tsdb:
+    retention.time: 30d
+    retention.size: 10GB
+    path: /prometheus/data
