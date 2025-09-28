@@ -1,0 +1,177 @@
+version: '3.8'
+
+services:
+  # Test Database
+  postgres-test:
+    image: timescale/timescaledb-ha:pg15-latest
+    environment:
+      - POSTGRES_DB=lics_test
+      - POSTGRES_USER=test_user
+      - POSTGRES_PASSWORD=test_password
+    ports:
+      - "5433:5432"
+    networks:
+      - lics-test-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user -d lics_test"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Test Redis
+  redis-test:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes
+    ports:
+      - "6380:6379"
+    networks:
+      - lics-test-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Test MQTT Broker
+  mqtt-test:
+    image: eclipse-mosquitto:2.0
+    ports:
+      - "1884:1883"
+    volumes:
+      - ./infrastructure/mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf
+    networks:
+      - lics-test-network
+
+  # Backend Service for Testing
+  backend-test:
+    build:
+      context: ./services/backend
+      dockerfile: Dockerfile.dev
+    environment:
+      - ENVIRONMENT=testing
+      - DATABASE_URL=postgresql://test_user:test_password@postgres-test:5432/lics_test
+      - REDIS_URL=redis://redis-test:6379/0
+      - CELERY_BROKER_URL=redis://redis-test:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis-test:6379/1
+      - MQTT_BROKER_URL=mqtt-test
+      - MQTT_BROKER_PORT=1883
+      - JWT_SECRET=test-jwt-secret-key-for-testing-only
+    ports:
+      - "8002:8000"
+      - "8003:8001"
+    depends_on:
+      postgres-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+      mqtt-test:
+        condition: service_started
+    networks:
+      - lics-test-network
+    volumes:
+      - ./test-results:/app/test-results
+    command: |
+      sh -c "
+        echo 'Waiting for services to be ready...' &&
+        sleep 10 &&
+        echo 'Running database migrations...' &&
+        alembic upgrade head &&
+        echo 'Running integration tests...' &&
+        pytest tests/integration/ -v --tb=short --junitxml=/app/test-results/backend-integration.xml &&
+        echo 'Backend integration tests completed'
+      "
+
+  # Frontend Service for Testing
+  frontend-test:
+    build:
+      context: ./services/frontend
+      dockerfile: Dockerfile.dev
+    environment:
+      - NODE_ENV=test
+      - NEXT_PUBLIC_API_URL=http://backend-test:8000/api/v1
+      - NEXT_PUBLIC_WS_URL=ws://backend-test:8001
+    ports:
+      - "3002:3000"
+    depends_on:
+      - backend-test
+    networks:
+      - lics-test-network
+    volumes:
+      - ./test-results:/app/test-results
+    command: |
+      sh -c "
+        echo 'Waiting for backend to be ready...' &&
+        sleep 15 &&
+        echo 'Building frontend...' &&
+        npm run build &&
+        echo 'Running frontend integration tests...' &&
+        npm run test:integration &&
+        echo 'Frontend integration tests completed'
+      "
+
+  # Edge Agent for Testing
+  edge-agent-test:
+    build:
+      context: ./services/edge-agent
+      dockerfile: Dockerfile.dev
+    environment:
+      - EDGE_ENVIRONMENT=testing
+      - HARDWARE_SIMULATION=true
+      - MQTT_BROKER_URL=mqtt-test
+      - MQTT_BROKER_PORT=1883
+      - API_BASE_URL=http://backend-test:8000/api/v1
+    ports:
+      - "8082:8080"
+    depends_on:
+      - backend-test
+      - mqtt-test
+    networks:
+      - lics-test-network
+    volumes:
+      - ./test-results:/app/test-results
+    command: |
+      sh -c "
+        echo 'Waiting for backend and MQTT to be ready...' &&
+        sleep 20 &&
+        echo 'Running edge agent integration tests...' &&
+        pytest tests/integration/ -v --tb=short --junitxml=/app/test-results/edge-agent-integration.xml &&
+        echo 'Edge agent integration tests completed'
+      "
+
+  # Integration Test Runner
+  integration-test-runner:
+    image: python:3.11-slim
+    working_dir: /app
+    environment:
+      - BACKEND_URL=http://backend-test:8000
+      - FRONTEND_URL=http://frontend-test:3000
+      - EDGE_AGENT_URL=http://edge-agent-test:8080
+      - MQTT_BROKER=mqtt-test
+      - MQTT_PORT=1883
+    depends_on:
+      - backend-test
+      - frontend-test
+      - edge-agent-test
+    networks:
+      - lics-test-network
+    volumes:
+      - ./tests/e2e:/app/tests
+      - ./test-results:/app/test-results
+    command: |
+      sh -c "
+        echo 'Installing test dependencies...' &&
+        pip install pytest requests websocket-client paho-mqtt &&
+        echo 'Waiting for all services to be ready...' &&
+        sleep 30 &&
+        echo 'Running end-to-end integration tests...' &&
+        pytest tests/ -v --tb=short --junitxml=/app/test-results/e2e-integration.xml &&
+        echo 'End-to-end integration tests completed'
+      "
+
+networks:
+  lics-test-network:
+    driver: bridge
+
+volumes:
+  test-results:
+    driver: local

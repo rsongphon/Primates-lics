@@ -1,0 +1,337 @@
+name: Security Scanning
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    # Run security scans daily at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  # Dependency vulnerability scanning
+  dependency-scan:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [frontend, backend, edge-agent]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (for frontend)
+        if: matrix.service == 'frontend'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: services/frontend/package-lock.json
+
+      - name: Setup Python (for backend/edge-agent)
+        if: matrix.service != 'frontend'
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies and scan (frontend)
+        if: matrix.service == 'frontend'
+        working-directory: services/frontend
+        run: |
+          npm ci
+          npm audit --audit-level high --output json > audit-results.json || true
+          npx audit-ci --high --output-format json --output-file audit-ci-results.json || true
+
+      - name: Install dependencies and scan (Python services)
+        if: matrix.service != 'frontend'
+        working-directory: services/${{ matrix.service }}
+        run: |
+          pip install --upgrade pip
+          pip install safety bandit
+          pip install -r requirements.txt
+
+          # Safety scan for known vulnerabilities
+          safety check --json --output safety-results.json || true
+
+          # Bandit scan for security issues
+          bandit -r . -f json -o bandit-results.json || true
+
+      - name: Upload dependency scan results
+        uses: actions/upload-artifact@v3
+        with:
+          name: dependency-scan-${{ matrix.service }}
+          path: |
+            services/${{ matrix.service }}/*-results.json
+          retention-days: 30
+
+  # Secret scanning
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run TruffleHog for secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: main
+          head: HEAD
+          extra_args: --debug --only-verified
+
+      - name: Run GitLeaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Code security analysis
+  code-security-analysis:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+
+    strategy:
+      matrix:
+        language: [javascript, python]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended,security-and-quality
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v2
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+        with:
+          category: "/language:${{ matrix.language }}"
+
+  # License compliance check
+  license-scan:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [frontend, backend, edge-agent]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (for license-checker)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install license scanning tools
+        run: |
+          npm install -g license-checker license-compatibility-checker
+          pip install pip-licenses
+
+      - name: Scan licenses (frontend)
+        if: matrix.service == 'frontend'
+        working-directory: services/frontend
+        run: |
+          npm ci
+          license-checker --json --out license-report.json
+          license-checker --failOn 'GPL;AGPL;LGPL;CPAL;OSL' --excludePrivatePackages || echo "License check failed"
+
+      - name: Scan licenses (Python services)
+        if: matrix.service != 'frontend'
+        working-directory: services/${{ matrix.service }}
+        run: |
+          pip install -r requirements.txt
+          pip-licenses --format=json --output-file=license-report.json
+          # Check for problematic licenses
+          pip-licenses --fail-on 'GPL;AGPL;LGPL' || echo "License check failed"
+
+      - name: Upload license scan results
+        uses: actions/upload-artifact@v3
+        with:
+          name: license-scan-${{ matrix.service }}
+          path: |
+            services/${{ matrix.service }}/license-report.json
+          retention-days: 30
+
+  # Container security scanning
+  container-security-scan:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'schedule'
+    strategy:
+      matrix:
+        service: [frontend, backend, edge-agent]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image for scanning
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/${{ matrix.service }}
+          file: ./services/${{ matrix.service }}/Dockerfile
+          tags: lics-${{ matrix.service }}:security-scan
+          load: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: lics-${{ matrix.service }}:security-scan
+          format: 'sarif'
+          output: 'trivy-${{ matrix.service }}.sarif'
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-${{ matrix.service }}.sarif'
+          category: '${{ matrix.service }}-container'
+
+      - name: Run Grype vulnerability scanner
+        run: |
+          # Install Grype
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+
+          # Scan the image
+          grype lics-${{ matrix.service }}:security-scan -o json --file grype-${{ matrix.service }}.json
+
+      - name: Upload Grype results
+        uses: actions/upload-artifact@v3
+        with:
+          name: grype-scan-${{ matrix.service }}
+          path: grype-${{ matrix.service }}.json
+          retention-days: 30
+
+  # Infrastructure security scanning
+  infrastructure-security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Checkov on Terraform
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: infrastructure/terraform
+          framework: terraform
+          output_format: sarif
+          output_file_path: checkov-terraform.sarif
+
+      - name: Upload Checkov scan results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: checkov-terraform.sarif
+          category: 'infrastructure-terraform'
+
+      - name: Run Checkov on Kubernetes
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: infrastructure/kubernetes
+          framework: kubernetes
+          output_format: sarif
+          output_file_path: checkov-kubernetes.sarif
+
+      - name: Upload Kubernetes scan results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: checkov-kubernetes.sarif
+          category: 'infrastructure-kubernetes'
+
+      - name: Run kube-score on Kubernetes manifests
+        run: |
+          # Install kube-score
+          wget https://github.com/zegl/kube-score/releases/latest/download/kube-score_linux_amd64 -O kube-score
+          chmod +x kube-score
+          sudo mv kube-score /usr/local/bin/
+
+          # Scan Kubernetes manifests
+          find infrastructure/kubernetes -name "*.yaml" -o -name "*.yml" | xargs kube-score score --output-format json > kube-score-results.json || true
+
+      - name: Upload kube-score results
+        uses: actions/upload-artifact@v3
+        with:
+          name: kube-score-results
+          path: kube-score-results.json
+          retention-days: 30
+
+  # Security summary and reporting
+  security-summary:
+    runs-on: ubuntu-latest
+    needs: [dependency-scan, secret-scan, code-security-analysis, license-scan, container-security-scan, infrastructure-security-scan]
+    if: always()
+
+    steps:
+      - name: Download all scan results
+        uses: actions/download-artifact@v3
+
+      - name: Generate security summary
+        run: |
+          echo "# Security Scan Summary" > security-summary.md
+          echo "Date: $(date)" >> security-summary.md
+          echo "" >> security-summary.md
+
+          echo "## Scan Results Status" >> security-summary.md
+          echo "- Dependency Scan: ${{ needs.dependency-scan.result }}" >> security-summary.md
+          echo "- Secret Scan: ${{ needs.secret-scan.result }}" >> security-summary.md
+          echo "- Code Security Analysis: ${{ needs.code-security-analysis.result }}" >> security-summary.md
+          echo "- License Scan: ${{ needs.license-scan.result }}" >> security-summary.md
+          echo "- Container Security Scan: ${{ needs.container-security-scan.result }}" >> security-summary.md
+          echo "- Infrastructure Security Scan: ${{ needs.infrastructure-security-scan.result }}" >> security-summary.md
+          echo "" >> security-summary.md
+
+          # Check for critical issues
+          CRITICAL_ISSUES=false
+
+          if [ "${{ needs.secret-scan.result }}" = "failure" ]; then
+            echo "🚨 **CRITICAL**: Secrets detected in repository!" >> security-summary.md
+            CRITICAL_ISSUES=true
+          fi
+
+          if [ "$CRITICAL_ISSUES" = "true" ]; then
+            echo "" >> security-summary.md
+            echo "⚠️ **Action Required**: Critical security issues detected. Address immediately before deployment." >> security-summary.md
+          else
+            echo "" >> security-summary.md
+            echo "✅ **Status**: No critical security issues detected." >> security-summary.md
+          fi
+
+          # Display summary
+          cat security-summary.md
+
+      - name: Upload security summary
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-summary
+          path: security-summary.md
+          retention-days: 90
+
+      - name: Fail if critical issues found
+        run: |
+          if [ "${{ needs.secret-scan.result }}" = "failure" ]; then
+            echo "❌ Critical security issues detected"
+            exit 1
+          fi
+          echo "✅ Security scan completed successfully"

@@ -1,0 +1,32 @@
+# Development Dockerfile for Next.js Frontend Service
+# Optimized for hot reloading and development workflow
+
+FROM node:20-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Install curl for health checks
+RUN apk add --no-cache curl
+
+# Copy package files
+COPY package*.json ./
+
+# Install all dependencies including dev dependencies
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Expose port for development server
+EXPOSE 3000
+
+# Expose port for debugging
+EXPOSE 9229
+
+# Health check for development
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:3000/api/health || exit 1
+
+# Start development server with hot reload
+CMD ["npm", "run", "dev"]

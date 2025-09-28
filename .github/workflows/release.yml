@@ -1,0 +1,316 @@
+name: Release Management
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Type of release'
+        required: true
+        default: 'auto'
+        type: choice
+        options:
+          - auto
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+  packages: write
+  pull-requests: write
+
+jobs:
+  # Determine if a release is needed
+  check-release:
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      next_version: ${{ steps.check.outputs.next_version }}
+      release_notes: ${{ steps.check.outputs.release_notes }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install semantic-release
+        run: |
+          npm install -g semantic-release @semantic-release/changelog @semantic-release/git @semantic-release/github
+
+      - name: Check for release
+        id: check
+        run: |
+          # Check if there are any commits that warrant a release
+          if semantic-release --dry-run > release-output.txt 2>&1; then
+            if grep -q "The next release version is" release-output.txt; then
+              echo "should_release=true" >> $GITHUB_OUTPUT
+              VERSION=$(grep "The next release version is" release-output.txt | sed 's/.*The next release version is //')
+              echo "next_version=${VERSION}" >> $GITHUB_OUTPUT
+              echo "Release will be created: ${VERSION}"
+            else
+              echo "should_release=false" >> $GITHUB_OUTPUT
+              echo "No release needed"
+            fi
+          else
+            echo "should_release=false" >> $GITHUB_OUTPUT
+            echo "No release needed"
+          fi
+
+  # Create release and update versions
+  release:
+    runs-on: ubuntu-latest
+    needs: check-release
+    if: ${{ needs.check-release.outputs.should_release == 'true' || github.event_name == 'workflow_dispatch' }}
+    outputs:
+      new_version: ${{ steps.release.outputs.new_version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install semantic-release
+        run: |
+          npm install -g semantic-release @semantic-release/changelog @semantic-release/git @semantic-release/github
+
+      - name: Create semantic-release config
+        run: |
+          cat > .releaserc.json << 'EOF'
+          {
+            "branches": ["main"],
+            "plugins": [
+              "@semantic-release/commit-analyzer",
+              "@semantic-release/release-notes-generator",
+              [
+                "@semantic-release/changelog",
+                {
+                  "changelogFile": "CHANGELOG.md"
+                }
+              ],
+              [
+                "@semantic-release/npm",
+                {
+                  "npmPublish": false
+                }
+              ],
+              [
+                "@semantic-release/git",
+                {
+                  "assets": [
+                    "package.json",
+                    "package-lock.json",
+                    "services/frontend/package.json",
+                    "services/frontend/package-lock.json",
+                    "services/backend/pyproject.toml",
+                    "services/edge-agent/pyproject.toml",
+                    "CHANGELOG.md"
+                  ],
+                  "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+                }
+              ],
+              [
+                "@semantic-release/github",
+                {
+                  "assets": [
+                    {
+                      "path": "dist/**/*",
+                      "label": "Distribution files"
+                    }
+                  ]
+                }
+              ]
+            ]
+          }
+          EOF
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Python tools
+        run: |
+          pip install toml
+
+      - name: Run semantic release
+        id: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          semantic-release > release-output.txt 2>&1 || true
+
+          if grep -q "Published release" release-output.txt; then
+            VERSION=$(grep "Published release" release-output.txt | sed 's/.*Published release //' | sed 's/ on.*//')
+            echo "new_version=${VERSION}" >> $GITHUB_OUTPUT
+            echo "Release created: ${VERSION}"
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            # Manual release
+            CURRENT_VERSION=$(node -p "require('./package.json').version")
+            case "${{ github.event.inputs.release_type }}" in
+              patch)
+                NEW_VERSION=$(echo $CURRENT_VERSION | awk -F. '{$NF = $NF + 1;} 1' | sed 's/ /./g')
+                ;;
+              minor)
+                NEW_VERSION=$(echo $CURRENT_VERSION | awk -F. '{$(NF-1) = $(NF-1) + 1; $NF = 0;} 1' | sed 's/ /./g')
+                ;;
+              major)
+                NEW_VERSION=$(echo $CURRENT_VERSION | awk -F. '{$1 = $1 + 1; $2 = 0; $3 = 0;} 1' | sed 's/ /./g')
+                ;;
+              *)
+                echo "Invalid release type"
+                exit 1
+                ;;
+            esac
+
+            # Update package.json files
+            npm version $NEW_VERSION --no-git-tag-version
+            cd services/frontend && npm version $NEW_VERSION --no-git-tag-version && cd ../..
+
+            # Update Python package versions
+            python -c "
+import toml
+import sys
+
+def update_pyproject(file_path, version):
+    try:
+        with open(file_path, 'r') as f:
+            data = toml.load(f)
+        data['project']['version'] = version
+        with open(file_path, 'w') as f:
+            toml.dump(data, f)
+        print(f'Updated {file_path} to version {version}')
+    except FileNotFoundError:
+        print(f'{file_path} not found, skipping')
+    except Exception as e:
+        print(f'Error updating {file_path}: {e}')
+
+update_pyproject('services/backend/pyproject.toml', '$NEW_VERSION')
+update_pyproject('services/edge-agent/pyproject.toml', '$NEW_VERSION')
+"
+
+            # Create git tag and release
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add .
+            git commit -m "chore(release): ${NEW_VERSION} [skip ci]"
+            git tag "v${NEW_VERSION}"
+            git push origin main --tags
+
+            # Create GitHub release
+            gh release create "v${NEW_VERSION}" \
+              --title "Release v${NEW_VERSION}" \
+              --notes "Manual release v${NEW_VERSION}" \
+              --generate-notes
+
+            echo "new_version=${NEW_VERSION}" >> $GITHUB_OUTPUT
+          fi
+
+  # Build and tag Docker images with new version
+  build-release-images:
+    runs-on: ubuntu-latest
+    needs: release
+    if: ${{ needs.release.outputs.new_version }}
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      matrix:
+        service: [frontend, backend, edge-agent]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.release.outputs.new_version }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push release image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/${{ matrix.service }}
+          file: ./services/${{ matrix.service }}/Dockerfile
+          platforms: linux/amd64,linux/arm64${{ matrix.service == 'edge-agent' && ',linux/arm/v7' || '' }}
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}/${{ matrix.service }}:v${{ needs.release.outputs.new_version }}
+            ghcr.io/${{ github.repository }}/${{ matrix.service }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Update deployment manifests with new version
+  update-manifests:
+    runs-on: ubuntu-latest
+    needs: [release, build-release-images]
+    if: ${{ needs.release.outputs.new_version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Kubernetes manifests
+        run: |
+          NEW_VERSION="${{ needs.release.outputs.new_version }}"
+
+          # Update Kubernetes deployment manifests
+          find infrastructure/kubernetes -name "*.yaml" -o -name "*.yml" | xargs -I {} \
+            sed -i "s|ghcr.io/${{ github.repository }}/\([^:]*\):[^\"]*|ghcr.io/${{ github.repository }}/\1:v${NEW_VERSION}|g" {}
+
+          # Update Helm charts
+          if [ -f "infrastructure/helm/Chart.yaml" ]; then
+            sed -i "s/version: .*/version: ${NEW_VERSION}/" infrastructure/helm/Chart.yaml
+            sed -i "s/appVersion: .*/appVersion: ${NEW_VERSION}/" infrastructure/helm/Chart.yaml
+          fi
+
+          # Update docker-compose.yml
+          sed -i "s|ghcr.io/${{ github.repository }}/\([^:]*\):[^\"]*|ghcr.io/${{ github.repository }}/\1:v${NEW_VERSION}|g" docker-compose.yml
+
+      - name: Commit manifest updates
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "chore(deploy): update manifests to v${{ needs.release.outputs.new_version }} [skip ci]" || exit 0
+          git push origin main
+
+  # Notification
+  notify-release:
+    runs-on: ubuntu-latest
+    needs: [release, build-release-images, update-manifests]
+    if: always() && needs.release.outputs.new_version
+
+    steps:
+      - name: Notify release completion
+        run: |
+          echo "🚀 Release v${{ needs.release.outputs.new_version }} completed successfully!"
+          echo "📦 Docker images built and tagged"
+          echo "📋 Deployment manifests updated"
+          echo "🔗 Release URL: https://github.com/${{ github.repository }}/releases/tag/v${{ needs.release.outputs.new_version }}"

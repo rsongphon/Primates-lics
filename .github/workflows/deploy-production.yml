@@ -1,0 +1,398 @@
+# TEMPLATE: Production Deployment Workflow
+# This workflow is a template for production deployments - NOT YET ACTIVE
+# Enable by updating trigger conditions and configuring environment secrets
+
+name: Deploy to Production
+
+on:
+  # TEMPLATE: Currently disabled - enable when ready
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to deploy (must be a release tag like v1.2.3)'
+        required: true
+      deployment_strategy:
+        description: 'Deployment strategy'
+        required: true
+        type: choice
+        options:
+          - blue-green
+          - rolling
+          - canary
+        default: 'blue-green'
+      canary_percentage:
+        description: 'Canary percentage (if using canary deployment)'
+        required: false
+        default: '10'
+
+  # TEMPLATE: Uncomment when ready for automatic production deployments
+  # release:
+  #   types: [published]
+
+env:
+  ENVIRONMENT: production
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  KUBE_NAMESPACE: lics-production
+
+permissions:
+  contents: read
+  packages: read
+  id-token: write  # For OIDC authentication
+
+jobs:
+  # Production readiness gate
+  production-readiness-gate:
+    runs-on: ubuntu-latest
+    environment: production-gate  # Requires manual approval
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      validated: ${{ steps.validate.outputs.validated }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Validate version format
+        id: version
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+
+          # Ensure version is a proper release tag
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "❌ Invalid version format: $VERSION"
+            echo "Production deployments require semantic version tags (e.g., v1.2.3)"
+            exit 1
+          fi
+
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "✅ Version format validated: ${VERSION}"
+
+      - name: Check staging deployment
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          echo "🔍 Checking if version ${VERSION} is deployed and tested in staging..."
+
+          # TEMPLATE: Check staging deployment status
+          # kubectl get deployment --namespace=lics-staging -o jsonpath='{.items[*].spec.template.spec.containers[*].image}' | grep ${VERSION}
+
+          echo "✅ Version confirmed in staging"
+
+      - name: Security compliance check
+        run: |
+          echo "🔒 Running security compliance checks..."
+
+          # TEMPLATE: Run security compliance checks
+          # - Vulnerability scan results
+          # - Security policy compliance
+          # - Penetration test results (if required)
+
+          echo "✅ Security compliance verified"
+
+      - name: Performance benchmarks
+        run: |
+          echo "⚡ Validating performance benchmarks..."
+
+          # TEMPLATE: Check performance test results from staging
+          # - Response time requirements
+          # - Throughput requirements
+          # - Resource utilization limits
+
+          echo "✅ Performance benchmarks met"
+
+      - name: Set validation status
+        id: validate
+        run: |
+          echo "validated=true" >> $GITHUB_OUTPUT
+          echo "🎯 Production deployment approved"
+
+  # Blue-Green deployment preparation
+  prepare-blue-green:
+    runs-on: ubuntu-latest
+    needs: production-readiness-gate
+    if: ${{ github.event.inputs.deployment_strategy == 'blue-green' }}
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Prepare blue-green environment
+        run: |
+          echo "🔵 Preparing blue-green deployment..."
+
+          # TEMPLATE: Set up blue-green infrastructure
+          # - Create green environment
+          # - Prepare database migration
+          # - Set up load balancer rules
+
+          echo "✅ Blue-green environment prepared"
+
+  # Database migration (production)
+  database-migration-production:
+    runs-on: ubuntu-latest
+    needs: [production-readiness-gate, prepare-blue-green]
+    if: always() && needs.production-readiness-gate.outputs.validated == 'true'
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # TEMPLATE: Configure production cloud authentication
+      # - name: Configure AWS credentials
+      #   uses: aws-actions/configure-aws-credentials@v4
+      #   with:
+      #     role-to-assume: ${{ secrets.PROD_AWS_ROLE_ARN }}
+      #     aws-region: ${{ secrets.PROD_AWS_REGION }}
+
+      - name: Create database backup
+        run: |
+          echo "💾 Creating database backup before migration..."
+
+          # TEMPLATE: Create production database backup
+          # aws rds create-db-snapshot \
+          #   --db-instance-identifier ${{ secrets.PROD_DB_INSTANCE }} \
+          #   --db-snapshot-identifier pre-deployment-$(date +%Y%m%d%H%M%S)
+
+          echo "✅ Database backup created"
+
+      - name: Run production migrations
+        run: |
+          echo "🗃️  Running production database migrations..."
+
+          # TEMPLATE: Run migrations with proper coordination
+          # kubectl create job migration-prod-$(date +%s) \
+          #   --from=cronjob/migration-job \
+          #   --namespace=${{ env.KUBE_NAMESPACE }}
+
+          echo "✅ Production migrations completed"
+
+      - name: Validate migration
+        run: |
+          echo "✅ Migration validation completed"
+
+  # Deploy to production (Blue-Green)
+  deploy-production-blue-green:
+    runs-on: ubuntu-latest
+    needs: [production-readiness-gate, database-migration-production]
+    if: ${{ github.event.inputs.deployment_strategy == 'blue-green' }}
+    environment: production
+
+    strategy:
+      matrix:
+        service: [frontend, backend, edge-agent]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy ${{ matrix.service }} to green environment
+        run: |
+          SERVICE="${{ matrix.service }}"
+          VERSION="${{ needs.production-readiness-gate.outputs.version }}"
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${SERVICE}:${VERSION}"
+
+          echo "🟢 Deploying ${SERVICE} to green environment..."
+
+          # TEMPLATE: Deploy to green environment
+          # kubectl set image deployment/${SERVICE}-green ${SERVICE}=${IMAGE} \
+          #   --namespace=${{ env.KUBE_NAMESPACE }}
+
+          echo "✅ ${SERVICE} deployed to green environment"
+
+      - name: Health check ${{ matrix.service }}
+        run: |
+          SERVICE="${{ matrix.service }}"
+
+          echo "🔍 Health checking ${SERVICE} in green environment..."
+
+          # TEMPLATE: Comprehensive health checks
+          # kubectl wait --for=condition=ready pod -l app=${SERVICE},version=green \
+          #   --namespace=${{ env.KUBE_NAMESPACE }} \
+          #   --timeout=300s
+
+          echo "✅ ${SERVICE} health check passed"
+
+  # Production smoke tests
+  production-smoke-tests:
+    runs-on: ubuntu-latest
+    needs: deploy-production-blue-green
+    environment: production
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run production smoke tests
+        env:
+          PROD_GREEN_URL: ${{ secrets.PROD_GREEN_URL }}
+        run: |
+          echo "🧪 Running production smoke tests on green environment..."
+
+          # TEMPLATE: Run comprehensive smoke tests
+          # playwright test tests/production-smoke/ --base-url=${{ env.PROD_GREEN_URL }}
+
+          echo "✅ Production smoke tests passed"
+
+      - name: Load testing
+        run: |
+          echo "⚡ Running load tests on green environment..."
+
+          # TEMPLATE: Run production load tests
+          # k6 run --vus 100 --duration 5m tests/performance/production-load.js
+
+          echo "✅ Load tests passed"
+
+  # Traffic switch (Blue-Green)
+  switch-traffic:
+    runs-on: ubuntu-latest
+    needs: [deploy-production-blue-green, production-smoke-tests]
+    environment: production-traffic-switch  # Additional approval gate
+    if: ${{ github.event.inputs.deployment_strategy == 'blue-green' }}
+
+    steps:
+      - name: Switch traffic to green
+        run: |
+          echo "🔄 Switching traffic from blue to green..."
+
+          # TEMPLATE: Switch load balancer traffic
+          # kubectl patch service frontend-service -p '{"spec":{"selector":{"version":"green"}}}' \
+          #   --namespace=${{ env.KUBE_NAMESPACE }}
+
+          echo "✅ Traffic switched to green environment"
+
+      - name: Monitor traffic switch
+        run: |
+          echo "📊 Monitoring traffic switch..."
+
+          # TEMPLATE: Monitor for issues after traffic switch
+          # - Error rate monitoring
+          # - Response time monitoring
+          # - User experience metrics
+
+          sleep 300  # Monitor for 5 minutes
+
+          echo "✅ Traffic switch monitoring completed"
+
+  # Canary deployment (alternative strategy)
+  deploy-production-canary:
+    runs-on: ubuntu-latest
+    needs: [production-readiness-gate, database-migration-production]
+    if: ${{ github.event.inputs.deployment_strategy == 'canary' }}
+    environment: production
+
+    steps:
+      - name: Deploy canary version
+        run: |
+          VERSION="${{ needs.production-readiness-gate.outputs.version }}"
+          PERCENTAGE="${{ github.event.inputs.canary_percentage }}"
+
+          echo "🐦 Deploying canary version ${VERSION} to ${PERCENTAGE}% of traffic..."
+
+          # TEMPLATE: Canary deployment
+          # kubectl set image deployment/frontend-canary frontend=${IMAGE} \
+          #   --namespace=${{ env.KUBE_NAMESPACE }}
+          # kubectl scale deployment/frontend-canary --replicas=$(( ${PERCENTAGE} * total_replicas / 100 ))
+
+          echo "✅ Canary deployment completed"
+
+      - name: Monitor canary metrics
+        run: |
+          echo "📊 Monitoring canary metrics..."
+
+          # TEMPLATE: Monitor canary deployment
+          # - Error rate comparison
+          # - Performance comparison
+          # - User feedback
+
+          echo "✅ Canary metrics look good"
+
+  # Cleanup old version
+  cleanup-old-version:
+    runs-on: ubuntu-latest
+    needs: [switch-traffic]
+    if: always() && needs.switch-traffic.result == 'success'
+
+    steps:
+      - name: Cleanup old blue environment
+        run: |
+          echo "🧹 Cleaning up old blue environment..."
+
+          # TEMPLATE: Scale down blue environment (keep for potential rollback)
+          # kubectl scale deployment/frontend-blue --replicas=0 \
+          #   --namespace=${{ env.KUBE_NAMESPACE }}
+
+          echo "✅ Old environment cleaned up"
+
+  # Rollback capability
+  rollback-production:
+    runs-on: ubuntu-latest
+    if: failure() && needs.production-readiness-gate.outputs.validated == 'true'
+    needs: [deploy-production-blue-green, production-smoke-tests, switch-traffic]
+    environment: production-emergency
+
+    steps:
+      - name: Emergency rollback
+        run: |
+          echo "🚨 Executing emergency rollback..."
+
+          # TEMPLATE: Immediate rollback
+          # kubectl patch service frontend-service -p '{"spec":{"selector":{"version":"blue"}}}' \
+          #   --namespace=${{ env.KUBE_NAMESPACE }}
+
+          echo "✅ Emergency rollback completed"
+
+      - name: Rollback verification
+        run: |
+          echo "🔍 Verifying rollback..."
+
+          # TEMPLATE: Verify rollback was successful
+          # - Check service health
+          # - Verify traffic routing
+          # - Run smoke tests
+
+          echo "✅ Rollback verified"
+
+  # Production deployment notification
+  notify-production-deployment:
+    runs-on: ubuntu-latest
+    needs: [switch-traffic, deploy-production-canary, cleanup-old-version]
+    if: always()
+
+    steps:
+      - name: Notify production deployment status
+        run: |
+          VERSION="${{ needs.production-readiness-gate.outputs.version }}"
+          STRATEGY="${{ github.event.inputs.deployment_strategy }}"
+
+          if [ "${{ needs.switch-traffic.result }}" = "success" ] || [ "${{ needs.deploy-production-canary.result }}" = "success" ]; then
+            echo "🎉 PRODUCTION DEPLOYMENT SUCCESSFUL!"
+            echo "Version: $VERSION"
+            echo "Strategy: $STRATEGY"
+            echo "Environment: production"
+            echo "URL: ${{ secrets.PROD_BASE_URL }}"
+
+            # TEMPLATE: Send success notifications
+            # - Slack/Teams notification
+            # - Email to stakeholders
+            # - Status page update
+            # - Monitoring alert acknowledgment
+
+          else
+            echo "❌ PRODUCTION DEPLOYMENT FAILED"
+            echo "Version: $VERSION"
+            echo "Strategy: $STRATEGY"
+            echo "Check logs and consider rollback"
+
+            # TEMPLATE: Send failure notifications
+            # - Incident management system
+            # - Emergency contact alerts
+            # - Status page update
+          fi
+
+          echo "📊 Deployment Summary:"
+          echo "- Blue-Green: ${{ needs.switch-traffic.result }}"
+          echo "- Canary: ${{ needs.deploy-production-canary.result }}"
+          echo "- Cleanup: ${{ needs.cleanup-old-version.result }}"

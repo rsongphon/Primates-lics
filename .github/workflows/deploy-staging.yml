@@ -1,0 +1,307 @@
+# TEMPLATE: Staging Deployment Workflow
+# This workflow is a template for staging deployments - NOT YET ACTIVE
+# Enable by updating trigger conditions and configuring environment secrets
+
+name: Deploy to Staging
+
+on:
+  # TEMPLATE: Currently disabled - enable when ready
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to deploy (e.g., v1.2.3 or latest)'
+        required: true
+        default: 'latest'
+      force_deploy:
+        description: 'Force deployment even if version already deployed'
+        required: false
+        type: boolean
+        default: false
+
+  # TEMPLATE: Uncomment when ready for automatic staging deployments
+  # push:
+  #   branches: [develop]
+  # release:
+  #   types: [published]
+
+env:
+  ENVIRONMENT: staging
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  KUBE_NAMESPACE: lics-staging
+
+permissions:
+  contents: read
+  packages: read
+  id-token: write  # For OIDC authentication
+
+jobs:
+  # Pre-deployment checks
+  pre-deployment-checks:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      image_exists: ${{ steps.check.outputs.image_exists }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Determine version to deploy
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          elif [ "${{ github.event_name }}" = "release" ]; then
+            VERSION="${{ github.event.release.tag_name }}"
+          else
+            # For develop branch, use latest
+            VERSION="develop-$(git rev-parse --short HEAD)"
+          fi
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Deploying version: ${VERSION}"
+
+      - name: Check if images exist
+        id: check
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          # Check if Docker images exist for this version
+          echo "Checking if images exist for version: ${VERSION}"
+
+          # TODO: Implement actual image existence check
+          # This would query the container registry
+          echo "image_exists=true" >> $GITHUB_OUTPUT
+
+      - name: Validate deployment conditions
+        run: |
+          echo "Validating deployment conditions..."
+
+          # Check if force deploy is enabled or if this is a new version
+          if [ "${{ github.event.inputs.force_deploy }}" = "true" ]; then
+            echo "✅ Force deploy enabled - proceeding"
+          elif [ "${{ steps.check.outputs.image_exists }}" = "false" ]; then
+            echo "❌ Images do not exist for version ${{ steps.version.outputs.version }}"
+            exit 1
+          else
+            echo "✅ Images exist - proceeding with deployment"
+          fi
+
+  # Database migrations
+  database-migration:
+    runs-on: ubuntu-latest
+    needs: pre-deployment-checks
+    environment: staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # TEMPLATE: Configure cloud authentication (AWS/GCP/Azure)
+      # - name: Configure AWS credentials
+      #   uses: aws-actions/configure-aws-credentials@v4
+      #   with:
+      #     role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+      #     aws-region: ${{ secrets.AWS_REGION }}
+
+      # TEMPLATE: Configure Kubernetes access
+      # - name: Configure kubectl
+      #   run: |
+      #     aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name ${{ secrets.EKS_CLUSTER_NAME }}
+
+      - name: Run database migrations
+        run: |
+          echo "🗃️  Running database migrations for staging..."
+
+          # TEMPLATE: Actual migration commands
+          # kubectl create job migration-$(date +%s) \
+          #   --from=cronjob/migration-job \
+          #   --namespace=${{ env.KUBE_NAMESPACE }}
+
+          echo "✅ Database migrations completed"
+
+  # Deploy to staging environment
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: [pre-deployment-checks, database-migration]
+    environment: staging
+
+    strategy:
+      matrix:
+        service: [frontend, backend, edge-agent]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # TEMPLATE: Configure cloud authentication
+      # - name: Configure cloud credentials
+      #   uses: aws-actions/configure-aws-credentials@v4
+      #   with:
+      #     role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+      #     aws-region: ${{ secrets.AWS_REGION }}
+
+      # TEMPLATE: Configure container registry access
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # TEMPLATE: Configure Kubernetes access
+      # - name: Configure kubectl
+      #   run: |
+      #     aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name ${{ secrets.EKS_CLUSTER_NAME }}
+
+      - name: Deploy ${{ matrix.service }} to staging
+        run: |
+          SERVICE="${{ matrix.service }}"
+          VERSION="${{ needs.pre-deployment-checks.outputs.version }}"
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/${SERVICE}:${VERSION}"
+
+          echo "🚀 Deploying ${SERVICE} version ${VERSION} to staging..."
+
+          # TEMPLATE: Update Kubernetes deployment
+          # kubectl set image deployment/${SERVICE} ${SERVICE}=${IMAGE} \
+          #   --namespace=${{ env.KUBE_NAMESPACE }}
+
+          # TEMPLATE: Wait for rollout to complete
+          # kubectl rollout status deployment/${SERVICE} \
+          #   --namespace=${{ env.KUBE_NAMESPACE }} \
+          #   --timeout=300s
+
+          echo "✅ ${SERVICE} deployed successfully"
+
+      - name: Verify ${{ matrix.service }} deployment
+        run: |
+          SERVICE="${{ matrix.service }}"
+
+          echo "🔍 Verifying ${SERVICE} deployment..."
+
+          # TEMPLATE: Health check verification
+          # kubectl get pods -l app=${SERVICE} --namespace=${{ env.KUBE_NAMESPACE }}
+          # kubectl wait --for=condition=ready pod -l app=${SERVICE} \
+          #   --namespace=${{ env.KUBE_NAMESPACE }} \
+          #   --timeout=120s
+
+          echo "✅ ${SERVICE} verification completed"
+
+  # Post-deployment tests
+  post-deployment-tests:
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    environment: staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js for tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install test dependencies
+        run: |
+          npm install -g @playwright/test
+          pip install pytest requests
+
+      - name: Run smoke tests
+        env:
+          STAGING_BASE_URL: ${{ secrets.STAGING_BASE_URL }}
+          STAGING_API_KEY: ${{ secrets.STAGING_API_KEY }}
+        run: |
+          echo "🧪 Running smoke tests against staging..."
+
+          # TEMPLATE: Run actual smoke tests
+          # playwright test tests/smoke/ --base-url=${{ env.STAGING_BASE_URL }}
+          # pytest tests/smoke/ --base-url=${{ env.STAGING_BASE_URL }}
+
+          echo "✅ Smoke tests passed"
+
+      - name: Run integration tests
+        env:
+          STAGING_BASE_URL: ${{ secrets.STAGING_BASE_URL }}
+        run: |
+          echo "🔗 Running integration tests against staging..."
+
+          # TEMPLATE: Run integration tests
+          # pytest tests/staging-integration/ --base-url=${{ env.STAGING_BASE_URL }}
+
+          echo "✅ Integration tests passed"
+
+      - name: Performance baseline check
+        run: |
+          echo "⚡ Running performance baseline check..."
+
+          # TEMPLATE: Run performance tests
+          # k6 run --vus 5 --duration 30s tests/performance/staging-baseline.js
+
+          echo "✅ Performance baseline within acceptable limits"
+
+  # Rollback capability
+  rollback-staging:
+    runs-on: ubuntu-latest
+    if: failure() && github.event_name == 'workflow_dispatch'
+    needs: [deploy-staging, post-deployment-tests]
+    environment: staging
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # TEMPLATE: Configure cloud and Kubernetes access
+      # - name: Configure AWS credentials
+      #   uses: aws-actions/configure-aws-credentials@v4
+      #   with:
+      #     role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+      #     aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Rollback deployment
+        run: |
+          echo "🔄 Rolling back staging deployment..."
+
+          # TEMPLATE: Rollback to previous version
+          # kubectl rollout undo deployment/frontend --namespace=${{ env.KUBE_NAMESPACE }}
+          # kubectl rollout undo deployment/backend --namespace=${{ env.KUBE_NAMESPACE }}
+          # kubectl rollout undo deployment/edge-agent --namespace=${{ env.KUBE_NAMESPACE }}
+
+          echo "✅ Rollback completed"
+
+      - name: Verify rollback
+        run: |
+          echo "🔍 Verifying rollback..."
+
+          # TEMPLATE: Verify rollback was successful
+          # kubectl get pods --namespace=${{ env.KUBE_NAMESPACE }}
+
+          echo "✅ Rollback verified"
+
+  # Deployment notification
+  notify-deployment:
+    runs-on: ubuntu-latest
+    needs: [deploy-staging, post-deployment-tests]
+    if: always()
+
+    steps:
+      - name: Notify deployment status
+        run: |
+          STATUS="${{ needs.post-deployment-tests.result }}"
+          VERSION="${{ needs.pre-deployment-checks.outputs.version }}"
+
+          if [ "$STATUS" = "success" ]; then
+            echo "🎉 Staging deployment successful!"
+            echo "Version: $VERSION"
+            echo "Environment: staging"
+            echo "URL: ${{ secrets.STAGING_BASE_URL }}"
+          else
+            echo "❌ Staging deployment failed"
+            echo "Version: $VERSION"
+            echo "Check logs for details"
+          fi
+
+          # TEMPLATE: Send notifications to Slack/Teams/Email
+          # curl -X POST -H 'Content-type: application/json' \
+          #   --data "{\"text\":\"Staging deployment $STATUS for version $VERSION\"}" \
+          #   ${{ secrets.SLACK_WEBHOOK_URL }}

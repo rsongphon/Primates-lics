@@ -1,0 +1,46 @@
+# Development Dockerfile for Edge Agent Service
+# Includes development tools and hardware simulation capabilities
+
+FROM python:3.11-slim
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV EDGE_ENVIRONMENT=development
+ENV HARDWARE_SIMULATION=true
+
+# Install system dependencies including development tools
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    build-essential \
+    i2c-tools \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Copy requirements files
+COPY requirements.txt requirements-dev.txt ./
+
+# Install Python dependencies including dev dependencies
+RUN pip install --no-cache-dir -r requirements.txt -r requirements-dev.txt
+
+# Copy application code
+COPY . .
+
+# Create required directories
+RUN mkdir -p /app/data /app/logs /app/config
+
+# Expose ports for local API and debugging
+EXPOSE 8080 5678
+
+# Health check for development
+HEALTHCHECK --interval=60s --timeout=10s --start-period=30s --retries=3 \
+  CMD python -c "import requests; requests.get('http://localhost:8080/health')" || exit 1
+
+# Volume for persistent data
+VOLUME ["/app/data", "/app/logs", "/app/config"]
+
+# Start development server with auto-reload
+CMD ["python", "src/main.py", "--debug", "--simulate-hardware"]
