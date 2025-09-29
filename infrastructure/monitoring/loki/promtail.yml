@@ -1,0 +1,180 @@
+# Promtail Configuration
+# Log collection agent for LICS services
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # LICS Backend Application Logs
+  - job_name: lics-backend
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: lics-backend
+          service: backend
+          environment: production
+          __path__: /host/logs/backend/*.log
+
+  # LICS Frontend Application Logs
+  - job_name: lics-frontend
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: lics-frontend
+          service: frontend
+          environment: production
+          __path__: /host/logs/frontend/*.log
+
+  # Celery Worker Logs
+  - job_name: celery-worker
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: celery-worker
+          service: celery
+          environment: production
+          __path__: /host/logs/celery/*.log
+
+  # PostgreSQL Logs
+  - job_name: postgres
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: postgres
+          service: database
+          environment: production
+          __path__: /var/log/postgresql/*.log
+
+  # Redis Logs
+  - job_name: redis
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: redis
+          service: cache
+          environment: production
+          __path__: /var/log/redis/*.log
+
+  # MQTT Broker Logs
+  - job_name: mqtt
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: mqtt
+          service: messaging
+          environment: production
+          __path__: /host/logs/mqtt/*.log
+
+  # Nginx Access and Error Logs
+  - job_name: nginx
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: nginx
+          service: proxy
+          log_type: access
+          environment: production
+          __path__: /var/log/nginx/access.log
+    pipeline_stages:
+      - match:
+          selector: '{job="nginx"}'
+          stages:
+            - regex:
+                expression: '^(?P<remote_addr>\S+) - (?P<remote_user>\S+) \[(?P<time_local>[^\]]+)\] "(?P<method>\S+) (?P<path>\S+) (?P<protocol>\S+)" (?P<status>\d+) (?P<body_bytes_sent>\d+) "(?P<http_referer>[^"]*)" "(?P<http_user_agent>[^"]*)"'
+            - labels:
+                method:
+                path:
+                status:
+
+  - job_name: nginx-error
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: nginx
+          service: proxy
+          log_type: error
+          environment: production
+          __path__: /var/log/nginx/error.log
+
+  # Docker Container Logs
+  - job_name: docker-containers
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+    relabel_configs:
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container_name'
+      - source_labels: ['__meta_docker_container_log_stream']
+        target_label: 'log_stream'
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
+        target_label: 'compose_service'
+    pipeline_stages:
+      - docker: {}
+      - match:
+          selector: '{compose_service=~"lics-.*|postgres|redis|mqtt|minio|prometheus|grafana|influxdb"}'
+          stages:
+            - multiline:
+                firstline: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}'
+                max_wait_time: 3s
+            - regex:
+                expression: '^(?P<timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[.\d]*Z?) (?P<level>\w+) (?P<message>.*)'
+            - labels:
+                level:
+            - timestamp:
+                source: timestamp
+                format: RFC3339
+
+  # System Logs
+  - job_name: system
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: system
+          service: system
+          environment: production
+          __path__: /var/log/syslog
+    pipeline_stages:
+      - match:
+          selector: '{job="system"}'
+          stages:
+            - regex:
+                expression: '^(?P<timestamp>\w+ \d+ \d+:\d+:\d+) (?P<hostname>\S+) (?P<service>\S+)(\[(?P<pid>\d+)\])?: (?P<message>.*)'
+            - labels:
+                hostname:
+                service:
+                pid:
+            - timestamp:
+                source: timestamp
+                format: 'Jan 2 15:04:05'
+
+  # Kernel Logs
+  - job_name: kernel
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: kernel
+          service: system
+          environment: production
+          __path__: /var/log/kern.log
+
+# Global configuration
+global:
+  scrape_timeout: 10s

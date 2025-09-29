@@ -13,12 +13,11 @@ alerting:
   alertmanagers:
     - static_configs:
         - targets:
-          # - alertmanager:9093
+          - alertmanager:9093
 
 # Rule files
 rule_files:
-  # - "first_rules.yml"
-  # - "second_rules.yml"
+  - "/etc/prometheus/rules/*.yml"
 
 # Scrape configurations
 scrape_configs:
@@ -169,9 +168,4 @@ scrape_configs:
 #       username: lics
 #       password: prometheus-password
 
-# Storage configuration
-storage:
-  tsdb:
-    retention.time: 30d
-    retention.size: 10GB
-    path: /prometheus/data
+# Storage configuration is handled by command line parameters

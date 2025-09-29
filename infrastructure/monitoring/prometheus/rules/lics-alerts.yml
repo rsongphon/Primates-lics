@@ -1,0 +1,271 @@
+# LICS Prometheus Alerting Rules
+# Basic alerting rules for LICS system monitoring
+
+groups:
+  # Infrastructure alerts
+  - name: infrastructure
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: infrastructure
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "Service {{ $labels.job }} on {{ $labels.instance }} has been down for more than 1 minute."
+
+      - alert: HighCpuUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: infrastructure
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage is above 80% for more than 5 minutes on {{ $labels.instance }}."
+
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+          service: infrastructure
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is above 90% for more than 5 minutes on {{ $labels.instance }}."
+
+      - alert: DiskSpaceLow
+        expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) * 100 < 10
+        for: 5m
+        labels:
+          severity: warning
+          service: infrastructure
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }}"
+          description: "Disk space is below 10% on {{ $labels.instance }} for filesystem {{ $labels.mountpoint }}."
+
+      - alert: DiskSpaceCritical
+        expr: (node_filesystem_avail_bytes / node_filesystem_size_bytes) * 100 < 5
+        for: 2m
+        labels:
+          severity: critical
+          service: infrastructure
+        annotations:
+          summary: "Critical disk space on {{ $labels.instance }}"
+          description: "Disk space is below 5% on {{ $labels.instance }} for filesystem {{ $labels.mountpoint }}."
+
+  # Database alerts
+  - name: database
+    rules:
+      - alert: PostgreSQLDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: database
+        annotations:
+          summary: "PostgreSQL is down"
+          description: "PostgreSQL instance {{ $labels.instance }} has been down for more than 1 minute."
+
+      - alert: PostgreSQLTooManyConnections
+        expr: pg_stat_activity_count > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "PostgreSQL too many connections"
+          description: "PostgreSQL instance {{ $labels.instance }} has {{ $value }} connections (> 80)."
+
+      - alert: PostgreSQLSlowQueries
+        expr: pg_stat_activity_max_tx_duration > 300
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "PostgreSQL slow queries"
+          description: "PostgreSQL instance {{ $labels.instance }} has queries running for more than 5 minutes."
+
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: database
+        annotations:
+          summary: "Redis is down"
+          description: "Redis instance {{ $labels.instance }} has been down for more than 1 minute."
+
+      - alert: RedisHighMemoryUsage
+        expr: redis_memory_used_bytes / redis_memory_max_bytes * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "Redis high memory usage"
+          description: "Redis instance {{ $labels.instance }} memory usage is above 90%."
+
+  # LICS Application alerts
+  - name: lics-application
+    rules:
+      - alert: LICSBackendDown
+        expr: up{job="lics-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: lics-backend
+        annotations:
+          summary: "LICS Backend is down"
+          description: "LICS Backend service has been down for more than 1 minute."
+
+      - alert: LICSFrontendDown
+        expr: up{job="lics-frontend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: lics-frontend
+        annotations:
+          summary: "LICS Frontend is down"
+          description: "LICS Frontend service has been down for more than 1 minute."
+
+      - alert: HighAPILatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1.0
+        for: 5m
+        labels:
+          severity: warning
+          service: lics-backend
+        annotations:
+          summary: "High API latency"
+          description: "95th percentile latency is {{ $value }}s for {{ $labels.method }} {{ $labels.endpoint }}."
+
+      - alert: HighAPIErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          service: lics-backend
+        annotations:
+          summary: "High API error rate"
+          description: "API error rate is {{ $value | humanizePercentage }} for endpoint {{ $labels.endpoint }}."
+
+  # Device alerts
+  - name: devices
+    rules:
+      - alert: DeviceOffline
+        expr: lics_device_last_seen > 300
+        for: 5m
+        labels:
+          severity: warning
+          service: edge-devices
+        annotations:
+          summary: "Device {{ $labels.device_id }} is offline"
+          description: "Device {{ $labels.device_id }} has not reported for more than 5 minutes."
+
+      - alert: DeviceCriticalOffline
+        expr: lics_device_last_seen > 1800
+        for: 5m
+        labels:
+          severity: critical
+          service: edge-devices
+        annotations:
+          summary: "Device {{ $labels.device_id }} is critically offline"
+          description: "Device {{ $labels.device_id }} has not reported for more than 30 minutes."
+
+      - alert: DeviceHighTemperature
+        expr: lics_device_temperature > 70
+        for: 2m
+        labels:
+          severity: warning
+          service: edge-devices
+        annotations:
+          summary: "High temperature on device {{ $labels.device_id }}"
+          description: "Device {{ $labels.device_id }} temperature is {{ $value }}°C (> 70°C)."
+
+      - alert: DeviceCriticalTemperature
+        expr: lics_device_temperature > 80
+        for: 1m
+        labels:
+          severity: critical
+          service: edge-devices
+        annotations:
+          summary: "Critical temperature on device {{ $labels.device_id }}"
+          description: "Device {{ $labels.device_id }} temperature is {{ $value }}°C (> 80°C)."
+
+      - alert: DeviceLowBattery
+        expr: lics_device_battery_level < 20
+        for: 5m
+        labels:
+          severity: warning
+          service: edge-devices
+        annotations:
+          summary: "Low battery on device {{ $labels.device_id }}"
+          description: "Device {{ $labels.device_id }} battery level is {{ $value }}% (< 20%)."
+
+      - alert: DeviceCriticalBattery
+        expr: lics_device_battery_level < 10
+        for: 2m
+        labels:
+          severity: critical
+          service: edge-devices
+        annotations:
+          summary: "Critical battery on device {{ $labels.device_id }}"
+          description: "Device {{ $labels.device_id }} battery level is {{ $value }}% (< 10%)."
+
+  # Experiment alerts
+  - name: experiments
+    rules:
+      - alert: ExperimentStalled
+        expr: lics_experiment_last_activity > 3600
+        for: 5m
+        labels:
+          severity: warning
+          service: experiments
+        annotations:
+          summary: "Experiment {{ $labels.experiment_id }} appears stalled"
+          description: "Experiment {{ $labels.experiment_id }} has had no activity for more than 1 hour."
+
+      - alert: ExperimentDataLoss
+        expr: increase(lics_experiment_data_errors_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: critical
+          service: experiments
+        annotations:
+          summary: "Data loss detected in experiment {{ $labels.experiment_id }}"
+          description: "Experiment {{ $labels.experiment_id }} has {{ $value }} data errors in the last 5 minutes."
+
+  # Message Broker alerts
+  - name: messaging
+    rules:
+      - alert: MQTTBrokerDown
+        expr: up{job="mqtt"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: messaging
+        annotations:
+          summary: "MQTT Broker is down"
+          description: "MQTT Broker has been down for more than 1 minute."
+
+      - alert: HighMQTTMessageRate
+        expr: rate(mqtt_messages_received_total[5m]) > 1000
+        for: 5m
+        labels:
+          severity: warning
+          service: messaging
+        annotations:
+          summary: "High MQTT message rate"
+          description: "MQTT message rate is {{ $value }} messages/second (> 1000)."
+
+      - alert: MQTTConnectionsHigh
+        expr: mqtt_clients_connected > 100
+        for: 5m
+        labels:
+          severity: warning
+          service: messaging
+        annotations:
+          summary: "High MQTT connections"
+          description: "MQTT broker has {{ $value }} connected clients (> 100)."

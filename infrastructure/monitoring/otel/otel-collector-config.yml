@@ -1,0 +1,194 @@
+# OpenTelemetry Collector Configuration
+# Telemetry data collection and processing for LICS
+
+receivers:
+  # OTLP gRPC receiver
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+  # Prometheus receiver for scraping metrics
+  prometheus:
+    config:
+      global:
+        scrape_interval: 30s
+      scrape_configs:
+        - job_name: 'otel-collector'
+          static_configs:
+            - targets: ['localhost:8888']
+
+  # Host metrics receiver
+  hostmetrics:
+    collection_interval: 30s
+    scrapers:
+      cpu:
+        metrics:
+          system.cpu.utilization:
+            enabled: true
+      disk:
+      filesystem:
+        exclude_mount_points:
+          mount_points: ["/dev/*", "/proc/*", "/sys/*", "/var/lib/docker/*", "/var/lib/containerd/*", "/snap/*"]
+          match_type: regexp
+      load:
+      memory:
+      network:
+      paging:
+      process:
+        mute_process_name_error: true
+
+  # Docker stats receiver
+  docker_stats:
+    endpoint: unix:///var/run/docker.sock
+    collection_interval: 30s
+    timeout: 20s
+
+  # HTTP check receiver
+  httpcheck:
+    targets:
+      - endpoint: http://backend:8000/health
+        method: GET
+      - endpoint: http://frontend:3000/api/health
+        method: GET
+      - endpoint: http://prometheus:9090/-/healthy
+        method: GET
+      - endpoint: http://grafana:3000/api/health
+        method: GET
+    collection_interval: 30s
+
+processors:
+  # Batch processor
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+
+  # Memory limiter
+  memory_limiter:
+    limit_mib: 512
+    spike_limit_mib: 128
+    check_interval: 5s
+
+  # Resource processor
+  resource:
+    attributes:
+      - key: service.name
+        value: lics-otel-collector
+        action: upsert
+      - key: service.version
+        value: "1.0.0"
+        action: upsert
+      - key: deployment.environment
+        value: production
+        action: upsert
+
+  # Attributes processor
+  attributes:
+    actions:
+      - key: http.user_agent
+        action: delete
+      - key: http.request.header.authorization
+        action: delete
+
+  # Transform processor for custom transformations
+  transform:
+    metric_statements:
+      - context: metric
+        statements:
+          - set(description, "Custom description") where name == "custom.metric"
+
+  # Filter processor
+  filter:
+    metrics:
+      exclude:
+        match_type: regexp
+        metric_names:
+          - ".*grpc_io.*"
+          - ".*_bucket"
+
+exporters:
+  # Jaeger exporter for traces
+  jaeger:
+    endpoint: jaeger:14250
+    tls:
+      insecure: true
+
+  # Prometheus exporter for metrics
+  prometheus:
+    endpoint: "0.0.0.0:9464"
+    namespace: lics_otel
+    const_labels:
+      environment: production
+      service: otel-collector
+
+  # OTLP gRPC exporter (for forwarding to other collectors)
+  otlp:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+
+  # Logging exporter for debugging
+  logging:
+    loglevel: info
+    sampling_initial: 2
+    sampling_thereafter: 500
+
+  # File exporter for backup
+  file:
+    path: /tmp/otel-data.json
+    rotation:
+      max_megabytes: 10
+      max_days: 3
+      max_backups: 3
+
+extensions:
+  # Health check extension
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+  # pprof extension for profiling
+  pprof:
+    endpoint: 0.0.0.0:1777
+
+  # zpages extension for debugging
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+  # Memory ballast for stable memory usage
+  memory_ballast:
+    size_mib: 64
+
+service:
+  extensions: [health_check, pprof, zpages, memory_ballast]
+
+  pipelines:
+    # Traces pipeline
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource, attributes]
+      exporters: [jaeger, logging]
+
+    # Metrics pipeline
+    metrics:
+      receivers: [otlp, prometheus, hostmetrics, docker_stats, httpcheck]
+      processors: [memory_limiter, batch, resource, filter, transform]
+      exporters: [prometheus, logging]
+
+    # Logs pipeline
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource, attributes]
+      exporters: [logging]
+
+  telemetry:
+    logs:
+      level: info
+    metrics:
+      address: 0.0.0.0:8888
+      level: detailed
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [jaeger]

@@ -1,0 +1,170 @@
+# Alertmanager Configuration
+# Alert routing and notification system for LICS
+
+global:
+  # The smarthost and SMTP sender used for mail notifications.
+  smtp_smarthost: 'localhost:587'
+  smtp_from: 'lics-alerts@example.com'
+  smtp_auth_username: 'lics-alerts@example.com'
+  smtp_auth_password: 'your-smtp-password'
+
+  # Slack webhook URL for notifications (optional)
+  slack_api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+
+  # Resolve timeout
+  resolve_timeout: 5m
+
+# Templates for notification formatting
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# The root route on which each incoming alert enters.
+route:
+  # The labels by which incoming alerts are grouped together.
+  group_by: ['alertname', 'cluster', 'service']
+
+  # When a new group of alerts is created by an incoming alert, wait at
+  # least 'group_wait' to send the initial notification.
+  group_wait: 10s
+
+  # When the first notification was sent, wait 'group_interval' to send a batch
+  # of new alerts that started firing for that group.
+  group_interval: 10s
+
+  # If an alert has successfully been sent, wait 'repeat_interval' to
+  # resend them.
+  repeat_interval: 1h
+
+  # A default receiver
+  receiver: web.hook
+
+  # All the above attributes are inherited by all child routes and can
+  # overwritten on each.
+  routes:
+    # Critical alerts - immediate notification
+    - match:
+        severity: critical
+      receiver: critical-alerts
+      group_wait: 5s
+      repeat_interval: 5m
+
+    # Warning alerts - regular notification
+    - match:
+        severity: warning
+      receiver: warning-alerts
+      group_wait: 30s
+      repeat_interval: 30m
+
+    # Database specific alerts
+    - match:
+        service: database
+      receiver: database-team
+      group_by: ['alertname', 'instance']
+
+    # LICS application alerts
+    - match:
+        service: lics-backend
+      receiver: lics-team
+      group_by: ['alertname', 'instance']
+
+    # Infrastructure alerts
+    - match:
+        service: infrastructure
+      receiver: infrastructure-team
+      group_by: ['alertname', 'instance']
+
+    # Device-related alerts
+    - match:
+        service: edge-devices
+      receiver: device-team
+      group_by: ['alertname', 'device_id']
+
+# Inhibition rules allow to mute a set of alerts given that another alert is firing.
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    # Apply inhibition if the alertname is the same.
+    equal: ['alertname', 'cluster', 'service']
+
+receivers:
+  # Default webhook receiver (disabled by default)
+  - name: 'web.hook'
+    webhook_configs:
+      - url: 'http://localhost:5001/webhook'
+        send_resolved: true
+        http_config:
+          basic_auth:
+            username: 'webhook-user'
+            password: 'webhook-password'
+
+  # Critical alerts - multiple notification channels
+  - name: 'critical-alerts'
+    email_configs:
+      - to: 'admin@example.com,oncall@example.com'
+        headers:
+          Priority: 'high'
+          X-Alert-Severity: 'critical'
+
+    # Slack notification for critical alerts
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+        channel: '#lics-critical-alerts'
+        username: 'LICS Alertmanager'
+        icon_emoji: ':fire:'
+        title: 'CRITICAL Alert: {{ .GroupLabels.alertname }}'
+        text: |
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Description:* {{ .Annotations.description }}
+          *Severity:* {{ .Labels.severity }}
+          *Instance:* {{ .Labels.instance }}
+          *Started:* {{ .StartsAt }}
+          {{ end }}
+        send_resolved: true
+
+  # Warning alerts
+  - name: 'warning-alerts'
+    email_configs:
+      - to: 'team@example.com'
+
+  # Database team alerts
+  - name: 'database-team'
+    email_configs:
+      - to: 'dba@example.com'
+
+  # LICS application team alerts
+  - name: 'lics-team'
+    email_configs:
+      - to: 'lics-dev@example.com'
+
+  # Infrastructure team alerts
+  - name: 'infrastructure-team'
+    email_configs:
+      - to: 'infra@example.com'
+
+  # Device team alerts
+  - name: 'device-team'
+    email_configs:
+      - to: 'devices@example.com'
+
+# Global configuration
+time_intervals:
+  - name: offhours
+    time_intervals:
+      # Weekday evenings
+      - times:
+        - start_time: '19:00'
+          end_time: '23:59'
+        weekdays: ['monday:friday']
+      # Weekday early mornings
+      - times:
+        - start_time: '00:00'
+          end_time: '09:00'
+        weekdays: ['tuesday:saturday']  # Next day after monday:friday
+      # Full weekends
+      - times:
+        - start_time: '00:00'
+          end_time: '23:59'
+        weekdays: ['saturday', 'sunday']

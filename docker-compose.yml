@@ -169,9 +169,9 @@ services:
     image: eclipse-mosquitto:2.0
     ports:
       - "1883:1883"
-      - "9001:9001"
+      - "9002:9001"
     volumes:
-      - ./infrastructure/mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./infrastructure/mqtt/mosquitto-simple.conf:/mosquitto/config/mosquitto.conf
       - mqtt_data:/mosquitto/data
       - mqtt_logs:/mosquitto/log
     networks:
@@ -206,6 +206,7 @@ services:
       - "9090:9090"
     volumes:
       - ./infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./infrastructure/monitoring/prometheus/rules:/etc/prometheus/rules
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -217,6 +218,8 @@ services:
     networks:
       - lics-network
     restart: unless-stopped
+    depends_on:
+      - alertmanager
 
   # InfluxDB Time Series Database
   influxdb:
@@ -263,6 +266,157 @@ services:
       - prometheus
       - influxdb
 
+  # PostgreSQL Exporter for Prometheus
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    ports:
+      - "9187:9187"
+    environment:
+      - DATA_SOURCE_NAME=postgresql://lics:lics123@postgres:5432/lics?sslmode=disable
+      - PG_EXPORTER_EXTEND_QUERY_PATH=/etc/postgres_exporter/queries.yaml
+    volumes:
+      - ./infrastructure/monitoring/postgres-exporter/queries.yaml:/etc/postgres_exporter/queries.yaml
+    networks:
+      - lics-network
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Redis Exporter for Prometheus
+  redis-exporter:
+    image: oliver006/redis_exporter:latest
+    ports:
+      - "9121:9121"
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+      - REDIS_EXPORTER_LOG_FORMAT=json
+    networks:
+      - lics-network
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # Node Exporter for System Metrics
+  node-exporter:
+    image: prom/node-exporter:latest
+    ports:
+      - "9100:9100"
+    command:
+      - '--path.rootfs=/host'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host:ro,rslave
+    networks:
+      - lics-network
+    restart: unless-stopped
+    pid: host
+
+  # cAdvisor for Container Metrics
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    devices:
+      - /dev/kmsg
+    networks:
+      - lics-network
+    restart: unless-stopped
+    privileged: true
+
+  # Loki Log Aggregation
+  loki:
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/loki.yml
+    volumes:
+      - ./infrastructure/monitoring/loki/loki.yml:/etc/loki/loki.yml
+      - loki_data:/loki
+    networks:
+      - lics-network
+    restart: unless-stopped
+
+  # Promtail Log Collection Agent
+  promtail:
+    image: grafana/promtail:latest
+    volumes:
+      - ./infrastructure/monitoring/loki/promtail.yml:/etc/promtail/promtail.yml
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./logs:/host/logs:ro
+    command: -config.file=/etc/promtail/promtail.yml
+    networks:
+      - lics-network
+    restart: unless-stopped
+    depends_on:
+      - loki
+
+  # Alertmanager for Prometheus Alerts
+  alertmanager:
+    image: prom/alertmanager:latest
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./infrastructure/monitoring/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+      - '--cluster.listen-address=0.0.0.0:9094'
+    networks:
+      - lics-network
+    restart: unless-stopped
+
+  # Jaeger All-in-One for Distributed Tracing
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "14268:14268"  # Accept jaeger.thrift directly from clients
+      - "14250:14250"  # Accept model.proto
+      - "6831:6831/udp"  # Accept jaeger.thrift over compact thrift protocol
+      - "6832:6832/udp"  # Accept jaeger.thrift over binary thrift protocol
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - COLLECTOR_ZIPKIN_HOST_PORT=:9411
+    volumes:
+      - jaeger_data:/tmp
+    networks:
+      - lics-network
+    restart: unless-stopped
+
+  # OpenTelemetry Collector
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    command: ["--config=/etc/otel-collector-config.yml"]
+    volumes:
+      - ./infrastructure/monitoring/otel/otel-collector-config.yml:/etc/otel-collector-config.yml
+    ports:
+      - "8888:8888"   # Prometheus metrics
+      - "8889:8889"   # Prometheus exporter metrics
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+      - "9464:9464"   # Prometheus exporter
+      - "13133:13133" # Health check
+    networks:
+      - lics-network
+    restart: unless-stopped
+    depends_on:
+      - jaeger
+      - prometheus
+
   # Nginx Reverse Proxy
   nginx:
     image: nginx:alpine
@@ -299,4 +453,10 @@ volumes:
   prometheus_data:
     driver: local
   grafana_data:
+    driver: local
+  loki_data:
+    driver: local
+  alertmanager_data:
+    driver: local
+  jaeger_data:
     driver: local

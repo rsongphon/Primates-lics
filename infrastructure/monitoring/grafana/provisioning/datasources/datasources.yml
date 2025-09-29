@@ -34,7 +34,7 @@ datasources:
       timescaledb: true
       sslmode: disable
     secureJsonData:
-      password: lics123
+      password: "${POSTGRES_PASSWORD}"
 
   # Redis - Cache metrics
   - name: Redis
@@ -50,51 +50,54 @@ datasources:
       pipelineWindow: 0
     secureJsonData: {}
 
-  # InfluxDB - Time series data (if using InfluxDB)
-  # - name: InfluxDB
-  #   type: influxdb
-  #   access: proxy
-  #   url: http://influxdb:8086
-  #   database: lics_telemetry
-  #   user: admin
-  #   editable: true
-  #   jsonData:
-  #     version: 2.0
-  #     organization: lics
-  #     defaultBucket: telemetry
-  #     tlsSkipVerify: true
-  #   secureJsonData:
-  #     token: your-influxdb-token
+  # InfluxDB - Time series data
+  - name: InfluxDB
+    type: influxdb
+    uid: influxdb-uid
+    access: proxy
+    url: http://influxdb:8086
+    database: lics_telemetry
+    user: admin
+    editable: true
+    jsonData:
+      version: 2.0
+      organization: lics
+      defaultBucket: telemetry
+      tlsSkipVerify: true
+      httpMode: POST
+    secureJsonData:
+      token: "${INFLUXDB_ADMIN_TOKEN}"
 
-  # Loki - Log aggregation (if using Loki)
-  # - name: Loki
-  #   type: loki
-  #   access: proxy
-  #   url: http://loki:3100
-  #   editable: true
-  #   jsonData:
-  #     maxLines: 1000
-  #     derivedFields:
-  #       - datasourceUid: jaeger-uid
-  #         matcherRegex: "trace_id=(\\w+)"
-  #         name: TraceID
-  #         url: "$${__value.raw}"
+  # Loki - Log aggregation
+  - name: Loki
+    type: loki
+    uid: loki-uid
+    access: proxy
+    url: http://loki:3100
+    editable: true
+    jsonData:
+      maxLines: 1000
+      derivedFields:
+        - datasourceUid: jaeger-uid
+          matcherRegex: "trace_id=(\\w+)"
+          name: TraceID
+          url: "$${__value.raw}"
 
-  # Jaeger - Distributed tracing (if using Jaeger)
-  # - name: Jaeger
-  #   type: jaeger
-  #   uid: jaeger-uid
-  #   access: proxy
-  #   url: http://jaeger:16686
-  #   editable: true
-  #   jsonData:
-  #     tracesToLogs:
-  #       datasourceUid: loki-uid
-  #       tags: ['job', 'instance', 'pod', 'namespace']
-  #       mappedTags: [{ key: 'service.name', value: 'service' }]
-  #       mapTagNamesEnabled: false
-  #       spanStartTimeShift: 1h
-  #       spanEndTimeShift: 1h
+  # Jaeger - Distributed tracing
+  - name: Jaeger
+    type: jaeger
+    uid: jaeger-uid
+    access: proxy
+    url: http://jaeger:16686
+    editable: true
+    jsonData:
+      tracesToLogs:
+        datasourceUid: loki-uid
+        tags: ['job', 'instance', 'pod', 'namespace']
+        mappedTags: [{ key: 'service.name', value: 'service' }]
+        mapTagNamesEnabled: false
+        spanStartTimeShift: 1h
+        spanEndTimeShift: 1h
 
   # MQTT Data (custom datasource for MQTT telemetry)
   - name: LICS-MQTT
