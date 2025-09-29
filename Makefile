@@ -1,7 +1,7 @@
 # LICS Project Makefile
 # Provides common development tasks and workflows
 
-.PHONY: help install test build clean lint format docker-build docker-up docker-down deploy setup-dev-env setup-mac setup-linux setup-windows setup-ssl ssl-install-ca ssl-clean ssl-verify dev-https
+.PHONY: help install test build clean lint format docker-build docker-up docker-down deploy setup-dev-env setup-mac setup-linux setup-windows setup-ssl ssl-install-ca ssl-clean ssl-verify dev-https test-comprehensive test-comprehensive-quick test-comprehensive-benchmark test-comprehensive-stress test-comprehensive-parallel test-infrastructure test-infrastructure-quick test-database test-database-benchmark test-database-stress test-messaging test-messaging-benchmark test-messaging-load test-system-integration test-system-integration-parallel health-check health-check-database health-check-messaging health-check-continuous performance-test performance-baseline test-report test-report-continuous validate-all validate-quick validate-performance validate-stress
 
 # Default target
 .DEFAULT_GOAL := help
@@ -97,6 +97,149 @@ test-integration: ## Run integration tests
 test-e2e: ## Run end-to-end tests
 	@echo "$(YELLOW)Running E2E tests...$(NC)"
 	cd services/frontend && npm run test:e2e
+
+## Comprehensive System Testing
+test-comprehensive: ## Run comprehensive system validation (all tests)
+	@echo "$(YELLOW)Running comprehensive system validation...$(NC)"
+	python3 tools/scripts/run-comprehensive-tests.py --suite all --mode standard
+	@echo "$(GREEN)✓ Comprehensive testing completed$(NC)"
+
+test-comprehensive-quick: ## Run quick comprehensive validation (essential tests only)
+	@echo "$(YELLOW)Running quick comprehensive validation...$(NC)"
+	python3 tools/scripts/run-comprehensive-tests.py --suite all --mode quick
+	@echo "$(GREEN)✓ Quick comprehensive testing completed$(NC)"
+
+test-comprehensive-benchmark: ## Run comprehensive testing with performance benchmarks
+	@echo "$(YELLOW)Running comprehensive testing with benchmarks...$(NC)"
+	python3 tools/scripts/run-comprehensive-tests.py --suite all --mode benchmark
+	@echo "$(GREEN)✓ Benchmark testing completed$(NC)"
+
+test-comprehensive-stress: ## Run comprehensive stress testing
+	@echo "$(YELLOW)Running comprehensive stress testing...$(NC)"
+	python3 tools/scripts/run-comprehensive-tests.py --suite all --mode stress
+	@echo "$(GREEN)✓ Stress testing completed$(NC)"
+
+test-comprehensive-parallel: ## Run comprehensive tests in parallel
+	@echo "$(YELLOW)Running comprehensive tests in parallel...$(NC)"
+	python3 tools/scripts/run-comprehensive-tests.py --suite all --mode standard --parallel
+	@echo "$(GREEN)✓ Parallel comprehensive testing completed$(NC)"
+
+test-infrastructure: ## Validate Docker infrastructure and services
+	@echo "$(YELLOW)Validating infrastructure...$(NC)"
+	python3 tools/scripts/validate-infrastructure.py --format text
+	@echo "$(GREEN)✓ Infrastructure validation completed$(NC)"
+
+test-infrastructure-quick: ## Quick infrastructure validation
+	@echo "$(YELLOW)Running quick infrastructure validation...$(NC)"
+	python3 tools/scripts/validate-infrastructure.py --quick --format text
+	@echo "$(GREEN)✓ Quick infrastructure validation completed$(NC)"
+
+test-database: ## Test all database services comprehensively
+	@echo "$(YELLOW)Testing database services...$(NC)"
+	python3 tools/scripts/test-database-suite.py --test all --format text
+	@echo "$(GREEN)✓ Database testing completed$(NC)"
+
+test-database-benchmark: ## Benchmark database performance
+	@echo "$(YELLOW)Benchmarking database performance...$(NC)"
+	python3 tools/scripts/test-database-suite.py --test all --benchmark --format text
+	@echo "$(GREEN)✓ Database benchmarking completed$(NC)"
+
+test-database-stress: ## Stress test database services
+	@echo "$(YELLOW)Stress testing database services...$(NC)"
+	python3 tools/scripts/test-database-suite.py --test all --benchmark --stress --format text
+	@echo "$(GREEN)✓ Database stress testing completed$(NC)"
+
+test-messaging: ## Test all messaging services comprehensively
+	@echo "$(YELLOW)Testing messaging services...$(NC)"
+	python3 tools/scripts/test-messaging-suite.py --test all --format text
+	@echo "$(GREEN)✓ Messaging testing completed$(NC)"
+
+test-messaging-benchmark: ## Benchmark messaging performance
+	@echo "$(YELLOW)Benchmarking messaging performance...$(NC)"
+	python3 tools/scripts/test-messaging-suite.py --test all --benchmark --format text
+	@echo "$(GREEN)✓ Messaging benchmarking completed$(NC)"
+
+test-messaging-load: ## Load test messaging services
+	@echo "$(YELLOW)Load testing messaging services...$(NC)"
+	python3 tools/scripts/test-messaging-suite.py --test all --benchmark --load-test --format text
+	@echo "$(GREEN)✓ Messaging load testing completed$(NC)"
+
+test-system-integration: ## Run end-to-end system integration tests
+	@echo "$(YELLOW)Running system integration tests...$(NC)"
+	python3 tools/scripts/test-system-integration.py --format text
+	@echo "$(GREEN)✓ System integration testing completed$(NC)"
+
+test-system-integration-parallel: ## Run system integration tests in parallel
+	@echo "$(YELLOW)Running system integration tests in parallel...$(NC)"
+	python3 tools/scripts/test-system-integration.py --parallel --format text
+	@echo "$(GREEN)✓ Parallel system integration testing completed$(NC)"
+
+## Health Monitoring
+health-check: ## Check overall system health
+	@echo "$(YELLOW)Checking system health...$(NC)"
+	python3 infrastructure/monitoring/database/health_check.py --format text
+	@echo ""
+	python3 infrastructure/monitoring/messaging-health-check.py --format json
+	@echo "$(GREEN)✓ Health check completed$(NC)"
+
+health-check-database: ## Check database services health
+	@echo "$(YELLOW)Checking database health...$(NC)"
+	python3 infrastructure/monitoring/database/health_check.py --format text
+	@echo "$(GREEN)✓ Database health check completed$(NC)"
+
+health-check-messaging: ## Check messaging services health
+	@echo "$(YELLOW)Checking messaging health...$(NC)"
+	python3 infrastructure/monitoring/messaging-health-check.py --format json
+	@echo "$(GREEN)✓ Messaging health check completed$(NC)"
+
+health-check-continuous: ## Run continuous health monitoring
+	@echo "$(YELLOW)Starting continuous health monitoring...$(NC)"
+	@echo "$(YELLOW)Press Ctrl+C to stop$(NC)"
+	python3 infrastructure/monitoring/messaging-health-check.py --continuous --interval 60
+
+## Performance Testing
+performance-test: ## Run performance tests with K6
+	@echo "$(YELLOW)Running performance tests...$(NC)"
+	k6 run tests/performance/api-load-test.js
+	@echo "$(GREEN)✓ Performance testing completed$(NC)"
+
+performance-baseline: ## Establish performance baselines
+	@echo "$(YELLOW)Establishing performance baselines...$(NC)"
+	@$(MAKE) test-comprehensive-benchmark
+	@echo "$(GREEN)✓ Performance baselines established$(NC)"
+
+## Test Reporting
+test-report: ## Generate comprehensive test report with HTML dashboard
+	@echo "$(YELLOW)Generating comprehensive test report...$(NC)"
+	python3 tools/scripts/run-comprehensive-tests.py --suite all --mode standard --format html
+	@echo "$(GREEN)✓ Test report generated$(NC)"
+
+test-report-continuous: ## Run continuous testing with reports
+	@echo "$(YELLOW)Starting continuous testing with reporting...$(NC)"
+	@echo "$(YELLOW)Press Ctrl+C to stop$(NC)"
+	python3 tools/scripts/run-comprehensive-tests.py --suite all --mode standard --continuous --interval 3600
+
+## Validation Commands (Combined Testing)
+validate-all: ## Complete system validation (infrastructure + database + messaging + integration)
+	@echo "$(YELLOW)Starting complete system validation...$(NC)"
+	@$(MAKE) test-comprehensive
+	@echo "$(GREEN)✓ Complete system validation finished$(NC)"
+
+validate-quick: ## Quick system validation (essential checks only)
+	@echo "$(YELLOW)Starting quick system validation...$(NC)"
+	@$(MAKE) test-comprehensive-quick
+	@echo "$(GREEN)✓ Quick system validation finished$(NC)"
+
+validate-performance: ## Complete performance validation
+	@echo "$(YELLOW)Starting performance validation...$(NC)"
+	@$(MAKE) test-comprehensive-benchmark
+	@$(MAKE) performance-test
+	@echo "$(GREEN)✓ Performance validation finished$(NC)"
+
+validate-stress: ## Complete stress testing validation
+	@echo "$(YELLOW)Starting stress testing validation...$(NC)"
+	@$(MAKE) test-comprehensive-stress
+	@echo "$(GREEN)✓ Stress testing validation finished$(NC)"
 
 ## Code Quality
 lint: ## Run linting for all services

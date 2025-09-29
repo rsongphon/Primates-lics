@@ -1,0 +1,58 @@
+====================================================================================================
+LICS COMPREHENSIVE TEST EXECUTION REPORT
+====================================================================================================
+Timestamp: 2025-09-29T11:05:16.727238
+Test Mode: STANDARD
+Parallel Execution: Disabled
+Total Duration: 0.7s
+Overall Status: ❌ UNHEALTHY
+
+EXECUTION SUMMARY:
+--------------------------------------------------
+Test Suites Run: 4
+Healthy Suites: 1
+Failed Suites: 3
+Success Rate: 25.0%
+
+INDIVIDUAL SUITE RESULTS:
+--------------------------------------------------
+❌ Infrastructure Validation
+   Duration: 0.05s
+   Error: Traceback (most recent call last):
+  File "/Users/beacon/Primates-lics/tools/scripts/validate-infrastructure.py", line 28, in <module>
+    import yaml
+ModuleNotFoundError: No module named 'yaml'
+
+
+❌ Database Test Suite
+   Duration: 0.09s
+   Error: Unknown error
+
+❌ Messaging Test Suite
+   Duration: 0.06s
+   Error: Unknown error
+
+✅ System Integration Test
+   Duration: 0.5s
+   Detailed Results: /Users/beacon/Primates-lics/test-results/20250929_110516/integration_results.json
+
+FAILED SUITES ANALYSIS:
+--------------------------------------------------
+❌ Infrastructure Validation
+   Error: Traceback (most recent call last):
+  File "/Users/beacon/Primates-lics/tools/scripts/validate-infrastructure.py", line 28, in <module>
+    import yaml
+ModuleNotFoundError: No module named 'yaml'
+
+
+❌ Database Test Suite
+   Error: Unknown error
+
+❌ Messaging Test Suite
+   Error: Unknown error
+
+TEST OUTPUTS:
+--------------------------------------------------
+Output Directory: /Users/beacon/Primates-lics/test-results/20250929_110516
+Generated Files:
+  - integration: integration_results.json

@@ -4,6 +4,7 @@ Comprehensive health monitoring for all system components
 """
 
 import asyncio
+import io
 import json
 import os
 import time
@@ -17,6 +18,8 @@ from influxdb_client.client.influxdb_client_async import InfluxDBClientAsync
 from minio import Minio
 from fastapi import APIRouter, HTTPException, Depends, Query
 from fastapi.responses import JSONResponse
+
+from app.core.config import settings
 
 router = APIRouter()
 
@@ -41,10 +44,8 @@ class HealthChecker:
 
         start_time = time.time()
         try:
-            # Connection string from environment
-            conn = await asyncpg.connect(
-                "postgresql://lics:lics123@postgres:5432/lics"
-            )
+            # Connection string from settings
+            conn = await asyncpg.connect(settings.DATABASE_URL)
 
             # Basic connectivity test
             version = await conn.fetchval("SELECT version()")
@@ -97,7 +98,9 @@ class HealthChecker:
 
         start_time = time.time()
         try:
-            r = redis.Redis(host='redis', port=6379, decode_responses=True)
+            # Parse Redis URL
+            import redis
+            r = redis.from_url(settings.REDIS_URL, decode_responses=True)
 
             # Basic connectivity test
             pong = await r.ping()
@@ -144,9 +147,9 @@ class HealthChecker:
         start_time = time.time()
         try:
             async with InfluxDBClientAsync(
-                url="http://influxdb:8086",
-                token=os.getenv("INFLUXDB_ADMIN_TOKEN", "lics-admin-token-change-in-production"),
-                org="lics"
+                url=settings.INFLUXDB_URL,
+                token=settings.INFLUXDB_TOKEN,
+                org=settings.INFLUXDB_ORG
             ) as client:
                 # Health check
                 health = await client.health()
@@ -189,7 +192,7 @@ class HealthChecker:
             client = mqtt.Client()
 
             # Connect to MQTT broker
-            result_code = client.connect("mqtt", 1883, 60)
+            result_code = client.connect(settings.MQTT_BROKER_URL, settings.MQTT_BROKER_PORT, 60)
 
             if result_code == 0:
                 # Test publish/subscribe
@@ -199,7 +202,7 @@ class HealthChecker:
                 result.update({
                     "status": "healthy",
                     "details": {
-                        "broker": "mqtt:1883",
+                        "broker": f"{settings.MQTT_BROKER_URL}:{settings.MQTT_BROKER_PORT}",
                         "connection_result": "success"
                     }
                 })
@@ -233,10 +236,10 @@ class HealthChecker:
         start_time = time.time()
         try:
             client = Minio(
-                "minio:9000",
-                access_key=os.getenv("MINIO_ACCESS_KEY", "minioadmin"),
-                secret_key=os.getenv("MINIO_SECRET_KEY", "minioadmin"),
-                secure=False
+                settings.MINIO_ENDPOINT,
+                access_key=settings.MINIO_ACCESS_KEY,
+                secret_key=settings.MINIO_SECRET_KEY,
+                secure=settings.MINIO_SECURE
             )
 
             # List buckets

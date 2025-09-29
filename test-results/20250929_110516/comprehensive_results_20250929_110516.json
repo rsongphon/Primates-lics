@@ -1,0 +1,101 @@
+{
+  "execution_metadata": {
+    "timestamp": "2025-09-29T11:05:16.726930",
+    "mode": "standard",
+    "parallel": false,
+    "output_directory": "/Users/beacon/Primates-lics/test-results/20250929_110516"
+  },
+  "suite_results": {
+    "infrastructure": {
+      "name": "Infrastructure Validation",
+      "suite": "infrastructure",
+      "start_time": "2025-09-29T11:05:16.022925",
+      "duration_seconds": 0.05,
+      "healthy": false,
+      "output_file": null,
+      "error": "Traceback (most recent call last):\n  File \"/Users/beacon/Primates-lics/tools/scripts/validate-infrastructure.py\", line 28, in <module>\n    import yaml\nModuleNotFoundError: No module named 'yaml'\n",
+      "end_time": "2025-09-29T11:05:16.075788"
+    },
+    "database": {
+      "name": "Database Test Suite",
+      "suite": "database",
+      "start_time": "2025-09-29T11:05:16.075933",
+      "duration_seconds": 0.09,
+      "healthy": false,
+      "output_file": null,
+      "error": "Unknown error",
+      "end_time": "2025-09-29T11:05:16.164804"
+    },
+    "messaging": {
+      "name": "Messaging Test Suite",
+      "suite": "messaging",
+      "start_time": "2025-09-29T11:05:16.164941",
+      "duration_seconds": 0.06,
+      "healthy": false,
+      "output_file": null,
+      "error": "Unknown error",
+      "end_time": "2025-09-29T11:05:16.229360"
+    },
+    "integration": {
+      "name": "System Integration Test",
+      "suite": "integration",
+      "start_time": "2025-09-29T11:05:16.229500",
+      "duration_seconds": 0.5,
+      "healthy": true,
+      "output_file": "/Users/beacon/Primates-lics/test-results/20250929_110516/integration_results.json",
+      "error": null,
+      "detailed_results": {},
+      "end_time": "2025-09-29T11:05:16.726836"
+    }
+  },
+  "analysis": {
+    "execution_summary": {
+      "total_suites": 4,
+      "healthy_suites": 1,
+      "failed_suites": 3,
+      "success_rate": 25.0,
+      "total_duration": 0.7,
+      "overall_healthy": false
+    },
+    "suite_summary": {
+      "infrastructure": {
+        "healthy": false,
+        "duration": 0.05,
+        "key_metrics": {}
+      },
+      "database": {
+        "healthy": false,
+        "duration": 0.09,
+        "key_metrics": {}
+      },
+      "messaging": {
+        "healthy": false,
+        "duration": 0.06,
+        "key_metrics": {}
+      },
+      "integration": {
+        "healthy": true,
+        "duration": 0.5,
+        "key_metrics": {}
+      }
+    },
+    "recommendations": [],
+    "failed_suites": [
+      {
+        "suite": "infrastructure",
+        "name": "Infrastructure Validation",
+        "error": "Traceback (most recent call last):\n  File \"/Users/beacon/Primates-lics/tools/scripts/validate-infrastructure.py\", line 28, in <module>\n    import yaml\nModuleNotFoundError: No module named 'yaml'\n"
+      },
+      {
+        "suite": "database",
+        "name": "Database Test Suite",
+        "error": "Unknown error"
+      },
+      {
+        "suite": "messaging",
+        "name": "Messaging Test Suite",
+        "error": "Unknown error"
+      }
+    ]
+  }
+}

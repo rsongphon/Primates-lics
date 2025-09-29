@@ -1,0 +1,101 @@
+{
+  "execution_metadata": {
+    "timestamp": "2025-09-29T11:06:07.361094",
+    "mode": "quick",
+    "parallel": false,
+    "output_directory": "/Users/beacon/Primates-lics/test-results/20250929_110606"
+  },
+  "suite_results": {
+    "infrastructure": {
+      "name": "Infrastructure Validation",
+      "suite": "infrastructure",
+      "start_time": "2025-09-29T11:06:06.769261",
+      "duration_seconds": 0.09,
+      "healthy": false,
+      "output_file": null,
+      "error": "Unknown error",
+      "end_time": "2025-09-29T11:06:06.857649"
+    },
+    "database": {
+      "name": "Database Test Suite",
+      "suite": "database",
+      "start_time": "2025-09-29T11:06:06.857834",
+      "duration_seconds": 0.05,
+      "healthy": false,
+      "output_file": null,
+      "error": "Unknown error",
+      "end_time": "2025-09-29T11:06:06.912432"
+    },
+    "messaging": {
+      "name": "Messaging Test Suite",
+      "suite": "messaging",
+      "start_time": "2025-09-29T11:06:06.912586",
+      "duration_seconds": 0.05,
+      "healthy": false,
+      "output_file": null,
+      "error": "Unknown error",
+      "end_time": "2025-09-29T11:06:06.965789"
+    },
+    "integration": {
+      "name": "System Integration Test",
+      "suite": "integration",
+      "start_time": "2025-09-29T11:06:06.965908",
+      "duration_seconds": 0.39,
+      "healthy": true,
+      "output_file": "/Users/beacon/Primates-lics/test-results/20250929_110606/integration_results.json",
+      "error": null,
+      "detailed_results": {},
+      "end_time": "2025-09-29T11:06:07.360987"
+    }
+  },
+  "analysis": {
+    "execution_summary": {
+      "total_suites": 4,
+      "healthy_suites": 1,
+      "failed_suites": 3,
+      "success_rate": 25.0,
+      "total_duration": 0.58,
+      "overall_healthy": false
+    },
+    "suite_summary": {
+      "infrastructure": {
+        "healthy": false,
+        "duration": 0.09,
+        "key_metrics": {}
+      },
+      "database": {
+        "healthy": false,
+        "duration": 0.05,
+        "key_metrics": {}
+      },
+      "messaging": {
+        "healthy": false,
+        "duration": 0.05,
+        "key_metrics": {}
+      },
+      "integration": {
+        "healthy": true,
+        "duration": 0.39,
+        "key_metrics": {}
+      }
+    },
+    "recommendations": [],
+    "failed_suites": [
+      {
+        "suite": "infrastructure",
+        "name": "Infrastructure Validation",
+        "error": "Unknown error"
+      },
+      {
+        "suite": "database",
+        "name": "Database Test Suite",
+        "error": "Unknown error"
+      },
+      {
+        "suite": "messaging",
+        "name": "Messaging Test Suite",
+        "error": "Unknown error"
+      }
+    ]
+  }
+}

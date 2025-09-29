@@ -1,0 +1,58 @@
+====================================================================================================
+LICS COMPREHENSIVE TEST EXECUTION REPORT
+====================================================================================================
+Timestamp: 2025-09-29T11:48:07.261198
+Test Mode: QUICK
+Parallel Execution: Disabled
+Total Duration: 4.58s
+Overall Status: ❌ UNHEALTHY
+
+EXECUTION SUMMARY:
+--------------------------------------------------
+Test Suites Run: 4
+Healthy Suites: 1
+Failed Suites: 3
+Success Rate: 25.0%
+
+INDIVIDUAL SUITE RESULTS:
+--------------------------------------------------
+❌ Infrastructure Validation
+   Duration: 3.8s
+   Key Metrics:
+     services_healthy: 3/6
+     success_rate: 50.0%
+   Detailed Results: /Users/beacon/Primates-lics/test-results/20250929_114802/infrastructure_results.json
+
+❌ Database Test Suite
+   Duration: 0.38s
+   Key Metrics:
+     databases_healthy: 2/4
+     success_rate: 50.0%
+   Detailed Results: /Users/beacon/Primates-lics/test-results/20250929_114802/database_results.json
+
+❌ Messaging Test Suite
+   Duration: 0.1s
+   Error: Unknown error
+
+✅ System Integration Test
+   Duration: 0.3s
+   Detailed Results: /Users/beacon/Primates-lics/test-results/20250929_114802/integration_results.json
+
+FAILED SUITES ANALYSIS:
+--------------------------------------------------
+❌ Infrastructure Validation
+   Error: None
+
+❌ Database Test Suite
+   Error: None
+
+❌ Messaging Test Suite
+   Error: Unknown error
+
+TEST OUTPUTS:
+--------------------------------------------------
+Output Directory: /Users/beacon/Primates-lics/test-results/20250929_114802
+Generated Files:
+  - infrastructure: infrastructure_results.json
+  - database: database_results.json
+  - integration: integration_results.json

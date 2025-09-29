@@ -1,0 +1,134 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LICS Comprehensive Test Report</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+        .status-healthy { color: #28a745; font-weight: bold; }
+        .status-unhealthy { color: #dc3545; font-weight: bold; }
+        .card { background: white; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; }
+        .metric-card { background: #f8f9fa; padding: 15px; border-radius: 6px; border-left: 4px solid #007bff; }
+        .suite-result { border-left: 4px solid #ddd; padding: 15px; margin-bottom: 15px; background: #f8f9fa; }
+        .suite-healthy { border-left-color: #28a745; }
+        .suite-failed { border-left-color: #dc3545; }
+        .progress-bar { width: 100%; height: 20px; background: #e9ecef; border-radius: 10px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #28a745, #20c997); transition: width 0.3s ease; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #f8f9fa; font-weight: bold; }
+        .timestamp { color: #6c757d; font-size: 0.9em; }
+        .recommendations { background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; padding: 15px; }
+        .recommendation-item { margin-bottom: 8px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧪 LICS Comprehensive Test Report</h1>
+            <p class="timestamp">Generated: 2025-09-29 11:25:49</p>
+            <p>Test Mode: <strong>STANDARD</strong> | Parallel: <strong>Disabled</strong></p>
+        </div>
+
+        <div class="card">
+            <h2>📊 Execution Summary</h2>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h3>Overall Status</h3>
+                    <div class="status-unhealthy">❌ UNHEALTHY</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Success Rate</h3>
+                    <div style="font-size: 1.5em; font-weight: bold;">25.0%</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 25.0%;"></div>
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <h3>Total Duration</h3>
+                    <div style="font-size: 1.5em; font-weight: bold;">1.18s</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Suites Status</h3>
+                    <div>1/4 Healthy</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>🧪 Test Suite Results</h2>
+            
+            <div class="suite-result suite-failed">
+                <h3>Infrastructure Validation - ❌ FAILED</h3>
+                <p><strong>Duration:</strong> 0.6s</p>
+            <p><strong>Key Metrics:</strong></p><ul><li>services_healthy: 1/6</li><li>success_rate: 16.67%</li></ul></div>
+            <div class="suite-result suite-failed">
+                <h3>Database Test Suite - ❌ FAILED</h3>
+                <p><strong>Duration:</strong> 0.19s</p>
+            <p><strong>Key Metrics:</strong></p><ul><li>databases_healthy: 1/4</li><li>success_rate: 25.0%</li></ul></div>
+            <div class="suite-result suite-failed">
+                <h3>Messaging Test Suite - ❌ FAILED</h3>
+                <p><strong>Duration:</strong> 0.1s</p>
+            <p><strong>Error:</strong> Unknown error</p></div>
+            <div class="suite-result suite-healthy">
+                <h3>System Integration Test - ✅ PASSED</h3>
+                <p><strong>Duration:</strong> 0.29s</p>
+            </div>
+        </div>
+
+        
+
+        <div class="card">
+            <h2>📁 Test Outputs</h2>
+            <p><strong>Output Directory:</strong> /Users/beacon/Primates-lics/test-results/20250929_112548</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Test Suite</th>
+                        <th>Output File</th>
+                        <th>Status</th>
+                        <th>Duration</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+            <tr>
+                <td>Infrastructure Validation</td>
+                <td>infrastructure_results.json</td>
+                <td>❌</td>
+                <td>0.6s</td>
+            </tr>
+            
+            <tr>
+                <td>Database Test Suite</td>
+                <td>database_results.json</td>
+                <td>❌</td>
+                <td>0.19s</td>
+            </tr>
+            
+            <tr>
+                <td>Messaging Test Suite</td>
+                <td>N/A</td>
+                <td>❌</td>
+                <td>0.1s</td>
+            </tr>
+            
+            <tr>
+                <td>System Integration Test</td>
+                <td>integration_results.json</td>
+                <td>✅</td>
+                <td>0.29s</td>
+            </tr>
+            
+                </tbody>
+            </table>
+        </div>
+    </div>
+</body>
+</html>
+        

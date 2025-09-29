@@ -1,0 +1,40 @@
+{
+  "execution_metadata": {
+    "timestamp": "2025-09-29T11:07:24.264625",
+    "mode": "quick",
+    "parallel": false,
+    "output_directory": "/Users/beacon/Primates-lics/test-results/20250929_110723"
+  },
+  "suite_results": {
+    "integration": {
+      "name": "System Integration Test",
+      "suite": "integration",
+      "start_time": "2025-09-29T11:07:23.814594",
+      "duration_seconds": 0.45,
+      "healthy": true,
+      "output_file": "/Users/beacon/Primates-lics/test-results/20250929_110723/integration_results.json",
+      "error": null,
+      "detailed_results": {},
+      "end_time": "2025-09-29T11:07:24.264539"
+    }
+  },
+  "analysis": {
+    "execution_summary": {
+      "total_suites": 1,
+      "healthy_suites": 1,
+      "failed_suites": 0,
+      "success_rate": 100.0,
+      "total_duration": 0.45,
+      "overall_healthy": true
+    },
+    "suite_summary": {
+      "integration": {
+        "healthy": true,
+        "duration": 0.45,
+        "key_metrics": {}
+      }
+    },
+    "recommendations": [],
+    "failed_suites": []
+  }
+}

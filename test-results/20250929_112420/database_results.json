@@ -1,0 +1,91 @@
+{
+  "timestamp": "2025-09-29T11:24:21.738819",
+  "duration_seconds": 0.02,
+  "test_target": "all",
+  "benchmark_mode": false,
+  "stress_mode": false,
+  "overall_healthy": false,
+  "database_tests": {
+    "postgresql": {
+      "name": "PostgreSQL Comprehensive Test",
+      "healthy": false,
+      "tests": {
+        "connectivity": {
+          "status": "failed",
+          "error": "[Errno 54] Connection reset by peer"
+        }
+      },
+      "performance": {},
+      "errors": [
+        "PostgreSQL connection failed: [Errno 54] Connection reset by peer"
+      ]
+    },
+    "pgbouncer": {
+      "name": "PgBouncer Connection Pooling Test",
+      "healthy": false,
+      "tests": {
+        "pooled_connectivity": {
+          "status": "failed",
+          "error": "Multiple exceptions: [Errno 61] Connect call failed ('::1', 6432, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 6432)"
+        }
+      },
+      "performance": {},
+      "errors": [
+        "PgBouncer test failed: Multiple exceptions: [Errno 61] Connect call failed ('::1', 6432, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 6432)"
+      ]
+    },
+    "redis": {
+      "name": "Redis Comprehensive Test",
+      "healthy": true,
+      "tests": {
+        "connectivity": {
+          "status": "passed",
+          "ping_response": true
+        },
+        "basic_operations": {
+          "status": "passed",
+          "key_value_test": true,
+          "hash_fields_count": 3,
+          "list_length": 3
+        },
+        "streams": {
+          "status": "passed",
+          "entries_added": 5,
+          "entries_read": 5,
+          "consumer_group_working": true
+        },
+        "pubsub": {
+          "status": "passed",
+          "message_received": true
+        }
+      },
+      "performance": {},
+      "errors": []
+    },
+    "influxdb": {
+      "name": "InfluxDB Comprehensive Test",
+      "healthy": false,
+      "tests": {
+        "connectivity": {
+          "status": "failed",
+          "error": "name 'InfluxDBClient' is not defined"
+        }
+      },
+      "performance": {},
+      "errors": [
+        "InfluxDB connection failed: name 'InfluxDBClient' is not defined"
+      ]
+    }
+  },
+  "summary": {
+    "total_databases": 4,
+    "healthy_databases": 1,
+    "failed_databases": 3,
+    "success_rate": 25.0
+  },
+  "errors": [
+    "postgresql: PostgreSQL connection failed: [Errno 54] Connection reset by peer",
+    "pgbouncer: PgBouncer test failed: Multiple exceptions: [Errno 61] Connect call failed ('::1', 6432, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 6432)",
+    "influxdb: InfluxDB connection failed: name 'InfluxDBClient' is not defined"
+  ]
+}
