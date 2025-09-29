@@ -1,0 +1,236 @@
+# LICS MQTT Access Control List (ACL)
+# Defines topic-based permissions for different user roles
+#
+# Format: [user|pattern] [read|write|readwrite] [topic]
+#
+# Special patterns:
+# - %c = client ID
+# - %u = username
+#
+# Topic hierarchy for LICS:
+# lics/labs/{lab_id}/devices/{device_id}/telemetry/{metric}
+# lics/labs/{lab_id}/devices/{device_id}/commands/{command_type}
+# lics/labs/{lab_id}/devices/{device_id}/status
+# lics/labs/{lab_id}/experiments/{exp_id}/events
+# lics/labs/{lab_id}/experiments/{exp_id}/data
+# lics/system/events
+# lics/system/heartbeat
+# lics/admin/commands
+# lics/admin/status
+
+# =============================================================================
+# SYSTEM ADMIN - Full Access
+# =============================================================================
+
+# Admin user has full read/write access to all LICS topics
+user lics-admin
+topic readwrite lics/#
+
+# Admin can access system monitoring topics
+user lics-admin
+topic readwrite $SYS/#
+
+# =============================================================================
+# BACKEND SERVICE - Broad Access for Core Operations
+# =============================================================================
+
+# Backend service can read/write all device telemetry
+user lics-backend
+topic readwrite lics/labs/+/devices/+/telemetry/+
+
+# Backend can send commands to all devices
+user lics-backend
+topic write lics/labs/+/devices/+/commands/+
+
+# Backend can read device status from all devices
+user lics-backend
+topic read lics/labs/+/devices/+/status
+
+# Backend can read/write experiment events and data
+user lics-backend
+topic readwrite lics/labs/+/experiments/+/events
+user lics-backend
+topic readwrite lics/labs/+/experiments/+/data
+
+# Backend can read/write system events
+user lics-backend
+topic readwrite lics/system/events
+user lics-backend
+topic read lics/system/heartbeat
+
+# Backend can read some admin topics for monitoring
+user lics-backend
+topic read lics/admin/status
+
+# =============================================================================
+# MONITORING SERVICE - Read-Only Access
+# =============================================================================
+
+# Monitor user can read all telemetry for dashboards
+user lics-monitor
+topic read lics/labs/+/devices/+/telemetry/+
+
+# Monitor can read device status
+user lics-monitor
+topic read lics/labs/+/devices/+/status
+
+# Monitor can read experiment events for tracking
+user lics-monitor
+topic read lics/labs/+/experiments/+/events
+
+# Monitor can read system status
+user lics-monitor
+topic read lics/system/+
+
+# Monitor can read system statistics
+user lics-monitor
+topic read $SYS/broker/+
+
+# =============================================================================
+# DEVICE PATTERN - Restricted Access per Device
+# =============================================================================
+
+# Devices with pattern lics-device-* have restricted access
+# Device can publish its own telemetry (write only)
+pattern write lics/labs/+/devices/%c/telemetry/+
+
+# Device can publish its own status (write only)
+pattern write lics/labs/+/devices/%c/status
+
+# Device can read commands sent to it (read only)
+pattern read lics/labs/+/devices/%c/commands/+
+
+# Device can publish acknowledgments
+pattern write lics/labs/+/devices/%c/commands/ack
+
+# Device can subscribe to system heartbeat (read only)
+pattern read lics/system/heartbeat
+
+# Device can read experiment events it's part of
+pattern read lics/labs/+/experiments/+/events
+
+# =============================================================================
+# SPECIFIC DEVICE USERS - Individual Device Access
+# =============================================================================
+
+# Template for device-specific users
+# Replace {device_id} with actual device ID when creating users
+
+# Example device: lics-device-rpi-001
+user lics-device-rpi-001
+topic write lics/labs/+/devices/rpi-001/telemetry/+
+user lics-device-rpi-001
+topic write lics/labs/+/devices/rpi-001/status
+user lics-device-rpi-001
+topic read lics/labs/+/devices/rpi-001/commands/+
+user lics-device-rpi-001
+topic write lics/labs/+/devices/rpi-001/commands/ack
+user lics-device-rpi-001
+topic read lics/system/heartbeat
+
+# Template device user (fallback)
+user lics-device-template
+topic write lics/labs/+/devices/template/telemetry/+
+user lics-device-template
+topic write lics/labs/+/devices/template/status
+user lics-device-template
+topic read lics/labs/+/devices/template/commands/+
+
+# =============================================================================
+# LAB-SPECIFIC ACCESS PATTERNS
+# =============================================================================
+
+# Future: Lab-specific users can be added here
+# Example pattern for lab administrators:
+# user lics-lab-admin-{lab_id}
+# topic readwrite lics/labs/{lab_id}/+
+
+# =============================================================================
+# DEVELOPMENT AND TESTING
+# =============================================================================
+
+# Development topic space (only in development environment)
+user lics-backend
+topic readwrite lics/dev/+
+
+user lics-admin
+topic readwrite lics/dev/+
+
+user lics-monitor
+topic read lics/dev/+
+
+# Test devices can access dev topics
+pattern readwrite lics/dev/devices/%c/+
+
+# =============================================================================
+# SECURITY RESTRICTIONS
+# =============================================================================
+
+# Deny access to sensitive system topics for all users except admin
+# These are implicitly denied but listed for clarity
+
+# Device users cannot access other devices' topics
+# (This is enforced by the specific patterns above)
+
+# Non-admin users cannot access admin topics
+# user lics-backend
+# topic deny lics/admin/commands
+
+# Device users cannot publish to system topics
+# pattern deny lics/system/events
+# pattern deny lics/system/commands
+
+# =============================================================================
+# EMERGENCY ACCESS
+# =============================================================================
+
+# Emergency admin access pattern (use only in crisis)
+# user emergency-admin
+# topic readwrite lics/#
+# topic readwrite $SYS/#
+
+# =============================================================================
+# NOTES AND DOCUMENTATION
+# =============================================================================
+
+# Topic Structure Explanation:
+#
+# lics/                                    - Root namespace for all LICS topics
+# ├── labs/{lab_id}/                      - Lab-specific namespace
+# │   ├── devices/{device_id}/            - Device-specific topics
+# │   │   ├── telemetry/{metric}          - Sensor data (temperature, humidity, etc.)
+# │   │   ├── commands/{command_type}     - Commands to device (start, stop, configure)
+# │   │   └── status                      - Device health and status
+# │   └── experiments/{exp_id}/           - Experiment-specific topics
+# │       ├── events                      - Experiment lifecycle events
+# │       └── data                        - Experiment result data
+# ├── system/                             - System-wide topics
+# │   ├── events                          - System events and notifications
+# │   └── heartbeat                       - System heartbeat and health
+# └── admin/                              - Administrative topics
+#     ├── commands                        - System administration commands
+#     └── status                          - System administration status
+#
+# Security Principles:
+# 1. Principle of least privilege - Users get minimum necessary access
+# 2. Device isolation - Devices can only access their own topics
+# 3. Role-based access - Different roles have different permissions
+# 4. Audit trail - All access is logged and traceable
+# 5. Defense in depth - Multiple layers of security controls
+#
+# User Role Summary:
+# - lics-admin: Full system access, emergency control
+# - lics-backend: Core service operations, most lab data
+# - lics-monitor: Read-only access for monitoring and dashboards
+# - lics-device-*: Device-specific restricted access
+# - Lab users: Future lab-specific access (not yet implemented)
+#
+# QoS Recommendations by Topic:
+# - telemetry/*: QoS 0 (fire and forget, high volume)
+# - commands/*: QoS 1 (at least once delivery)
+# - status: QoS 1 (at least once delivery)
+# - events: QoS 1 (at least once delivery)
+# - system/*: QoS 1 (at least once delivery)
+# - admin/*: QoS 2 (exactly once delivery, critical)
+#
+# This ACL file should be regularly reviewed and updated as the system evolves.

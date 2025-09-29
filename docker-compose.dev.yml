@@ -170,6 +170,7 @@ services:
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_dev_data:/data
+      - ./infrastructure/redis:/scripts:ro
     networks:
       - lics-dev-network
     restart: unless-stopped
@@ -179,6 +180,23 @@ services:
       timeout: 3s
       retries: 5
 
+  # Redis Streams Setup Service
+  redis-setup:
+    image: python:3.11-alpine
+    depends_on:
+      redis-dev:
+        condition: service_healthy
+    environment:
+      - REDIS_URL=redis://redis-dev:6379/0
+    volumes:
+      - ./infrastructure/redis:/scripts:ro
+    networks:
+      - lics-dev-network
+    working_dir: /scripts
+    entrypoint: /bin/sh
+    command: -c "pip install redis && python streams-setup.py --action setup && python pubsub-config.py --action setup && echo 'Redis setup completed'"
+    restart: "no"
+
   # MQTT Development Broker
   mqtt-dev:
     image: eclipse-mosquitto:2.0
@@ -186,12 +204,32 @@ services:
       - "1884:1883"  # Different port to avoid conflicts
       - "9002:9001"
     volumes:
-      - ./infrastructure/mqtt/mosquitto-dev.conf:/mosquitto/config/mosquitto.conf
+      - ./infrastructure/mqtt/mosquitto-dev.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./infrastructure/mqtt/passwords.txt:/mosquitto/config/passwords.txt:ro
+      - ./infrastructure/mqtt/acl.txt:/mosquitto/config/acl.txt:ro
       - mqtt_dev_data:/mosquitto/data
       - mqtt_dev_logs:/mosquitto/log
     networks:
       - lics-dev-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mosquitto_pub", "-h", "localhost", "-t", "lics/system/healthcheck", "-m", "ok"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # MQTT Setup Service (creates auth files)
+  mqtt-setup:
+    image: eclipse-mosquitto:2.0
+    volumes:
+      - ./infrastructure/mqtt:/scripts:ro
+      - ./infrastructure/mqtt:/output
+    networks:
+      - lics-dev-network
+    entrypoint: /bin/sh
+    command: -c "cd /scripts && ./setup-mqtt-auth.sh setup && echo 'MQTT authentication setup completed'"
+    restart: "no"
 
   # MinIO Development Storage
   minio-dev:
@@ -202,9 +240,11 @@ services:
     environment:
       - MINIO_ROOT_USER=minioadmin
       - MINIO_ROOT_PASSWORD=minioadmin
+      - MINIO_ENDPOINT=http://localhost:9010
     command: server /data --console-address ":9001"
     volumes:
       - minio_dev_data:/data
+      - ./infrastructure/minio:/scripts:ro
     networks:
       - lics-dev-network
     restart: unless-stopped
@@ -213,6 +253,25 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+      start_period: 10s
+
+  # MinIO Setup Service (runs once to initialize buckets)
+  minio-setup:
+    image: minio/mc:latest
+    depends_on:
+      minio-dev:
+        condition: service_healthy
+    environment:
+      - MINIO_ENDPOINT=http://minio-dev:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+    volumes:
+      - ./infrastructure/minio:/scripts:ro
+    networks:
+      - lics-dev-network
+    entrypoint: /bin/sh
+    command: -c "sleep 10 && /scripts/bucket-init.sh init && echo 'MinIO setup completed'"
+    restart: "no"
 
   # MailHog for Email Testing
   mailhog:

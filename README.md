@@ -315,7 +315,7 @@ For security issues, please see our [Security Policy](SECURITY.md).
 - [x] Database layer foundation (PostgreSQL + TimescaleDB, Redis, InfluxDB)
 - [x] Database migration and management tools
 - [x] Monitoring and health check systems
-- [ ] Message broker and storage layer
+- [x] Message broker and storage layer (MQTT, MinIO, Redis Streams/Pub-Sub)
 - [ ] FastAPI backend implementation
 - [ ] Task builder system
 - [ ] Video streaming

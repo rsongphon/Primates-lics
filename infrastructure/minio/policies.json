@@ -1,0 +1,497 @@
+{
+  "policies": {
+    "lics-backend-policy": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": [
+            "s3:GetObject",
+            "s3:PutObject",
+            "s3:DeleteObject",
+            "s3:ListBucket"
+          ],
+          "Resource": [
+            "arn:aws:s3:::lics-videos/*",
+            "arn:aws:s3:::lics-videos",
+            "arn:aws:s3:::lics-data/*",
+            "arn:aws:s3:::lics-data",
+            "arn:aws:s3:::lics-exports/*",
+            "arn:aws:s3:::lics-exports",
+            "arn:aws:s3:::lics-uploads/*",
+            "arn:aws:s3:::lics-uploads",
+            "arn:aws:s3:::lics-temp/*",
+            "arn:aws:s3:::lics-temp",
+            "arn:aws:s3:::lics-logs/*",
+            "arn:aws:s3:::lics-logs",
+            "arn:aws:s3:::lics-config/*",
+            "arn:aws:s3:::lics-config"
+          ]
+        },
+        {
+          "Effect": "Allow",
+          "Action": [
+            "s3:GetObject",
+            "s3:PutObject",
+            "s3:ListBucket"
+          ],
+          "Resource": [
+            "arn:aws:s3:::lics-backups/*",
+            "arn:aws:s3:::lics-backups"
+          ]
+        }
+      ]
+    },
+    "lics-device-policy": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": [
+            "s3:PutObject"
+          ],
+          "Resource": [
+            "arn:aws:s3:::lics-videos/devices/${aws:userid}/*",
+            "arn:aws:s3:::lics-data/devices/${aws:userid}/*",
+            "arn:aws:s3:::lics-logs/devices/${aws:userid}/*"
+          ]
+        },
+        {
+          "Effect": "Allow",
+          "Action": [
+            "s3:GetObject",
+            "s3:ListBucket"
+          ],
+          "Resource": [
+            "arn:aws:s3:::lics-config/devices/${aws:userid}/*",
+            "arn:aws:s3:::lics-config/tasks/*",
+            "arn:aws:s3:::lics-config"
+          ],
+          "Condition": {
+            "StringLike": {
+              "s3:prefix": [
+                "devices/${aws:userid}/*",
+                "tasks/*"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "lics-user-policy": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": [
+            "s3:GetObject",
+            "s3:ListBucket"
+          ],
+          "Resource": [
+            "arn:aws:s3:::lics-exports/*",
+            "arn:aws:s3:::lics-exports",
+            "arn:aws:s3:::lics-assets/*",
+            "arn:aws:s3:::lics-assets"
+          ]
+        },
+        {
+          "Effect": "Allow",
+          "Action": [
+            "s3:GetObject",
+            "s3:PutObject",
+            "s3:DeleteObject",
+            "s3:ListBucket"
+          ],
+          "Resource": [
+            "arn:aws:s3:::lics-uploads/user-files/${aws:userid}/*"
+          ]
+        },
+        {
+          "Effect": "Allow",
+          "Action": [
+            "s3:GetObject"
+          ],
+          "Resource": [
+            "arn:aws:s3:::lics-videos/experiments/${aws:userid}/*",
+            "arn:aws:s3:::lics-data/experiments/${aws:userid}/*"
+          ]
+        }
+      ]
+    },
+    "lics-admin-policy": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": [
+            "s3:*"
+          ],
+          "Resource": [
+            "arn:aws:s3:::lics-*",
+            "arn:aws:s3:::lics-*/*"
+          ]
+        }
+      ]
+    },
+    "lics-monitor-policy": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Action": [
+            "s3:GetObject",
+            "s3:ListBucket"
+          ],
+          "Resource": [
+            "arn:aws:s3:::lics-logs/*",
+            "arn:aws:s3:::lics-logs",
+            "arn:aws:s3:::lics-data/*",
+            "arn:aws:s3:::lics-data",
+            "arn:aws:s3:::lics-videos",
+            "arn:aws:s3:::lics-exports",
+            "arn:aws:s3:::lics-uploads",
+            "arn:aws:s3:::lics-temp",
+            "arn:aws:s3:::lics-backups",
+            "arn:aws:s3:::lics-assets",
+            "arn:aws:s3:::lics-ml",
+            "arn:aws:s3:::lics-config"
+          ]
+        }
+      ]
+    }
+  },
+  "bucket_policies": {
+    "lics-assets": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Principal": "*",
+          "Action": [
+            "s3:GetObject"
+          ],
+          "Resource": [
+            "arn:aws:s3:::lics-assets/public/*"
+          ]
+        }
+      ]
+    },
+    "lics-temp": {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Deny",
+          "Principal": "*",
+          "Action": [
+            "s3:GetObject"
+          ],
+          "Resource": [
+            "arn:aws:s3:::lics-temp/*"
+          ],
+          "Condition": {
+            "DateGreaterThan": {
+              "aws:CurrentTime": "2024-01-01T00:00:00Z"
+            },
+            "StringNotEquals": {
+              "aws:userid": [
+                "lics-backend",
+                "lics-admin"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  "lifecycle_rules": {
+    "lics-temp": {
+      "Rules": [
+        {
+          "ID": "DeleteTempFiles",
+          "Status": "Enabled",
+          "Filter": {
+            "Prefix": ""
+          },
+          "Expiration": {
+            "Days": 7
+          },
+          "AbortIncompleteMultipartUpload": {
+            "DaysAfterInitiation": 1
+          }
+        }
+      ]
+    },
+    "lics-logs": {
+      "Rules": [
+        {
+          "ID": "DeleteOldLogs",
+          "Status": "Enabled",
+          "Filter": {
+            "Prefix": ""
+          },
+          "Expiration": {
+            "Days": 30
+          }
+        },
+        {
+          "ID": "TransitionToIA",
+          "Status": "Enabled",
+          "Filter": {
+            "Prefix": ""
+          },
+          "Transitions": [
+            {
+              "Days": 7,
+              "StorageClass": "STANDARD_IA"
+            }
+          ]
+        }
+      ]
+    },
+    "lics-exports": {
+      "Rules": [
+        {
+          "ID": "DeleteOldExports",
+          "Status": "Enabled",
+          "Filter": {
+            "Prefix": ""
+          },
+          "Expiration": {
+            "Days": 90
+          }
+        }
+      ]
+    },
+    "lics-videos": {
+      "Rules": [
+        {
+          "ID": "TransitionVideos",
+          "Status": "Enabled",
+          "Filter": {
+            "Prefix": "recordings/"
+          },
+          "Transitions": [
+            {
+              "Days": 30,
+              "StorageClass": "STANDARD_IA"
+            },
+            {
+              "Days": 90,
+              "StorageClass": "GLACIER"
+            }
+          ]
+        }
+      ]
+    },
+    "lics-backups": {
+      "Rules": [
+        {
+          "ID": "BackupRetention",
+          "Status": "Enabled",
+          "Filter": {
+            "Prefix": ""
+          },
+          "Expiration": {
+            "Days": 365
+          },
+          "Transitions": [
+            {
+              "Days": 30,
+              "StorageClass": "STANDARD_IA"
+            },
+            {
+              "Days": 90,
+              "StorageClass": "GLACIER"
+            }
+          ]
+        }
+      ]
+    },
+    "lics-data": {
+      "Rules": [
+        {
+          "ID": "DataArchival",
+          "Status": "Enabled",
+          "Filter": {
+            "Tag": {
+              "Key": "DataType",
+              "Value": "raw"
+            }
+          },
+          "Transitions": [
+            {
+              "Days": 90,
+              "StorageClass": "STANDARD_IA"
+            },
+            {
+              "Days": 365,
+              "StorageClass": "GLACIER"
+            }
+          ]
+        },
+        {
+          "ID": "ProcessedDataRetention",
+          "Status": "Enabled",
+          "Filter": {
+            "Tag": {
+              "Key": "DataType",
+              "Value": "processed"
+            }
+          },
+          "Transitions": [
+            {
+              "Days": 30,
+              "StorageClass": "STANDARD_IA"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "notification_configs": {
+    "lics-videos": {
+      "webhookConfigs": [
+        {
+          "id": "video-upload-webhook",
+          "webhook": "http://backend:8000/api/v1/webhooks/video-uploaded",
+          "events": [
+            "s3:ObjectCreated:Put",
+            "s3:ObjectCreated:Post"
+          ],
+          "filter": {
+            "key": {
+              "filterRules": [
+                {
+                  "name": "suffix",
+                  "value": ".mp4"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "lics-data": {
+      "webhookConfigs": [
+        {
+          "id": "data-upload-webhook",
+          "webhook": "http://backend:8000/api/v1/webhooks/data-uploaded",
+          "events": [
+            "s3:ObjectCreated:*"
+          ],
+          "filter": {
+            "key": {
+              "filterRules": [
+                {
+                  "name": "prefix",
+                  "value": "experiments/"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "lics-config": {
+      "webhookConfigs": [
+        {
+          "id": "config-change-webhook",
+          "webhook": "http://backend:8000/api/v1/webhooks/config-changed",
+          "events": [
+            "s3:ObjectCreated:*",
+            "s3:ObjectRemoved:*"
+          ],
+          "filter": {
+            "key": {
+              "filterRules": [
+                {
+                  "name": "prefix",
+                  "value": "tasks/"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  "encryption_configs": {
+    "default": {
+      "SSEAlgorithm": "AES256"
+    },
+    "sensitive_buckets": {
+      "buckets": [
+        "lics-backups",
+        "lics-data",
+        "lics-uploads"
+      ],
+      "SSEAlgorithm": "aws:kms",
+      "KMSMasterKeyID": "alias/lics-encryption-key"
+    }
+  },
+  "cors_configs": {
+    "lics-assets": {
+      "CORSRules": [
+        {
+          "AllowedHeaders": [
+            "*"
+          ],
+          "AllowedMethods": [
+            "GET",
+            "HEAD"
+          ],
+          "AllowedOrigins": [
+            "*"
+          ],
+          "ExposeHeaders": [
+            "ETag",
+            "Content-Length",
+            "Content-Type"
+          ],
+          "MaxAgeSeconds": 3000
+        }
+      ]
+    },
+    "lics-uploads": {
+      "CORSRules": [
+        {
+          "AllowedHeaders": [
+            "*"
+          ],
+          "AllowedMethods": [
+            "GET",
+            "PUT",
+            "POST",
+            "DELETE",
+            "HEAD"
+          ],
+          "AllowedOrigins": [
+            "https://lics.local",
+            "https://localhost:3000",
+            "http://localhost:3000"
+          ],
+          "ExposeHeaders": [
+            "ETag",
+            "Content-Length",
+            "Content-Type"
+          ],
+          "MaxAgeSeconds": 3000
+        }
+      ]
+    }
+  },
+  "versioning_configs": {
+    "enabled_buckets": [
+      "lics-videos",
+      "lics-uploads",
+      "lics-backups",
+      "lics-ml",
+      "lics-data",
+      "lics-config"
+    ],
+    "suspended_buckets": [
+      "lics-temp",
+      "lics-logs"
+    ]
+  }
+}
