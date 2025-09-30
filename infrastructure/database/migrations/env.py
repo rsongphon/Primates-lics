@@ -29,18 +29,29 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Import all the models so they are available to Alembic
-# Since we're running standalone, we'll need to define basic models here
-# In Week 3, this will be replaced with proper model imports from FastAPI app
+import sys
+sys.path.append('../../services/backend')
 
-from sqlalchemy import MetaData
-from sqlalchemy.ext.declarative import declarative_base
+try:
+    # Import the FastAPI application models
+    from app.core.database import Base
+    from app.models import *  # Import all models including authentication models
 
-# Create a base class for our models
-Base = declarative_base()
+    # Use the FastAPI application's metadata
+    target_metadata = Base.metadata
+    print(f"Successfully loaded {len(Base.metadata.tables)} tables from FastAPI models")
 
-# For now, we'll use the existing database schema
-# Alembic will detect changes from the current database state
-target_metadata = Base.metadata
+except ImportError as e:
+    print(f"Warning: Could not import FastAPI models: {e}")
+    print("Falling back to basic configuration")
+
+    # Fallback to basic configuration
+    from sqlalchemy import MetaData
+    from sqlalchemy.ext.declarative import declarative_base
+
+    # Create a base class for our models
+    Base = declarative_base()
+    target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -54,7 +65,7 @@ def get_database_url() -> str:
     env = os.getenv('ENVIRONMENT', 'development')
 
     if env == 'development':
-        db_url = os.getenv('DATABASE_URL', 'postgresql://lics:lics123@localhost:5432/lics_dev')
+        db_url = os.getenv('DATABASE_URL', 'postgresql://lics:lics123@localhost:5432/lics')
     elif env == 'test':
         db_url = os.getenv('TEST_DATABASE_URL', 'postgresql://lics:lics123@localhost:5432/lics_test')
     else:
@@ -105,7 +116,7 @@ def do_run_migrations(connection: Connection) -> None:
         compare_server_default=True,
         include_schemas=True,
         # Include custom schemas
-        include_name=lambda name, type_: type_ in ("table", "column")
+        include_name=lambda name, type_, parent_names: type_ in ("table", "column")
         and (
             name.startswith("lics_")
             or name in ("alembic_version",)
