@@ -1,8 +1,9 @@
 # Core FastAPI dependencies
 fastapi>=0.104.0
 uvicorn[standard]>=0.24.0
-pydantic>=2.4.0
+pydantic[email]>=2.4.0
 pydantic-settings>=2.0.0
+email-validator>=2.0.0
 
 # Database dependencies
 sqlalchemy>=2.0.0
@@ -26,8 +27,9 @@ minio>=7.1.0
 
 # Authentication
 python-jose[cryptography]>=3.3.0
-passlib[bcrypt]>=1.7.0
+passlib[bcrypt,argon2]>=1.7.0
 python-multipart>=0.0.6
+argon2-cffi>=23.1.0
 
 # HTTP client
 httpx>=0.25.0
@@ -36,6 +38,19 @@ aiohttp>=3.9.0
 # Logging
 python-json-logger>=2.0.0
 
-# Development and testing (basic)
+# Development and testing
 pytest>=7.4.0
 pytest-asyncio>=0.21.0
+pytest-cov>=4.1.0
+pytest-mock>=3.12.0
+pytest-xdist>=3.3.0
+pytest-clarity>=1.0.0
+factory-boy>=3.3.0
+faker>=20.0.0
+httpx>=0.25.0
+
+# CLI tools
+click>=8.1.0
+
+# Testing dependencies
+aiosqlite>=0.21.0

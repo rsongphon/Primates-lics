@@ -9,7 +9,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import Column, DateTime, String, Text, UUID, Boolean, event
+from sqlalchemy import Column, DateTime, String, Text, UUID, Boolean, event, Integer, JSON
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -418,3 +418,58 @@ def set_updated_by_from_context(mapper, connection, target):
     current_user_id = AuditContext.get_current_user()
     if current_user_id:
         target.updated_by = current_user_id
+
+
+# ===== CORE DOMAIN MODELS =====
+
+class Organization(BaseModelWithSoftDelete):
+    """
+    Organization model for multi-tenant support.
+
+    Organizations provide tenant isolation and resource management.
+    Each organization can have its own users, devices, and experiments.
+    """
+
+    __tablename__ = "organizations"
+
+    name: Mapped[str] = mapped_column(
+        String(255),
+        nullable=False,
+        unique=True,
+        doc="Organization name"
+    )
+
+    description: Mapped[Optional[str]] = mapped_column(
+        Text,
+        nullable=True,
+        doc="Organization description"
+    )
+
+    settings: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+        JSON,
+        nullable=True,
+        default={},
+        doc="Organization-specific settings and configuration"
+    )
+
+    max_users: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+        doc="Maximum number of users allowed"
+    )
+
+    max_devices: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+        doc="Maximum number of devices allowed"
+    )
+
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        nullable=False,
+        doc="Whether the organization is active"
+    )
+
+    def __repr__(self) -> str:
+        return f"<Organization(id={self.id}, name='{self.name}')>"

@@ -134,7 +134,7 @@ class OrganizationSchema(BaseSchema):
 
 # ===== BASE ENTITY SCHEMAS =====
 
-class BaseEntitySchema(BaseSchema, TimestampSchema):
+class BaseEntitySchema(TimestampSchema):
     """
     Base schema for entity responses.
 

@@ -20,6 +20,10 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
+from app.core.dependencies import (
+    get_current_user, require_permission, require_any_permission,
+    get_current_user_optional
+)
 
 router = APIRouter()
 
@@ -369,7 +373,8 @@ async def liveness_check():
 @router.get("/health/comprehensive")
 async def comprehensive_health_check(
     include_details: bool = Query(True, description="Include detailed health information"),
-    services: Optional[str] = Query(None, description="Comma-separated list of services to check")
+    services: Optional[str] = Query(None, description="Comma-separated list of services to check"),
+    current_user = Depends(require_any_permission(["system:monitor", "system:admin"]))
 ):
     """Comprehensive health check for all services."""
 
@@ -440,7 +445,10 @@ async def comprehensive_health_check(
 
 
 @router.get("/health/services/{service_name}")
-async def service_health_check(service_name: str):
+async def service_health_check(
+    service_name: str,
+    current_user = Depends(require_any_permission(["system:monitor", "system:admin"]))
+):
     """Check health of a specific service."""
 
     service_checks = {
@@ -462,7 +470,9 @@ async def service_health_check(service_name: str):
 
 
 @router.get("/health/metrics")
-async def health_metrics():
+async def health_metrics(
+    current_user = Depends(require_any_permission(["system:monitor", "system:admin"]))
+):
     """Health metrics in Prometheus format."""
 
     # This would be implemented to return Prometheus metrics

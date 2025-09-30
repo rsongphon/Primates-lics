@@ -124,6 +124,7 @@ class Settings(BaseSettings):
     ALLOWED_HOSTS: List[str] = ["*"]  # Configure properly for production
 
     # JWT Configuration
+    JWT_SECRET_KEY: str = "your-jwt-secret-key-change-in-production-should-be-256-bits"
     JWT_ALGORITHM: str = "HS256"
     JWT_AUDIENCE: str = "lics:users"
     JWT_ISSUER: str = "lics:backend"
@@ -134,6 +135,31 @@ class Settings(BaseSettings):
     PASSWORD_REQUIRE_LOWERCASE: bool = True
     PASSWORD_REQUIRE_NUMBERS: bool = True
     PASSWORD_REQUIRE_SYMBOLS: bool = False
+    PASSWORD_RESET_EXPIRE_MINUTES: int = 60
+
+    # Session Management
+    SESSION_COOKIE_NAME: str = "lics_session"
+    SESSION_COOKIE_HTTPONLY: bool = True
+    SESSION_COOKIE_SECURE: bool = True  # Set to False for development without HTTPS
+    SESSION_COOKIE_SAMESITE: str = "lax"
+    SESSION_MAX_AGE: int = 86400  # 24 hours in seconds
+
+    # JWT Cookie Configuration
+    JWT_COOKIE_NAME: str = "lics_access_token"
+    JWT_REFRESH_COOKIE_NAME: str = "lics_refresh_token"
+
+    # Token Blacklisting (Redis-based)
+    TOKEN_BLACKLIST_PREFIX: str = "blacklist:token:"
+    TOKEN_BLACKLIST_REFRESH_PREFIX: str = "blacklist:refresh:"
+
+    # Authentication Rate Limiting
+    AUTH_RATE_LIMIT_REQUESTS: int = 5  # Login attempts per minute
+    AUTH_RATE_LIMIT_WINDOW: int = 60   # Window in seconds
+    AUTH_LOCKOUT_DURATION: int = 300   # 5 minutes lockout after failed attempts
+
+    # Multi-Factor Authentication (future)
+    MFA_ENABLED: bool = False
+    MFA_ISSUER_NAME: str = "LICS"
 
     # ===== WebSocket Configuration =====
     WEBSOCKET_HOST: str = "0.0.0.0"

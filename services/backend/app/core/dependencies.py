@@ -110,53 +110,75 @@ async def get_request_context(request: Request) -> dict:
 # ===== AUTHENTICATION DEPENDENCIES =====
 
 async def get_current_user_optional(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
-) -> Optional[dict]:
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    session: AsyncSession = Depends(get_database_session)
+) -> Optional["UserProfile"]:
     """
     Get current user from JWT token (optional - returns None if no token).
 
     Args:
         credentials: HTTP Bearer token credentials
+        session: Database session
 
     Returns:
-        User information if authenticated, None otherwise
+        UserProfile if authenticated, None otherwise
     """
     if not credentials or not credentials.credentials:
         return None
 
     try:
-        # TODO: Implement JWT token decoding and user lookup
-        # This is a placeholder implementation
-        token = credentials.credentials
+        # Import here to avoid circular imports
+        from app.core.security import verify_token
+        from app.services.auth import UserService
+        from app.schemas.auth import UserProfile
 
-        # Decode JWT token
-        payload = await decode_jwt_token(token)
+        # Verify JWT token
+        payload = verify_token(credentials.credentials, token_type="access")
+        user_id = uuid.UUID(payload.get("sub"))
 
-        # Get user information
-        user_info = await get_user_from_token(payload)
+        # Get user from database
+        user_service = UserService()
+        user_repo = user_service.get_repository(session)
+        user = await user_repo.get_by_id(user_id)
 
-        return user_info
+        if not user:
+            logger.warning(f"User not found for token: {user_id}")
+            return None
+
+        # Convert to UserProfile schema
+        user_profile = await _convert_user_to_profile(user, session)
+        return user_profile
+
     except Exception as e:
-        logger.warning(f"Invalid token provided: {e}")
+        logger.warning(f"Token verification failed: {e}")
         return None
 
 
 async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
-) -> dict:
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    session: AsyncSession = Depends(get_database_session)
+) -> "UserProfile":
     """
     Get current user from JWT token (required - raises 401 if no valid token).
 
     Args:
         credentials: HTTP Bearer token credentials
+        session: Database session
 
     Returns:
-        User information
+        UserProfile
 
     Raises:
         HTTPException: If authentication is invalid or missing
     """
-    user = await get_current_user_optional(credentials)
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Authentication required",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+
+    user = await get_current_user_optional(credentials, session)
 
     if user is None:
         raise HTTPException(
@@ -168,117 +190,361 @@ async def get_current_user(
     return user
 
 
+async def get_current_active_user(
+    current_user: "UserProfile" = Depends(get_current_user)
+) -> "UserProfile":
+    """
+    Get current authenticated and active user.
+
+    Args:
+        current_user: Current user
+
+    Returns:
+        UserProfile if active
+
+    Raises:
+        HTTPException: If user is not active
+    """
+    if not current_user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is inactive"
+        )
+
+    return current_user
+
+
+async def get_current_verified_user(
+    current_user: "UserProfile" = Depends(get_current_active_user)
+) -> "UserProfile":
+    """
+    Get current authenticated, active, and verified user.
+
+    Args:
+        current_user: Current active user
+
+    Returns:
+        UserProfile if verified
+
+    Raises:
+        HTTPException: If user email is not verified
+    """
+    if not current_user.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Email verification required"
+        )
+
+    return current_user
+
+
+async def get_current_superuser(
+    current_user: "UserProfile" = Depends(get_current_active_user)
+) -> "UserProfile":
+    """
+    Get current superuser.
+
+    Args:
+        current_user: Current active user
+
+    Returns:
+        UserProfile if superuser
+
+    Raises:
+        HTTPException: If user is not a superuser
+    """
+    if not current_user.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Superuser access required"
+        )
+
+    return current_user
+
+
 async def get_current_user_id(
-    current_user: dict = Depends(get_current_user)
+    current_user: "UserProfile" = Depends(get_current_user)
 ) -> uuid.UUID:
     """
     Get current user ID as UUID.
 
     Args:
-        current_user: Current user information
+        current_user: Current user profile
 
     Returns:
         User ID as UUID
-
-    Raises:
-        HTTPException: If user ID is invalid
     """
-    try:
-        user_id = current_user.get("id") or current_user.get("user_id")
-        if isinstance(user_id, str):
-            return uuid.UUID(user_id)
-        elif isinstance(user_id, uuid.UUID):
-            return user_id
-        else:
-            raise ValueError("Invalid user ID format")
-    except (ValueError, TypeError) as e:
-        logger.error(f"Invalid user ID in token: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid user ID in token"
-        )
+    return current_user.id
 
 
 # ===== AUTHORIZATION DEPENDENCIES =====
 
-def require_role(required_role: str):
+def require_permissions(*required_permissions: str):
     """
-    Dependency factory to check if user has required role.
+    Dependency factory for requiring specific permissions.
 
     Args:
-        required_role: Required role name
+        *required_permissions: List of permission names required
 
     Returns:
         FastAPI dependency function
 
     Usage:
-        @app.get("/admin/")
-        async def admin_endpoint(
-            current_user: dict = Depends(require_role("admin"))
+        @router.get("/protected")
+        async def protected_endpoint(
+            user: UserProfile = Depends(require_permissions("experiment:read", "device:control"))
         ):
-            pass
+            return {"message": "Access granted"}
     """
-    async def check_role(current_user: dict = Depends(get_current_user)) -> dict:
-        user_roles = current_user.get("roles", [])
+    async def permission_dependency(
+        current_user: "UserProfile" = Depends(get_current_active_user)
+    ) -> "UserProfile":
+        """Check if user has required permissions."""
+        user_permissions = current_user.permissions
 
-        if required_role not in user_roles:
+        missing_permissions = []
+        for permission in required_permissions:
+            if permission not in user_permissions:
+                missing_permissions.append(permission)
+
+        if missing_permissions:
+            logger.warning(
+                f"User {current_user.id} missing permissions: {missing_permissions}"
+            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Role '{required_role}' required"
+                detail=f"Missing required permissions: {', '.join(missing_permissions)}"
             )
 
         return current_user
 
-    return check_role
+    return permission_dependency
+
+
+def require_any_permission(*permissions: str):
+    """
+    Dependency factory for requiring any of the specified permissions.
+
+    Args:
+        *permissions: List of permission names (user needs at least one)
+
+    Returns:
+        FastAPI dependency function
+
+    Usage:
+        @router.get("/flexible")
+        async def flexible_endpoint(
+            user: UserProfile = Depends(require_any_permission("admin:read", "user:read"))
+        ):
+            return {"message": "Access granted"}
+    """
+    async def permission_dependency(
+        current_user: "UserProfile" = Depends(get_current_active_user)
+    ) -> "UserProfile":
+        """Check if user has any of the required permissions."""
+        user_permissions = current_user.permissions
+
+        for permission in permissions:
+            if permission in user_permissions:
+                return current_user
+
+        logger.warning(
+            f"User {current_user.id} missing any of permissions: {list(permissions)}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Requires one of: {', '.join(permissions)}"
+        )
+
+    return permission_dependency
+
+
+def require_roles(*required_roles: str):
+    """
+    Dependency factory for requiring specific roles.
+
+    Args:
+        *required_roles: List of role names required
+
+    Returns:
+        FastAPI dependency function
+
+    Usage:
+        @router.get("/admin-only")
+        async def admin_endpoint(
+            user: UserProfile = Depends(require_roles("admin", "lab_manager"))
+        ):
+            return {"message": "Admin access granted"}
+    """
+    async def role_dependency(
+        current_user: "UserProfile" = Depends(get_current_active_user)
+    ) -> "UserProfile":
+        """Check if user has required roles."""
+        user_role_names = {role.name for role in current_user.roles}
+
+        missing_roles = []
+        for role in required_roles:
+            if role not in user_role_names:
+                missing_roles.append(role)
+
+        if missing_roles:
+            logger.warning(
+                f"User {current_user.id} missing roles: {missing_roles}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Missing required roles: {', '.join(missing_roles)}"
+            )
+
+        return current_user
+
+    return role_dependency
+
+
+def require_any_role(*roles: str):
+    """
+    Dependency factory for requiring any of the specified roles.
+
+    Args:
+        *roles: List of role names (user needs at least one)
+
+    Returns:
+        FastAPI dependency function
+
+    Usage:
+        @router.get("/staff-access")
+        async def staff_endpoint(
+            user: UserProfile = Depends(require_any_role("admin", "researcher", "technician"))
+        ):
+            return {"message": "Staff access granted"}
+    """
+    async def role_dependency(
+        current_user: "UserProfile" = Depends(get_current_active_user)
+    ) -> "UserProfile":
+        """Check if user has any of the required roles."""
+        user_role_names = {role.name for role in current_user.roles}
+
+        for role in roles:
+            if role in user_role_names:
+                return current_user
+
+        logger.warning(
+            f"User {current_user.id} missing any of roles: {list(roles)}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Requires one of: {', '.join(roles)}"
+        )
+
+    return role_dependency
+
+
+def require_organization_access(organization_id: Optional[uuid.UUID] = None):
+    """
+    Dependency factory for organization-scoped access control.
+
+    Args:
+        organization_id: Specific organization ID to check (optional)
+
+    Returns:
+        FastAPI dependency function
+
+    Usage:
+        @router.get("/org-data/{org_id}")
+        async def get_org_data(
+            org_id: uuid.UUID,
+            user: UserProfile = Depends(require_organization_access())
+        ):
+            # User can only access their own organization's data
+            return {"org_data": "..."}
+    """
+    async def organization_dependency(
+        current_user: "UserProfile" = Depends(get_current_active_user)
+    ) -> "UserProfile":
+        """Check if user has access to the organization."""
+        if current_user.is_superuser:
+            # Superusers have access to all organizations
+            return current_user
+
+        if organization_id is not None:
+            if current_user.organization_id != organization_id:
+                logger.warning(
+                    f"User {current_user.id} attempted to access org {organization_id} "
+                    f"but belongs to org {current_user.organization_id}"
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied to this organization"
+                )
+
+        return current_user
+
+    return organization_dependency
+
+
+def require_owner_or_admin(resource_user_id: uuid.UUID):
+    """
+    Dependency factory for owner-or-admin access control.
+
+    Args:
+        resource_user_id: User ID of the resource owner
+
+    Returns:
+        FastAPI dependency function
+
+    Usage:
+        @router.get("/users/{user_id}/profile")
+        async def get_user_profile(
+            user_id: uuid.UUID,
+            current_user: UserProfile = Depends(require_owner_or_admin(user_id))
+        ):
+            # User can access their own profile or admin can access any profile
+            return {"profile": "..."}
+    """
+    async def owner_or_admin_dependency(
+        current_user: "UserProfile" = Depends(get_current_active_user)
+    ) -> "UserProfile":
+        """Check if user is the owner or has admin permissions."""
+        # Check if user is accessing their own resource
+        if current_user.id == resource_user_id:
+            return current_user
+
+        # Check if user is a superuser
+        if current_user.is_superuser:
+            return current_user
+
+        # Check if user has admin permissions
+        admin_permissions = {"user:admin", "admin:all"}
+        if admin_permissions.intersection(current_user.permissions):
+            return current_user
+
+        logger.warning(
+            f"User {current_user.id} attempted to access resource owned by {resource_user_id}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied: insufficient permissions"
+        )
+
+    return owner_or_admin_dependency
+
+
+# Legacy compatibility functions
+def require_role(required_role: str):
+    """Legacy compatibility - use require_roles instead."""
+    return require_roles(required_role)
 
 
 def require_permission(required_permission: str):
-    """
-    Dependency factory to check if user has required permission.
-
-    Args:
-        required_permission: Required permission name
-
-    Returns:
-        FastAPI dependency function
-
-    Usage:
-        @app.get("/devices/")
-        async def get_devices(
-            current_user: dict = Depends(require_permission("devices:read"))
-        ):
-            pass
-    """
-    async def check_permission(current_user: dict = Depends(get_current_user)) -> dict:
-        user_permissions = current_user.get("permissions", [])
-
-        if required_permission not in user_permissions:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Permission '{required_permission}' required"
-            )
-
-        return current_user
-
-    return check_permission
+    """Legacy compatibility - use require_permissions instead."""
+    return require_permissions(required_permission)
 
 
-async def require_admin(current_user: dict = Depends(get_current_user)) -> dict:
-    """
-    Dependency to require admin role.
+async def require_admin(current_user: "UserProfile" = Depends(get_current_user)) -> "UserProfile":
+    """Legacy admin check - use require_roles("admin") or get_current_superuser instead."""
+    user_role_names = {role.name for role in current_user.roles}
 
-    Args:
-        current_user: Current user information
-
-    Returns:
-        User information if admin
-
-    Raises:
-        HTTPException: If user is not admin
-    """
-    user_roles = current_user.get("roles", [])
-
-    if "admin" not in user_roles and "super_admin" not in user_roles:
+    if "admin" not in user_role_names and not current_user.is_superuser:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Admin role required"
@@ -406,61 +672,168 @@ async def check_health_dependency() -> bool:
         )
 
 
-# ===== PLACEHOLDER FUNCTIONS FOR JWT =====
-# These will be implemented in the authentication module
+# ===== HELPER FUNCTIONS =====
 
-async def decode_jwt_token(token: str) -> dict:
+async def _convert_user_to_profile(user: "User", session: AsyncSession) -> "UserProfile":
     """
-    Decode and validate JWT token.
+    Convert User model to UserProfile schema with roles and permissions.
 
     Args:
-        token: JWT token string
+        user: User model instance
+        session: Database session
 
     Returns:
-        Token payload
-
-    Raises:
-        Exception: If token is invalid
-
-    Note:
-        This is a placeholder implementation.
-        Real implementation will be in the auth module.
+        UserProfile schema with populated roles and permissions
     """
-    # TODO: Implement proper JWT token decoding
-    # For now, return a mock payload
-    import json
-    import base64
+    # Import here to avoid circular imports
+    from app.schemas.auth import UserProfile, RoleInfo, PermissionInfo
 
-    # This is just for testing - DO NOT use in production
-    mock_payload = {
-        "id": "550e8400-e29b-41d4-a716-446655440000",
-        "email": "test@example.com",
-        "roles": ["user"],
-        "permissions": ["devices:read", "experiments:read"]
-    }
+    # Convert roles to RoleInfo
+    role_infos = []
+    for role in user.roles:
+        # Convert permissions to PermissionInfo
+        permission_infos = []
+        for permission in role.permissions:
+            permission_info = PermissionInfo(
+                id=permission.id,
+                name=permission.name,
+                display_name=permission.display_name,
+                description=permission.description,
+                resource=permission.resource,
+                action=permission.action,
+                is_system_permission=permission.is_system_permission,
+                created_at=permission.created_at,
+                updated_at=permission.updated_at
+            )
+            permission_infos.append(permission_info)
 
-    logger.warning("Using mock JWT token decoder - implement proper JWT handling")
-    return mock_payload
+        role_info = RoleInfo(
+            id=role.id,
+            name=role.name,
+            display_name=role.display_name,
+            description=role.description,
+            is_system_role=role.is_system_role,
+            is_default=role.is_default,
+            parent_role_id=role.parent_role_id,
+            created_at=role.created_at,
+            updated_at=role.updated_at,
+            permissions=permission_infos
+        )
+        role_infos.append(role_info)
+
+    # Collect all permissions from all roles
+    all_permissions = set()
+    for role in user.roles:
+        for permission in role.permissions:
+            all_permissions.add(permission.name)
+
+    # Create UserProfile
+    user_profile = UserProfile(
+        id=user.id,
+        email=user.email,
+        username=user.username,
+        first_name=user.first_name,
+        last_name=user.last_name,
+        is_active=user.is_active,
+        is_verified=user.is_verified,
+        is_superuser=user.is_superuser,
+        organization_id=user.organization_id,
+        timezone=user.timezone,
+        language=user.language,
+        last_login_at=user.last_login_at,
+        mfa_enabled=user.mfa_enabled,
+        created_at=user.created_at,
+        updated_at=user.updated_at,
+        roles=role_infos,
+        permissions=all_permissions
+    )
+
+    return user_profile
 
 
-async def get_user_from_token(payload: dict) -> dict:
+def get_client_ip(request: Request) -> str:
+    """Extract client IP address from request."""
+    x_forwarded_for = request.headers.get("X-Forwarded-For")
+    if x_forwarded_for:
+        return x_forwarded_for.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+# ===== RATE LIMITING DEPENDENCIES =====
+
+def rate_limit(max_requests: int, window_seconds: int):
     """
-    Get user information from token payload.
+    Dependency factory for rate limiting.
 
     Args:
-        payload: Decoded token payload
+        max_requests: Maximum requests allowed
+        window_seconds: Time window in seconds
 
     Returns:
-        User information
+        FastAPI dependency function
 
-    Note:
-        This is a placeholder implementation.
-        Real implementation will lookup user in database.
+    Usage:
+        @router.post("/api/sensitive")
+        async def sensitive_endpoint(
+            _: None = Depends(rate_limit(max_requests=10, window_seconds=60))
+        ):
+            return {"message": "Success"}
     """
-    # TODO: Implement proper user lookup from database
-    # For now, return the payload as user info
-    logger.warning("Using mock user lookup - implement proper user service")
-    return payload
+    async def rate_limit_dependency(
+        request: Request,
+        current_user: Optional["UserProfile"] = Depends(get_current_user_optional)
+    ) -> None:
+        """Check rate limits."""
+        # TODO: Implement rate limiting logic with Redis
+        # This would track requests per user/IP and enforce limits
+        pass
+
+    return rate_limit_dependency
+
+
+# ===== AUDIT LOGGING DEPENDENCIES =====
+
+def audit_log(action: str, resource_type: str):
+    """
+    Dependency factory for audit logging.
+
+    Args:
+        action: Action being performed
+        resource_type: Type of resource being accessed
+
+    Returns:
+        FastAPI dependency function
+
+    Usage:
+        @router.delete("/api/users/{user_id}")
+        async def delete_user(
+            user_id: uuid.UUID,
+            _: None = Depends(audit_log("delete", "user"))
+        ):
+            return {"message": "User deleted"}
+    """
+    async def audit_dependency(
+        request: Request,
+        current_user: "UserProfile" = Depends(get_current_user)
+    ) -> None:
+        """Log the action for audit purposes."""
+        client_ip = get_client_ip(request)
+        user_agent = request.headers.get("User-Agent", "unknown")
+
+        logger.info(
+            f"Audit: {action} {resource_type}",
+            extra={
+                "user_id": current_user.id,
+                "action": action,
+                "resource_type": resource_type,
+                "client_ip": client_ip,
+                "user_agent": user_agent,
+                "path": str(request.url.path),
+                "method": request.method
+            }
+        )
+
+    return audit_dependency
 
 
 # ===== COMMON DEPENDENCY COMBINATIONS =====

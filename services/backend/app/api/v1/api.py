@@ -7,7 +7,7 @@ and provides centralized configuration for the API layer.
 
 from fastapi import APIRouter
 
-from app.api.v1 import health
+from app.api.v1 import health, auth, rbac
 from app.core.config import settings
 
 # Create main API router
@@ -24,18 +24,30 @@ api_router.include_router(
     }
 )
 
+# Include authentication endpoints
+api_router.include_router(
+    auth.router,
+    prefix="/auth",
+    tags=["authentication"],
+    responses={
+        401: {"description": "Unauthorized"},
+        403: {"description": "Forbidden"}
+    }
+)
+
+# Include RBAC endpoints
+api_router.include_router(
+    rbac.router,
+    prefix="/rbac",
+    tags=["rbac"],
+    responses={
+        401: {"description": "Unauthorized"},
+        403: {"description": "Forbidden"}
+    }
+)
+
 # TODO: Add other route modules as they are implemented
 # Example structure for future modules:
-
-# api_router.include_router(
-#     auth.router,
-#     prefix="/auth",
-#     tags=["authentication"],
-#     responses={
-#         401: {"description": "Unauthorized"},
-#         403: {"description": "Forbidden"}
-#     }
-# )
 
 # api_router.include_router(
 #     users.router,

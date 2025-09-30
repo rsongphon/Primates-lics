@@ -27,6 +27,9 @@ from app.core.logging import (
     setup_logging,
     configure_uvicorn_logging
 )
+from app.middleware.auth import AuthenticationMiddleware
+from app.middleware.rate_limiting import RateLimitingMiddleware
+from app.middleware.security import SecurityHeadersMiddleware
 
 # Initialize logging
 setup_logging()
@@ -131,6 +134,16 @@ app = FastAPI(
 )
 
 # ===== MIDDLEWARE CONFIGURATION =====
+# Note: Middleware is applied in reverse order (last added = first executed)
+
+# Security headers middleware (applied first)
+app.add_middleware(SecurityHeadersMiddleware)
+
+# Rate limiting middleware
+app.add_middleware(RateLimitingMiddleware)
+
+# Authentication middleware
+app.add_middleware(AuthenticationMiddleware)
 
 # CORS middleware
 if settings.BACKEND_CORS_ORIGINS:
@@ -140,7 +153,7 @@ if settings.BACKEND_CORS_ORIGINS:
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["*"],
-        expose_headers=["X-Correlation-ID"]
+        expose_headers=["X-Correlation-ID", "X-RateLimit-Limit", "X-RateLimit-Remaining"]
     )
 
 # Trusted host middleware
