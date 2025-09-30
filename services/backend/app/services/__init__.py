@@ -25,6 +25,12 @@ from .auth import (
     RoleService, PermissionService, SessionService
 )
 
+# Import domain services
+from .domain import (
+    DeviceService, ExperimentService, TaskService,
+    ParticipantService, TaskExecutionService, DeviceDataService
+)
+
 # List all services for discovery
 __all__ = [
     # Base service classes and exceptions
@@ -42,4 +48,8 @@ __all__ = [
     # Authentication services
     "AuthService", "UserService", "PasswordService", "MFAService",
     "RoleService", "PermissionService", "SessionService",
+
+    # Domain services
+    "DeviceService", "ExperimentService", "TaskService",
+    "ParticipantService", "TaskExecutionService", "DeviceDataService",
 ]

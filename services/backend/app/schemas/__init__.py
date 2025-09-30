@@ -56,6 +56,25 @@ from .auth import (
     TokenPairResponse, AccessTokenResponseWrapper, UserRegistrationResponseWrapper
 )
 
+# Import domain schemas
+from .devices import (
+    DeviceCreateSchema, DeviceUpdateSchema, DeviceSchema,
+    DeviceFilterSchema, DeviceStatusUpdateSchema, DeviceConfigurationSchema,
+    DeviceSummarySchema, DeviceCapabilitiesSchema, DeviceHealthSchema
+)
+
+from .experiments import (
+    ExperimentCreateSchema, ExperimentUpdateSchema, ExperimentSchema,
+    ExperimentFilterSchema, ParticipantCreateSchema, ParticipantUpdateSchema,
+    ParticipantSchema, ParticipantFilterSchema
+)
+
+from .tasks import (
+    TaskCreateSchema, TaskUpdateSchema, TaskSchema,
+    TaskFilterSchema, TaskValidationSchema, TaskExecutionCreateSchema,
+    TaskExecutionUpdateSchema, TaskExecutionSchema, TaskExecutionSummarySchema
+)
+
 # List all schemas for discovery
 __all__ = [
     # Base schemas and mixins
@@ -83,4 +102,19 @@ __all__ = [
     "UserListResponse", "RoleListResponse", "PermissionListResponse",
     "SessionListResponse", "LoginResponseWrapper", "UserProfileResponse",
     "TokenPairResponse", "AccessTokenResponseWrapper", "UserRegistrationResponseWrapper",
+
+    # Domain schemas - Devices
+    "DeviceCreateSchema", "DeviceUpdateSchema", "DeviceSchema",
+    "DeviceFilterSchema", "DeviceStatusUpdateSchema", "DeviceConfigurationSchema",
+    "DeviceSummarySchema", "DeviceCapabilitiesSchema", "DeviceHealthSchema",
+
+    # Domain schemas - Experiments
+    "ExperimentCreateSchema", "ExperimentUpdateSchema", "ExperimentSchema",
+    "ExperimentFilterSchema", "ParticipantCreateSchema", "ParticipantUpdateSchema",
+    "ParticipantSchema", "ParticipantFilterSchema",
+
+    # Domain schemas - Tasks
+    "TaskCreateSchema", "TaskUpdateSchema", "TaskSchema",
+    "TaskFilterSchema", "TaskValidationSchema", "TaskExecutionCreateSchema",
+    "TaskExecutionUpdateSchema", "TaskExecutionSchema", "TaskExecutionSummarySchema",
 ]
