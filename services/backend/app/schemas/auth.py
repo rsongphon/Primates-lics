@@ -868,3 +868,78 @@ UserProfileResponse = BaseResponse[UserProfile]
 TokenPairResponse = BaseResponse[TokenPair]
 AccessTokenResponseWrapper = BaseResponse[AccessTokenResponse]
 UserRegistrationResponseWrapper = BaseResponse[UserRegistrationResponse]
+
+# ===== ORGANIZATION CRUD SCHEMAS =====
+
+class OrganizationCreateSchema(BaseCreateSchema):
+    """Schema for creating a new organization."""
+    
+    name: str = Field(
+        ...,
+        description="Organization name (unique)",
+        min_length=1,
+        max_length=255,
+        examples=["Acme Research Lab", "University Psychology Department"]
+    )
+    
+    description: Optional[str] = Field(
+        None,
+        description="Organization description",
+        examples=["Leading research facility for behavioral studies"]
+    )
+    
+    settings: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Organization-specific settings and preferences",
+        examples=[{"default_experiment_duration": 3600, "max_devices": 50}]
+    )
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "name": "Acme Research Lab",
+                "description": "Leading research facility for behavioral studies",
+                "settings": {
+                    "default_experiment_duration": 3600,
+                    "max_devices": 50,
+                    "timezone": "America/New_York"
+                }
+            }
+        }
+    )
+
+
+class OrganizationUpdateSchema(BaseUpdateSchema):
+    """Schema for updating an organization."""
+    
+    name: Optional[str] = Field(
+        None,
+        description="Organization name",
+        min_length=1,
+        max_length=255
+    )
+    
+    description: Optional[str] = Field(
+        None,
+        description="Organization description"
+    )
+    
+    settings: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Organization-specific settings"
+    )
+    
+    is_active: Optional[bool] = Field(
+        None,
+        description="Organization active status"
+    )
+
+
+class OrganizationSchema(OrganizationEntityFullSchema):
+    """Schema for organization response (includes all fields)."""
+    pass
+
+
+# Type aliases for organization responses
+OrganizationResponse = BaseResponse[OrganizationSchema]
+OrganizationListResponse = PaginatedResponse[OrganizationSchema]

@@ -1252,3 +1252,45 @@ class SessionService:
             count = await session_repo.cleanup_expired_sessions()
             await session.commit()
             return count
+
+
+# ===== ORGANIZATION SERVICE =====
+
+class OrganizationService(BaseService):
+    """Service for organization management operations."""
+
+    def __init__(self):
+        # Import Organization model here to avoid circular imports
+        from app.models.base import Organization
+        super().__init__(BaseRepository, Organization)
+
+    async def get_list_with_filters(
+        self,
+        filters: Dict[str, Any],
+        skip: int = 0,
+        limit: int = 20,
+        session: Optional[AsyncSession] = None
+    ) -> Tuple[List[Any], int]:
+        """
+        Get paginated list of organizations with filters.
+
+        Args:
+            filters: Dictionary of filter criteria
+            skip: Number of records to skip
+            limit: Maximum number of records to return
+            session: Optional database session
+
+        Returns:
+            Tuple of (list of organizations, total count)
+        """
+        if session:
+            repo = self.get_repository(session)
+            items = await repo.get_list(skip=skip, limit=limit, filters=filters)
+            total = await repo.count(filters=filters)
+            return items, total
+        else:
+            async with db_manager.session_scope() as db_session:
+                repo = self.get_repository(db_session)
+                items = await repo.get_list(skip=skip, limit=limit, filters=filters)
+                total = await repo.count(filters=filters)
+                return items, total

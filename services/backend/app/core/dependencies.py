@@ -9,7 +9,7 @@ Documentation.md Section 5.1 dependency injection patterns.
 import uuid
 from typing import AsyncGenerator, Optional
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, Query, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -556,35 +556,36 @@ async def require_admin(current_user: "UserProfile" = Depends(get_current_user))
 # ===== PAGINATION DEPENDENCIES =====
 
 async def get_pagination_params(
-    skip: int = 0,
-    limit: int = 100
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(20, ge=1, le=1000, description="Items per page")
 ) -> dict:
     """
     Get pagination parameters with validation.
 
     Args:
-        skip: Number of items to skip
-        limit: Maximum number of items to return
+        page: Page number (1-indexed)
+        page_size: Number of items per page
 
     Returns:
-        Dictionary with validated pagination parameters
+        Dictionary with validated pagination parameters including skip, limit, page, and page_size
 
     Raises:
         HTTPException: If parameters are invalid
     """
-    if skip < 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Skip parameter must be non-negative"
-        )
+    skip = (page - 1) * page_size
+    limit = page_size
 
-    if limit <= 0 or limit > 1000:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Limit parameter must be between 1 and 1000"
-        )
+    return {
+        "skip": skip,
+        "limit": limit,
+        "page": page,
+        "page_size": page_size
+    }
 
-    return {"skip": skip, "limit": limit}
+
+# Aliases for common naming conventions
+PaginationParams = dict
+get_pagination = get_pagination_params
 
 
 async def get_ordering_params(

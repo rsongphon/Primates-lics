@@ -785,3 +785,79 @@ class DeviceCommandResponseSchema(BaseSchema):
         None,
         description="Command execution time in seconds"
     )
+
+
+# ===== DEVICE DATA SCHEMAS =====
+
+class DeviceDataCreateSchema(BaseCreateSchema):
+    """Schema for creating device telemetry data."""
+
+    task_execution_id: Optional[uuid.UUID] = Field(None, description="Task execution ID (if data is from a task)")
+    data_type: str = Field(..., description="Type of data (sensor, log, image, video, etc.)", min_length=1, max_length=100)
+    data_source: str = Field(..., description="Source of the data (sensor name, component, etc.)", min_length=1, max_length=100)
+    data_value: Optional[Dict[str, Any]] = Field(None, description="Structured data value for JSON data")
+    data_blob: Optional[str] = Field(None, description="Large text or binary data (base64 encoded)")
+    numeric_value: Optional[float] = Field(None, description="Numeric value for easy querying")
+    string_value: Optional[str] = Field(None, description="String value for easy querying", max_length=500)
+    timestamp: Optional[datetime] = Field(None, description="When the data was collected (defaults to now)")
+    units: Optional[str] = Field(None, description="Units of measurement", max_length=50)
+    quality_score: Optional[float] = Field(None, ge=0.0, le=1.0, description="Data quality score (0-1)")
+    data_metadata: Optional[Dict[str, Any]] = Field(None, description="Additional data metadata")
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "data_type": "sensor",
+                    "data_source": "temperature_sensor_1",
+                    "numeric_value": 23.5,
+                    "units": "celsius",
+                    "quality_score": 0.95,
+                    "data_metadata": {"sensor_location": "cage_1", "calibrated": True}
+                },
+                {
+                    "data_type": "log",
+                    "data_source": "system",
+                    "string_value": "Device initialized successfully",
+                    "data_metadata": {"severity": "info"}
+                }
+            ]
+        }
+    )
+
+
+class DeviceDataSchema(OrganizationEntityFullSchema):
+    """Schema for device telemetry data response."""
+
+    device_id: uuid.UUID = Field(..., description="Device ID that collected this data")
+    task_execution_id: Optional[uuid.UUID] = Field(None, description="Task execution ID (if data is from a task)")
+    data_type: str = Field(..., description="Type of data (sensor, log, image, video, etc.)")
+    data_source: str = Field(..., description="Source of the data (sensor name, component, etc.)")
+    data_value: Optional[Dict[str, Any]] = Field(None, description="Structured data value for JSON data")
+    data_blob: Optional[str] = Field(None, description="Large text or binary data (base64 encoded)")
+    numeric_value: Optional[float] = Field(None, description="Numeric value for easy querying")
+    string_value: Optional[str] = Field(None, description="String value for easy querying")
+    timestamp: datetime = Field(..., description="When the data was collected")
+    units: Optional[str] = Field(None, description="Units of measurement")
+    quality_score: Optional[float] = Field(None, description="Data quality score (0-1)")
+    data_metadata: Optional[Dict[str, Any]] = Field(None, description="Additional data metadata")
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "examples": [
+                {
+                    "id": "550e8400-e29b-41d4-a716-446655440000",
+                    "device_id": "123e4567-e89b-12d3-a456-426614174000",
+                    "data_type": "sensor",
+                    "data_source": "temperature_sensor_1",
+                    "numeric_value": 23.5,
+                    "units": "celsius",
+                    "quality_score": 0.95,
+                    "timestamp": "2024-01-15T10:30:00Z",
+                    "organization_id": "org123",
+                    "created_at": "2024-01-15T10:30:00Z"
+                }
+            ]
+        }
+    )

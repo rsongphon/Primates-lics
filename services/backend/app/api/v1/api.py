@@ -5,15 +5,19 @@ Main API router for version 1 endpoints. Includes all API route modules
 and provides centralized configuration for the API layer.
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
-from app.api.v1 import health, auth, rbac
+from app.api.v1 import (
+    health, auth, rbac, organizations, devices,
+    experiments, tasks, participants
+)
 from app.core.config import settings
+from app.core.dependencies import get_current_user
 
 # Create main API router
 api_router = APIRouter()
 
-# Include health check endpoints (from existing health.py)
+# Include health check endpoints (public)
 api_router.include_router(
     health.router,
     prefix="/health",
@@ -24,7 +28,7 @@ api_router.include_router(
     }
 )
 
-# Include authentication endpoints
+# Include authentication endpoints (public)
 api_router.include_router(
     auth.router,
     prefix="/auth",
@@ -35,7 +39,7 @@ api_router.include_router(
     }
 )
 
-# Include RBAC endpoints
+# Include RBAC endpoints (requires authentication)
 api_router.include_router(
     rbac.router,
     prefix="/rbac",
@@ -46,44 +50,74 @@ api_router.include_router(
     }
 )
 
-# TODO: Add other route modules as they are implemented
-# Example structure for future modules:
+# ===== DOMAIN ENTITY ENDPOINTS (All require authentication) =====
 
-# api_router.include_router(
-#     users.router,
-#     prefix="/users",
-#     tags=["users"],
-#     dependencies=[Depends(get_current_user)]
-# )
+# Organizations management
+api_router.include_router(
+    organizations.router,
+    prefix="/organizations",
+    tags=["organizations"],
+    dependencies=[Depends(get_current_user)],
+    responses={
+        401: {"description": "Unauthorized"},
+        403: {"description": "Forbidden"},
+        404: {"description": "Not Found"}
+    }
+)
 
-# api_router.include_router(
-#     organizations.router,
-#     prefix="/organizations",
-#     tags=["organizations"],
-#     dependencies=[Depends(get_current_user)]
-# )
+# Device management and telemetry
+api_router.include_router(
+    devices.router,
+    prefix="/devices",
+    tags=["devices"],
+    dependencies=[Depends(get_current_user)],
+    responses={
+        401: {"description": "Unauthorized"},
+        403: {"description": "Forbidden"},
+        404: {"description": "Not Found"}
+    }
+)
 
-# api_router.include_router(
-#     devices.router,
-#     prefix="/devices",
-#     tags=["devices"],
-#     dependencies=[Depends(get_current_user)]
-# )
+# Experiment lifecycle management
+api_router.include_router(
+    experiments.router,
+    prefix="/experiments",
+    tags=["experiments"],
+    dependencies=[Depends(get_current_user)],
+    responses={
+        401: {"description": "Unauthorized"},
+        403: {"description": "Forbidden"},
+        404: {"description": "Not Found"}
+    }
+)
 
-# api_router.include_router(
-#     experiments.router,
-#     prefix="/experiments",
-#     tags=["experiments"],
-#     dependencies=[Depends(get_current_user)]
-# )
+# Task definitions and templates
+api_router.include_router(
+    tasks.router,
+    prefix="/tasks",
+    tags=["tasks"],
+    dependencies=[Depends(get_current_user)],
+    responses={
+        401: {"description": "Unauthorized"},
+        403: {"description": "Forbidden"},
+        404: {"description": "Not Found"}
+    }
+)
 
-# api_router.include_router(
-#     tasks.router,
-#     prefix="/tasks",
-#     tags=["tasks"],
-#     dependencies=[Depends(get_current_user)]
-# )
+# Participant management
+api_router.include_router(
+    participants.router,
+    prefix="/participants",
+    tags=["participants"],
+    dependencies=[Depends(get_current_user)],
+    responses={
+        401: {"description": "Unauthorized"},
+        403: {"description": "Forbidden"},
+        404: {"description": "Not Found"}
+    }
+)
 
+# TODO: Add future route modules
 # api_router.include_router(
 #     streaming.router,
 #     prefix="/streaming",

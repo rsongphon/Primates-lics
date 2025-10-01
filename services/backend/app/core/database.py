@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy import MetaData
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.pool import NullPool, StaticPool
 
@@ -28,6 +29,15 @@ from app.core.logging import get_logger, PerformanceLogger
 logger = get_logger(__name__)
 perf_logger = PerformanceLogger(logger)
 
+# Define naming convention for database constraints
+metadata_naming_convention = {
+    'ix': 'ix_%(column_0_label)s',
+    'uq': 'uq_%(table_name)s_%(column_0_name)s',
+    'ck': 'ck_%(table_name)s_%(constraint_name)s',
+    'fk': 'fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s',
+    'pk': 'pk_%(table_name)s'
+}
+
 
 class Base(DeclarativeBase):
     """
@@ -36,16 +46,7 @@ class Base(DeclarativeBase):
     Provides common functionality and naming conventions for all database models.
     """
 
-    # Define naming convention for constraints
-    __table_args__ = {
-        'naming_convention': {
-            'ix': 'ix_%(column_0_label)s',
-            'uq': 'uq_%(table_name)s_%(column_0_name)s',
-            'ck': 'ck_%(table_name)s_%(constraint_name)s',
-            'fk': 'fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s',
-            'pk': 'pk_%(table_name)s'
-        }
-    }
+    metadata = MetaData(naming_convention=metadata_naming_convention)
 
 
 class DatabaseManager:
@@ -395,6 +396,10 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
     """
     async with db_manager.session_scope() as session:
         yield session
+
+
+# Alias for common naming convention
+get_db = get_db_session
 
 
 async def get_db_manager() -> DatabaseManager:

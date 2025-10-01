@@ -5,9 +5,13 @@ This module provides JWT token management, password hashing, and other
 security-related functionality for the LICS application.
 """
 
+import hashlib
+import hmac
+import re
 import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional, Union
+from urllib.parse import urlparse
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -64,6 +68,61 @@ class TokenData:
         self.permissions = permissions or []
         self.token_type = token_type
         self.device_id = device_id
+        self._payload = {}  # Store raw payload for unmapped fields
+
+    def __getitem__(self, key: Union[str, int]) -> Any:
+        """Allow dict-style access to token data."""
+        if not isinstance(key, str):
+            raise TypeError(f"TokenData indices must be strings, not {type(key).__name__}")
+
+        # Map JWT standard claims to TokenData attributes
+        if key == "sub":
+            return self.user_id
+        if key == "type":
+            return self.token_type
+
+        # Try to get from attributes first
+        if hasattr(self, key):
+            return getattr(self, key)
+
+        # Fall back to raw payload
+        return self._payload.get(key)
+
+    def __contains__(self, key: str) -> bool:
+        """Support 'in' operator."""
+        if key in ["sub", "type"]:
+            return True
+        if hasattr(self, key):
+            return True
+        return key in self._payload
+
+    def get(self, key: str, default: Any = None) -> Any:
+        """Get attribute with default value."""
+        # Map JWT standard claims to TokenData attributes
+        if key == "sub":
+            return self.user_id
+        if key == "type":
+            return self.token_type
+
+        # Try to get from attributes first
+        if hasattr(self, key):
+            return getattr(self, key)
+
+        # Fall back to raw payload
+        return self._payload.get(key, default)
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert TokenData to dictionary."""
+        return {
+            "user_id": self.user_id,
+            "username": self.username,
+            "email": self.email,
+            "organization_id": self.organization_id,
+            "roles": self.roles,
+            "permissions": self.permissions,
+            "token_type": self.token_type,
+            "device_id": self.device_id,
+        }
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -103,7 +162,7 @@ def generate_password_reset_token() -> str:
 
 
 def create_access_token(
-    subject: Union[str, Any],
+    subject: Union[str, Any, Dict[str, Any]],
     expires_delta: Optional[timedelta] = None,
     additional_claims: Optional[Dict[str, Any]] = None,
 ) -> str:
@@ -111,7 +170,7 @@ def create_access_token(
     Create an access token.
 
     Args:
-        subject: The subject (usually user ID) for the token
+        subject: The subject (user ID) or dict with user data
         expires_delta: Custom expiration time
         additional_claims: Additional claims to include in token
 
@@ -123,12 +182,49 @@ def create_access_token(
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
-    to_encode = {
-        "exp": expire,
-        "iat": datetime.now(timezone.utc),
-        "sub": str(subject),
-        "type": ACCESS_TOKEN_TYPE,
-    }
+    # Generate unique JTI for token tracking
+    jti = secrets.token_urlsafe(32)
+
+    # Handle dict subject with user data
+    if isinstance(subject, dict):
+        # Get subject ID, handling None case
+        sub_value = subject.get("sub") or subject.get("user_id")
+        # JWT requires sub to be a string
+        # Use special marker for None to preserve it through encode/decode
+        if sub_value is None:
+            sub_str = "__NONE__"
+            to_encode = {"_sub_was_none": True}
+        else:
+            sub_str = str(sub_value)
+            to_encode = {}
+
+        to_encode.update({
+            "exp": expire,
+            "iat": datetime.now(timezone.utc),
+            "sub": sub_str,
+            "type": ACCESS_TOKEN_TYPE,
+            "jti": jti,
+        })
+        # Add all other fields from dict (preserving custom claims)
+        for key, value in subject.items():
+            if key not in ["sub", "user_id", "exp", "iat", "type", "jti"]:
+                to_encode[key] = value
+    else:
+        # JWT requires sub to be a string
+        if subject is None:
+            sub_str = "__NONE__"
+            to_encode = {"_sub_was_none": True}
+        else:
+            sub_str = str(subject)
+            to_encode = {}
+
+        to_encode.update({
+            "exp": expire,
+            "iat": datetime.now(timezone.utc),
+            "sub": sub_str,
+            "type": ACCESS_TOKEN_TYPE,
+            "jti": jti,
+        })
 
     if additional_claims:
         to_encode.update(additional_claims)
@@ -139,7 +235,7 @@ def create_access_token(
             settings.JWT_SECRET_KEY,
             algorithm=settings.JWT_ALGORITHM
         )
-        logger.debug(f"Access token created for subject: {subject}")
+        logger.debug(f"Access token created for subject: {to_encode['sub']}")
         return encoded_jwt
     except Exception as e:
         logger.error(f"Error creating access token: {e}")
@@ -323,16 +419,17 @@ def create_password_reset_token_jwt(
         raise
 
 
-def verify_token(token: str, token_type: Optional[str] = None) -> Optional[TokenData]:
+def verify_token(token: str, token_type: Optional[str] = None, return_payload: bool = False) -> Optional[Union[TokenData, Dict[str, Any]]]:
     """
     Verify and decode a JWT token.
 
     Args:
         token: The JWT token to verify
         token_type: Expected token type (optional)
+        return_payload: If True, return raw payload dict instead of TokenData
 
     Returns:
-        TokenData object if valid, None otherwise
+        TokenData object or payload dict if valid, None otherwise
     """
     try:
         payload = jwt.decode(
@@ -352,9 +449,19 @@ def verify_token(token: str, token_type: Optional[str] = None) -> Optional[Token
             logger.warning(f"Token type mismatch. Expected: {token_type}, Got: {payload.get('type')}")
             return None
 
+        # Return raw payload if requested
+        if return_payload:
+            logger.debug(f"Token verified successfully for subject: {payload.get('sub')}")
+            return payload
+
+        # Handle None subject marker
+        sub_value = payload.get("sub")
+        if payload.get("_sub_was_none") and sub_value == "__NONE__":
+            sub_value = None
+
         # Extract token data
         token_data = TokenData(
-            user_id=payload.get("sub"),
+            user_id=sub_value,
             username=payload.get("username"),
             email=payload.get("email"),
             organization_id=payload.get("organization_id"),
@@ -363,6 +470,12 @@ def verify_token(token: str, token_type: Optional[str] = None) -> Optional[Token
             token_type=payload.get("type"),
             device_id=payload.get("device_id"),
         )
+        # Store raw payload for access to non-mapped fields
+        # Convert __NONE__ marker back to None in payload copy
+        payload_copy = payload.copy()
+        if payload.get("_sub_was_none"):
+            payload_copy["sub"] = None
+        token_data._payload = payload_copy
 
         logger.debug(f"Token verified successfully for subject: {token_data.user_id}")
         return token_data
