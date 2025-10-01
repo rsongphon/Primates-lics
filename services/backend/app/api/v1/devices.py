@@ -27,6 +27,11 @@ from app.schemas.devices import (
 )
 from app.services.domain import DeviceService, DeviceDataService
 from app.core.logging import get_logger
+from app.websocket.emitters import (
+    emit_device_status,
+    emit_device_heartbeat,
+    emit_device_telemetry
+)
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -289,6 +294,17 @@ async def update_device_heartbeat(
             status_data=status_data,
             session=db
         )
+
+        # Emit WebSocket event for real-time updates
+        await emit_device_heartbeat(
+            device_id=device_id,
+            health_status=heartbeat_data.health_status if heartbeat_data else "healthy",
+            cpu_usage=heartbeat_data.cpu_usage if heartbeat_data else None,
+            memory_usage=heartbeat_data.memory_usage if heartbeat_data else None,
+            disk_usage=heartbeat_data.disk_usage if heartbeat_data else None,
+            uptime=heartbeat_data.uptime if heartbeat_data else None
+        )
+
         return updated_device
     except Exception as e:
         logger.error(f"Failed to update device heartbeat: {str(e)}")
@@ -322,6 +338,9 @@ async def update_device_status(
         )
 
     try:
+        # Get previous status for WebSocket event
+        previous_status = device.status.value
+
         updated_device = await service.update_device_status(
             device_id,
             status_data.status,
@@ -336,6 +355,15 @@ async def update_device_status(
                 "updated_by": str(current_user.id) if hasattr(current_user, 'id') else "system"
             }
         )
+
+        # Emit WebSocket event for real-time status updates
+        await emit_device_status(
+            device_id=device_id,
+            status=status_data.status.value,
+            previous_status=previous_status,
+            reason=status_data.error_message
+        )
+
         return updated_device
     except Exception as e:
         logger.error(f"Failed to update device status: {str(e)}")
@@ -381,6 +409,16 @@ async def submit_device_data(
             data_dict,
             session=db
         )
+
+        # Emit WebSocket event for real-time telemetry updates
+        await emit_device_telemetry(
+            device_id=device_id,
+            metric=data.metric_type,
+            value=data.value,
+            unit=data.unit,
+            tags=data.tags
+        )
+
         return device_data
     except Exception as e:
         logger.error(f"Failed to submit device data: {str(e)}")

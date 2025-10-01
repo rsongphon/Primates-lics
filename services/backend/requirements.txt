@@ -16,6 +16,11 @@ greenlet>=3.0.0
 redis>=5.0.0
 celery>=5.3.0
 
+# WebSocket and Real-time Communication
+python-socketio>=5.10.0
+aioredis>=2.0.0
+python-socketio[asyncio_client]>=5.10.0
+
 # Time series and monitoring
 influxdb-client>=1.38.0
 

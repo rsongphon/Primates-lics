@@ -28,6 +28,7 @@ from app.schemas.experiments import (
 )
 from app.services.domain import ExperimentService, ParticipantService
 from app.core.logging import get_logger
+from app.websocket.emitters import emit_experiment_lifecycle, emit_experiment_progress
 
 logger = get_logger(__name__)
 router = APIRouter()
@@ -293,6 +294,9 @@ async def start_experiment(
         )
 
     try:
+        # Get previous state for WebSocket event
+        previous_state = experiment.status.value
+
         started_experiment = await service.start_experiment(
             experiment_id,
             current_user_id=current_user.id,
@@ -305,6 +309,16 @@ async def start_experiment(
                 "started_by": str(current_user.id)
             }
         )
+
+        # Emit WebSocket event for real-time lifecycle updates
+        await emit_experiment_lifecycle(
+            experiment_id=experiment_id,
+            state="running",
+            previous_state=previous_state,
+            triggered_by=current_user.id,
+            reason="Experiment started by user"
+        )
+
         return started_experiment
     except Exception as e:
         logger.error(f"Failed to start experiment: {str(e)}")
@@ -344,6 +358,9 @@ async def pause_experiment(
         )
 
     try:
+        # Get previous state for WebSocket event
+        previous_state = experiment.status.value
+
         paused_experiment = await service.pause_experiment(
             experiment_id,
             session=db
@@ -355,6 +372,16 @@ async def pause_experiment(
                 "paused_by": str(current_user.id)
             }
         )
+
+        # Emit WebSocket event for real-time lifecycle updates
+        await emit_experiment_lifecycle(
+            experiment_id=experiment_id,
+            state="paused",
+            previous_state=previous_state,
+            triggered_by=current_user.id,
+            reason="Experiment paused by user"
+        )
+
         return paused_experiment
     except Exception as e:
         logger.error(f"Failed to pause experiment: {str(e)}")
@@ -394,6 +421,9 @@ async def complete_experiment(
         )
 
     try:
+        # Get previous state for WebSocket event
+        previous_state = experiment.status.value
+
         completed_experiment = await service.complete_experiment(
             experiment_id,
             session=db
@@ -405,6 +435,16 @@ async def complete_experiment(
                 "completed_by": str(current_user.id)
             }
         )
+
+        # Emit WebSocket event for real-time lifecycle updates
+        await emit_experiment_lifecycle(
+            experiment_id=experiment_id,
+            state="completed",
+            previous_state=previous_state,
+            triggered_by=current_user.id,
+            reason="Experiment completed by user"
+        )
+
         return completed_experiment
     except Exception as e:
         logger.error(f"Failed to complete experiment: {str(e)}")
@@ -445,6 +485,9 @@ async def cancel_experiment(
         )
 
     try:
+        # Get previous state for WebSocket event
+        previous_state = experiment.status.value
+
         cancelled_experiment = await service.cancel_experiment(
             experiment_id,
             reason=reason,
@@ -458,6 +501,16 @@ async def cancel_experiment(
                 "reason": reason
             }
         )
+
+        # Emit WebSocket event for real-time lifecycle updates
+        await emit_experiment_lifecycle(
+            experiment_id=experiment_id,
+            state="cancelled",
+            previous_state=previous_state,
+            triggered_by=current_user.id,
+            reason=reason or "Experiment cancelled by user"
+        )
+
         return cancelled_experiment
     except Exception as e:
         logger.error(f"Failed to cancel experiment: {str(e)}")
