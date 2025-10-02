@@ -70,6 +70,37 @@ That's it! Your development environment is now running with:
 - WebSocket: wss://localhost:8001
 - Grafana Monitoring: https://localhost:3001
 
+### 🐳 Containerized Development (Zero Local Dependencies)
+
+**NEW:** Develop with **only Docker** - no Node.js, Python, PostgreSQL, or other tools needed locally!
+
+#### Option 1: VS Code Dev Containers (Recommended)
+```bash
+# 1. Open in VS Code
+code .
+
+# 2. Click "Reopen in Container" (or Cmd/Ctrl+Shift+P → "Dev Containers: Reopen in Container")
+# 3. Wait for setup (~5-10 minutes first time)
+# 4. Start developing - everything just works!
+make dev
+```
+
+#### Option 2: Standalone Docker Compose
+```bash
+# Start all services in containers
+make container-dev
+
+# Get a shell in the dev environment
+make container-shell
+
+# Or run commands directly
+./tools/dev-cli.sh npm install
+./tools/dev-cli.sh pytest
+./tools/dev-cli.sh alembic upgrade head
+```
+
+**📚 Full Guide:** See [QUICKSTART_CONTAINER.md](QUICKSTART_CONTAINER.md) for detailed instructions and [docs/CONTAINERIZED_DEVELOPMENT.md](docs/CONTAINERIZED_DEVELOPMENT.md) for complete documentation.
+
 ### Manual Setup
 
 If you prefer manual installation:
@@ -307,6 +338,7 @@ For security issues, please see our [Security Policy](SECURITY.md).
 - **[User Guides](docs/user-guides/)** - End-user documentation
 - **[Deployment Guide](docs/deployment.md)** - Production deployment instructions
 - **[Contributing Guide](CONTRIBUTING.md)** - Development contribution guidelines
+- **[Known Issues](KNOWN_ISSUES.md)** - Comprehensive issue tracking and resolution status
 
 ## 🗺️ Roadmap
 

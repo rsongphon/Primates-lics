@@ -21,6 +21,7 @@
 15. [Scalability Strategies](#15-scalability-strategies)
 16. [Testing Strategy](#16-testing-strategy)
 17. [Implementation Roadmap](#17-implementation-roadmap)
+18. [Primate Research Specialization](#18-primate-research-specialization)
 
 ---
 
@@ -28,6 +29,8 @@
 
 ### 1.1 Project Vision
 The Lab Instrument Control System (LICS) represents a paradigm shift in laboratory automation, providing a cloud-native, distributed platform for managing multiple cage-based experimental devices. The system enables researchers to design, deploy, and monitor behavioral experiments remotely while maintaining real-time control over edge devices.
+
+**Primary Research Focus**: LICS is specifically designed for **non-human primate behavioral research**, supporting cognitive, visual, auditory, and motor task paradigms. The system provides comprehensive subject management, experiment lifecycle tracking, and data collection for primate neuroscience studies.
 
 ### 1.2 Core Architecture Principles
 
@@ -2653,6 +2656,931 @@ For implementation support, architecture discussions, or clarifications on this 
 ---
 
 *This documentation represents a complete blueprint for implementing the Lab Instrument Control System. Each section provides sufficient detail for developers to understand requirements, make implementation decisions, and build a production-ready system. The combination of cloud and local deployment options ensures flexibility for different organizational needs and scales.*
+
+---
+
+## 18. Primate Research Specialization
+
+### 18.1 Overview
+
+LICS is purpose-built for **non-human primate behavioral neuroscience research**, delivering diverse tasks to analyze phenotypic characteristics and complex nervous systems of macaques, marmosets, capuchins, and other species. Each experimental paradigm requires distinct hardware and software configurations, managed through the platform's no-code interface.
+
+### 18.2 Participant Management System
+
+#### Non-Human Primate Subject Tracking
+
+**Core Features**:
+- **Species-Specific Management**: Support for macaques, marmosets, capuchins, rhesus monkeys
+- **RFID-Based Identification**: Automatic subject recognition via radio-frequency tags
+- **Demographic Tracking**: Birth date, weight, sex, training level progression
+- **Welfare Monitoring Integration**: Health status, activity levels, behavioral notes
+- **Training Level Progression**: Graduated complexity from basic to advanced tasks
+
+**Database Schema**:
+```python
+class Primate(BaseModel):
+    """Non-human primate subjects"""
+    __tablename__ = "primates"
+
+    # Core Identity
+    id: UUID (primary key)
+    organization_id: UUID (foreign key to organizations)
+    name: str (unique per organization)
+    species: Enum[macaque, marmoset, capuchin, rhesus, other]
+    rfid_tag: str (unique, indexed for fast lookup)
+
+    # Demographics
+    birth_date: date
+    sex: Enum[M, F, U]
+    weight_kg: Decimal(5,2)
+
+    # Research Status
+    training_level: int (1-10 scale)
+    is_active: bool (currently participating)
+
+    # Session Tracking
+    current_board: Device (nullable, current cage assignment)
+    game_instance: Experiment (nullable, active experiment)
+
+    # Metadata
+    notes: text (welfare observations, behavioral notes)
+    metadata: JSONB (flexible additional data)
+```
+
+**Key Operations**:
+- **RFID Auto-Detection**: Edge devices detect RFID tags, automatically associate primate with session
+- **Training Level Enforcement**: Tasks validate minimum training requirements before execution
+- **Session History**: Complete audit trail of all experiments, tasks, and outcomes
+- **Multi-Lab Support**: Organization-based isolation for collaborative research
+
+#### Welfare and Ethics Compliance
+
+**IACUC Integration**:
+- **Protocol Versioning**: Track IACUC-approved protocol versions for each experiment
+- **Animal Tracking**: Number of sessions per day, cumulative weekly duration
+- **Welfare Flags**: Automated alerts for health concerns, excessive session counts
+- **Environmental Logging**: Cage temperature, humidity, light cycle tracking
+
+**Compliance Features**:
+```python
+# Automated session limits
+MAX_SESSIONS_PER_DAY = 3
+MAX_DURATION_PER_SESSION = 120  # minutes
+MINIMUM_REST_BETWEEN_SESSIONS = 60  # minutes
+
+# Welfare monitoring
+class WelfareCheck(BaseModel):
+    primate_id: UUID
+    check_date: datetime
+    weight_kg: Decimal
+    behavioral_observations: str
+    health_status: Enum[excellent, good, fair, concern]
+    veterinary_notes: text
+```
+
+### 18.3 Cognitive Task Paradigms
+
+#### Task Categories for Primate Research
+
+**1. Fixation and Attention Tasks**:
+- **Purpose**: Assess visual attention, impulse control, sustained focus
+- **Implementation**: Button hold duration, target fixation monitoring
+- **Hardware**: Touchscreen display, eye-tracking camera (optional)
+- **Metrics**: Response time, fixation duration, error rates
+
+**2. Memory and Learning Tasks**:
+- **Delayed Match-to-Sample (DMTS)**: Short-term memory assessment
+- **Spatial Memory**: Location recall after delay periods
+- **Working Memory**: Sequence recall, object permanence
+- **Hardware**: Multi-position stimulus display, reward delivery system
+
+**3. Visual Discrimination Tasks**:
+- **Color Discrimination**: Hue, saturation, brightness differentiation
+- **Shape Recognition**: Geometric forms, complex objects
+- **Motion Detection**: Direction, speed, coherence thresholds
+- **Hardware**: High-resolution display, precise stimulus control
+
+**4. Auditory Processing Tasks**:
+- **Frequency Discrimination**: Pure tone differentiation
+- **Pattern Recognition**: Temporal sequences, rhythmic patterns
+- **Auditory Attention**: Selective attention, distractor filtering
+- **Hardware**: Calibrated speakers, sound isolation booth
+
+**5. Motor Control Tasks**:
+- **Reaching Tasks**: Precision reaching, target accuracy
+- **Sequence Learning**: Motor pattern acquisition
+- **Reaction Time**: Simple and choice reaction paradigms
+- **Hardware**: Force-sensitive touchscreen, motion tracking
+
+#### Example: Fixation Task Configuration
+
+```json
+{
+  "task_metadata": {
+    "name": "Visual Fixation Training",
+    "category": "cognitive",
+    "subcategory": "attention",
+    "version": "2.1.0",
+    "author_id": "user-uuid",
+    "description": "Basic visual fixation task for training level 1-3 primates"
+  },
+  "parameter_schema": {
+    "type": "object",
+    "properties": {
+      "button_size_range": {
+        "type": "object",
+        "properties": {
+          "min": {"type": "number", "minimum": 20, "maximum": 200},
+          "max": {"type": "number", "minimum": 20, "maximum": 200}
+        },
+        "required": ["min", "max"]
+      },
+      "hold_duration_ms": {
+        "type": "integer",
+        "minimum": 100,
+        "maximum": 5000,
+        "default": 200
+      },
+      "inter_trial_intervals": {
+        "correct": {"type": "integer", "default": 2000},
+        "incorrect": {"type": "integer", "default": 5000},
+        "absent": {"type": "integer", "default": 60000}
+      },
+      "reward_config": {
+        "duration_ms": {"type": "integer", "default": 500},
+        "amount_ml": {"type": "number", "default": 0.2}
+      }
+    },
+    "required": ["button_size_range", "hold_duration_ms"]
+  },
+  "default_parameters": {
+    "button_size_range": {"min": 50, "max": 150},
+    "hold_duration_ms": 200,
+    "button_color": "#00FF00",
+    "background_color": "#000000",
+    "inter_trial_intervals": {
+      "correct": 2000,
+      "incorrect": 5000,
+      "absent": 60000
+    },
+    "reward_config": {
+      "duration_ms": 500,
+      "amount_ml": 0.2
+    }
+  },
+  "required_hardware": [
+    {"type": "display", "resolution": "1920x1080"},
+    {"type": "feeder", "precision": "high"},
+    {"type": "camera", "fps": 30}
+  ],
+  "minimum_training_level": 1,
+  "result_schema": {
+    "trial_number": "integer",
+    "timestamp": "datetime",
+    "button_size": "float",
+    "button_position_x": "integer",
+    "button_position_y": "integer",
+    "response_time_ms": "integer",
+    "hold_duration_achieved": "integer",
+    "is_correct": "boolean",
+    "feedback_type": {"enum": ["reward", "timeout", "error", "abort"]}
+  }
+}
+```
+
+### 18.4 Cage-Based Device Architecture
+
+#### Raspberry Pi Edge Device Configuration
+
+**Standard Cage Setup**:
+```
+┌────────────────────────────────────────────────┐
+│         Primate Experimental Cage              │
+│                                                │
+│  ┌──────────────┐         ┌──────────────┐   │
+│  │  Touchscreen │         │   Camera     │   │
+│  │   Display    │         │  (1080p 30fps)│   │
+│  │ (1920x1080)  │         └──────────────┘   │
+│  └──────────────┘                             │
+│                                                │
+│  ┌──────────────┐         ┌──────────────┐   │
+│  │    Feeder    │         │   Speaker    │   │
+│  │  (Pellet/    │         │  (Auditory   │   │
+│  │   Liquid)    │         │   Stimuli)   │   │
+│  └──────────────┘         └──────────────┘   │
+│                                                │
+│  ┌──────────────┐         ┌──────────────┐   │
+│  │  RFID Reader │         │  LED Lights  │   │
+│  │  (Animal ID) │         │ (Reward Cue) │   │
+│  └──────────────┘         └──────────────┘   │
+│                                                │
+│          ┌──────────────────────┐             │
+│          │  Raspberry Pi 4/5    │             │
+│          │  - Python Agent      │             │
+│          │  - SQLite Cache      │             │
+│          │  - MQTT Client       │             │
+│          │  - Playwright Browser│             │
+│          └──────────────────────┘             │
+└────────────────────────────────────────────────┘
+```
+
+**Hardware Component Registry**:
+
+Researchers register hardware via web interface with **no code interaction**:
+
+```python
+# Example: Adding feeder to device via web UI
+POST /api/v1/devices/{device_id}/hardware
+{
+  "hardware_type": "feeder",
+  "name": "Primary Pellet Dispenser",
+  "model": "Med Associates ENV-203M",
+  "manufacturer": "Med Associates",
+  "gpio_pins": [17, 18],  # Trigger and sensor pins
+  "pin_mode": "output",
+  "configuration": {
+    "pellet_size_mg": 45,
+    "dispense_duration_ms": 100,
+    "inter_pellet_interval_ms": 50
+  },
+  "calibration_data": {
+    "last_calibrated": "2024-12-01T10:00:00Z",
+    "pellets_per_gram": 22.2,
+    "dispense_accuracy": 0.95
+  }
+}
+
+# System auto-updates device metadata in database
+# Edge agent polls for hardware changes, updates GPIO mappings
+```
+
+**Dynamic Hardware Discovery**:
+```python
+# Edge agent detects new hardware, requests backend registration
+class HardwareManager:
+    def detect_connected_hardware(self):
+        """Scans GPIO, USB, I2C for new devices"""
+        detected = []
+
+        # I2C scan for sensors
+        i2c_devices = self.scan_i2c_bus()
+        for addr, device_type in i2c_devices:
+            detected.append({
+                "bus": "i2c",
+                "address": addr,
+                "suggested_type": device_type
+            })
+
+        # USB scan for cameras
+        usb_cameras = self.scan_video_devices()
+        for cam in usb_cameras:
+            detected.append({
+                "bus": "usb",
+                "device": cam.device_path,
+                "suggested_type": "camera",
+                "capabilities": cam.get_capabilities()
+            })
+
+        # Report to backend for user confirmation
+        self.api_client.post("/devices/self/hardware/detected", detected)
+```
+
+### 18.5 Browser Automation for Task Execution
+
+#### Playwright Integration on Edge Devices
+
+**Why Browser-Based Tasks?**:
+- **No-Code Task Deployment**: JavaScript/React tasks run in browser without edge agent code changes
+- **Cross-Platform Compatibility**: Same task code runs on development and production environments
+- **Rich UI Capabilities**: Leverage web technologies for complex visual stimuli
+- **Hot-Swap Tasks**: Update tasks without edge device reboot
+
+**Edge Agent Browser Automation**:
+
+```python
+# services/edge-agent/src/browser_controller.py
+
+from playwright.async_api import async_playwright, Browser, Page
+import asyncio
+
+class TaskBrowserController:
+    """Manages headless browser for task execution"""
+
+    def __init__(self, config: EdgeConfig):
+        self.config = config
+        self.browser: Browser = None
+        self.page: Page = None
+        self.playwright = None
+
+    async def initialize(self):
+        """Start headless Chromium"""
+        self.playwright = await async_playwright().start()
+        self.browser = await self.playwright.chromium.launch(
+            headless=True,
+            args=[
+                '--disable-dev-shm-usage',  # Avoid memory issues on Pi
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-gpu'
+            ]
+        )
+        self.page = await self.browser.new_page(viewport={'width': 1920, 'height': 1080})
+
+    async def load_task(self, task_url: str, experiment_config: dict):
+        """Load task application with configuration"""
+        # Navigate to task URL (served from backend or local cache)
+        await self.page.goto(task_url)
+
+        # Inject experiment configuration
+        await self.page.evaluate(f"""
+            window.LICS_EXPERIMENT_CONFIG = {json.dumps(experiment_config)};
+            window.LICS_DEVICE_ID = '{self.config.device_id}';
+        """)
+
+        # Wait for task initialization
+        await self.page.wait_for_function("window.LICS_TASK_READY === true", timeout=10000)
+
+    async def handle_task_events(self):
+        """Listen for task events and relay to backend"""
+        # Expose Python function to JavaScript
+        await self.page.expose_function('licsSendResult', self.on_task_result)
+        await self.page.expose_function('licsRequestReward', self.on_reward_request)
+        await self.page.expose_function('licsLogEvent', self.on_task_event)
+
+    async def on_task_result(self, result_data: dict):
+        """Task completed a trial, store result"""
+        logger.info(f"Task result: {result_data}")
+        await self.data_manager.store_result(result_data)
+        await self.api_client.post_result(result_data)
+
+    async def on_reward_request(self, reward_config: dict):
+        """Task requests reward delivery"""
+        logger.info(f"Reward request: {reward_config}")
+        await self.gpio_controller.activate_feeder(
+            duration_ms=reward_config.get('duration_ms', 500)
+        )
+
+    async def on_task_event(self, event_data: dict):
+        """Task logged an event (errors, warnings, info)"""
+        await self.telemetry_manager.log_event(event_data)
+```
+
+**Task Application Template** (JavaScript):
+
+```javascript
+// Example fixation task running in browser on edge device
+
+class FixationTask {
+  constructor(config) {
+    this.config = config;
+    this.trialNumber = 0;
+    this.canvas = document.getElementById('task-canvas');
+    this.ctx = this.canvas.getContext('2d');
+    this.currentButton = null;
+    this.holdStartTime = null;
+  }
+
+  async initialize() {
+    // Set up canvas, event listeners
+    this.canvas.addEventListener('mousedown', this.onMouseDown.bind(this));
+    this.canvas.addEventListener('mouseup', this.onMouseUp.bind(this));
+
+    // Signal ready to edge agent
+    window.LICS_TASK_READY = true;
+
+    // Start first trial
+    this.startTrial();
+  }
+
+  startTrial() {
+    this.trialNumber++;
+
+    // Generate button with random size and position
+    const buttonSize = this.getRandomSize();
+    const position = this.getRandomPosition(buttonSize);
+
+    this.currentButton = {
+      size: buttonSize,
+      x: position.x,
+      y: position.y,
+      targetHoldDuration: this.config.hold_duration_ms
+    };
+
+    this.drawButton();
+  }
+
+  onMouseDown(event) {
+    if (!this.isInsideButton(event.clientX, event.clientY)) {
+      return;
+    }
+
+    this.holdStartTime = Date.now();
+  }
+
+  onMouseUp(event) {
+    if (!this.holdStartTime) return;
+
+    const holdDuration = Date.now() - this.holdStartTime;
+    const isCorrect = holdDuration >= this.currentButton.targetHoldDuration;
+
+    // Send result to edge agent (which relays to backend)
+    window.licsSendResult({
+      trial_number: this.trialNumber,
+      timestamp: new Date().toISOString(),
+      button_size: this.currentButton.size,
+      button_position_x: this.currentButton.x,
+      button_position_y: this.currentButton.y,
+      response_time_ms: holdDuration,
+      hold_duration_achieved: holdDuration,
+      is_correct: isCorrect,
+      feedback_type: isCorrect ? 'reward' : 'timeout'
+    });
+
+    if (isCorrect) {
+      // Request reward from edge agent
+      window.licsRequestReward({
+        duration_ms: this.config.reward_config.duration_ms
+      });
+
+      // Wait inter-trial interval, start next trial
+      setTimeout(() => this.startTrial(), this.config.inter_trial_intervals.correct);
+    } else {
+      // Timeout, longer wait
+      setTimeout(() => this.startTrial(), this.config.inter_trial_intervals.incorrect);
+    }
+
+    this.holdStartTime = null;
+  }
+
+  // ... rendering and utility methods ...
+}
+
+// Initialize task when loaded
+const task = new FixationTask(window.LICS_EXPERIMENT_CONFIG);
+task.initialize();
+```
+
+### 18.6 No-Code Task Creation Workflow
+
+#### Visual Task Builder Interface
+
+**React Flow-Based Editor**:
+
+1. **Researcher opens Task Builder page**
+2. **Drag nodes onto canvas**:
+   - Start node (entry point)
+   - Stimulus Display node (show button, image, sound)
+   - Response Collection node (wait for touchscreen input)
+   - Decision node (check if response is correct)
+   - Reward Delivery node (activate feeder)
+   - Delay node (inter-trial interval)
+   - Loop node (repeat trials)
+   - End node
+
+3. **Connect nodes with edges** (define execution flow)
+
+4. **Configure node parameters** via property panel:
+   ```json
+   // Stimulus Display Node Parameters
+   {
+     "node_type": "stimulus_display",
+     "parameters": {
+       "stimulus_type": "button",
+       "size_range": {"min": 50, "max": 150},
+       "color": "#00FF00",
+       "position": "random",
+       "duration_ms": null  // Until response
+     }
+   }
+
+   // Response Collection Node Parameters
+   {
+     "node_type": "response_collection",
+     "parameters": {
+       "input_type": "touchscreen",
+       "timeout_ms": 10000,
+       "valid_area": "stimulus_bounds",
+       "hold_duration_required_ms": 200
+     }
+   }
+
+   // Reward Delivery Node Parameters
+   {
+     "node_type": "reward_delivery",
+     "parameters": {
+       "hardware_component": "primary_feeder",
+       "reward_type": "pellet",
+       "quantity": 1,
+       "delay_ms": 0
+     }
+   }
+   ```
+
+5. **Compile to Task Definition**:
+   - Visual flow → JSON task definition
+   - Validate node connections (no orphaned nodes, cycles only in loops)
+   - Check hardware requirements match registered devices
+   - Generate JavaScript task application code
+   - Store in database with version
+
+6. **Deploy to Devices**:
+   - Researcher assigns task to experiment
+   - Backend sends task URL to edge device
+   - Edge agent downloads task, caches locally
+   - Browser loads and executes task
+
+**Example Flow Compilation**:
+
+```mermaid
+flowchart TD
+    Start[Start Experiment] --> RFID[Wait for RFID Detection]
+    RFID --> Display[Display Button Stimulus]
+    Display --> Wait[Wait for Response]
+    Wait --> Check{Hold Duration\nCorrect?}
+    Check -->|Yes| Reward[Deliver Reward]
+    Check -->|No| Timeout[Timeout Delay]
+    Reward --> ITI[Inter-Trial Interval]
+    Timeout --> ITI
+    ITI --> TrialCount{Completed\n100 Trials?}
+    TrialCount -->|No| Display
+    TrialCount -->|Yes| End[End Experiment]
+```
+
+### 18.7 Dynamic Report Generation
+
+#### Schema-Driven Report System
+
+**Challenge**: Each task has different result schemas. How do we generate reports without hard-coding?
+
+**Solution**: Task defines `result_schema`, report system dynamically adapts.
+
+**Example**:
+
+```python
+# Task A: Fixation Task
+result_schema = {
+    "button_size": "float",
+    "hold_duration_achieved": "integer",
+    "is_correct": "boolean"
+}
+
+# Task B: Delayed Match-to-Sample
+result_schema = {
+    "sample_stimulus_id": "integer",
+    "delay_duration_ms": "integer",
+    "match_stimulus_id": "integer",
+    "response_stimulus_id": "integer",
+    "is_correct": "boolean",
+    "confidence_rating": "integer"
+}
+
+# Report generation dynamically includes available metrics
+class ReportGenerator:
+    def generate_experiment_report(self, experiment_id: UUID):
+        experiment = await self.experiment_repo.get(experiment_id)
+        task = await self.task_repo.get(experiment.task_id)
+        results = await self.result_repo.get_by_experiment(experiment_id)
+
+        # Extract metrics from result_schema
+        metrics = {}
+        for field_name, field_type in task.result_schema.items():
+            if field_type in ['integer', 'float']:
+                values = [r.result_data.get(field_name) for r in results]
+                metrics[field_name] = {
+                    'mean': np.mean(values),
+                    'std': np.std(values),
+                    'min': np.min(values),
+                    'max': np.max(values)
+                }
+
+        # Generate visualizations based on schema
+        charts = []
+        if 'is_correct' in task.result_schema:
+            # Learning curve
+            charts.append(self.create_learning_curve(results))
+
+        if 'response_time_ms' in task.result_schema:
+            # Response time distribution
+            charts.append(self.create_rt_histogram(results))
+
+        return {
+            'experiment': experiment.to_dict(),
+            'task': task.to_dict(),
+            'metrics': metrics,
+            'charts': charts,
+            'raw_results': [r.to_dict() for r in results]
+        }
+```
+
+### 18.8 Multi-Tenancy for Research Labs
+
+**Organization-Based Isolation**:
+
+```python
+# All data scoped to organization
+class Organization(BaseModel):
+    id: UUID
+    name: str  # "Harvard Neuroscience Lab", "MIT Primate Center"
+    settings: JSONB  # Lab-specific configurations
+
+    # Relationships
+    devices: List[Device]
+    primates: List[Primate]
+    users: List[User]
+    experiments: List[Experiment]
+
+# Queries automatically filter by organization
+@router.get("/primates")
+async def list_primates(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    # Only return primates from user's organization
+    primates = await primate_repo.get_by_organization(
+        current_user.organization_id,
+        db
+    )
+    return primates
+
+# Cross-lab collaboration support
+class SharedExperiment(BaseModel):
+    """Allow labs to share task templates, anonymized results"""
+    source_organization_id: UUID
+    target_organization_id: UUID
+    task_template_id: UUID
+    permission_level: Enum[view, clone, contribute]
+```
+
+### 18.9 Real-Time State Synchronization
+
+**Device State WebSocket Flow**:
+
+```
+┌─────────────┐       ┌─────────────┐       ┌─────────────┐
+│ Edge Device │       │   Backend   │       │  Researcher │
+│  (Cage 1)   │       │  WebSocket  │       │   Browser   │
+└──────┬──────┘       └──────┬──────┘       └──────┬──────┘
+       │                     │                     │
+       │ PRIMATE RFID        │                     │
+       │ DETECTED            │                     │
+       ├────────────────────>│                     │
+       │                     │                     │
+       │                     │ WS: primate_detected│
+       │                     ├────────────────────>│
+       │                     │                     │
+       │                     │ START EXPERIMENT    │
+       │                     │<────────────────────┤
+       │                     │                     │
+       │ MQTT: start_exp     │                     │
+       │<────────────────────┤                     │
+       │                     │                     │
+       │ TASK LOADED         │                     │
+       ├────────────────────>│                     │
+       │                     │ WS: exp_started     │
+       │                     ├────────────────────>│
+       │                     │                     │
+       │ TRIAL RESULT        │                     │
+       ├────────────────────>│                     │
+       │                     │ WS: trial_update    │
+       │                     ├────────────────────>│
+       │                     │                     │
+```
+
+**WebSocket Event Types**:
+
+```typescript
+// Frontend subscribes to device room
+socket.emit('subscribe', { room: `device:${deviceId}` });
+
+// Events from backend
+socket.on('device:state_changed', (data) => {
+  // Update device status indicator
+  updateDeviceStatus(data.device_id, data.status);
+});
+
+socket.on('device:primate_detected', (data) => {
+  // Show notification: "Monkey-42 detected at Cage-3"
+  showNotification(`${data.primate_name} detected at ${data.device_name}`);
+});
+
+socket.on('experiment:trial_completed', (data) => {
+  // Update live dashboard with trial result
+  updateTrialChart(data.trial_number, data.is_correct);
+  updateSuccessRate(data.cumulative_success_rate);
+});
+
+socket.on('experiment:completed', (data) => {
+  // Show completion notification, offer report generation
+  showExperimentComplete(data.experiment_id);
+});
+```
+
+### 18.10 Data Flow Example: Complete Experiment Session
+
+**Scenario**: Researcher starts fixation task for Monkey-42 at Cage-3
+
+1. **Researcher Action**: Clicks "Start Experiment" in web UI
+   ```typescript
+   POST /api/v1/experiments/{experiment_id}/start
+   {
+     "device_id": "cage-3-uuid",
+     "primate_id": "monkey-42-uuid",
+     "task_id": "fixation-task-uuid",
+     "configuration_id": "training-level-2-config-uuid"
+   }
+   ```
+
+2. **Backend Processing**:
+   ```python
+   # Validate: device online, primate not occupied, task compatible
+   experiment = await experiment_service.start_experiment(...)
+
+   # Update device state
+   await device_state_repo.update(device_id, {
+       'is_occupied': True,
+       'current_participant_id': primate_id,
+       'current_experiment_id': experiment.id,
+       'experiment_status': 'running'
+   })
+
+   # Publish MQTT command to edge device
+   await mqtt_client.publish(
+       f'lics/devices/{device_id}/commands',
+       {
+           'command': 'start_experiment',
+           'experiment_id': str(experiment.id),
+           'task_url': task.app_url,
+           'configuration': configuration.parameters
+       }
+   )
+
+   # Emit WebSocket event to researcher
+   await sio.emit('experiment:started', {
+       'experiment_id': str(experiment.id),
+       'device_id': str(device_id),
+       'primate_id': str(primate_id)
+   }, room=f'user:{researcher_id}')
+   ```
+
+3. **Edge Device Execution**:
+   ```python
+   # Receive MQTT command
+   async def on_start_experiment_command(message):
+       experiment_id = message['experiment_id']
+       task_url = message['task_url']
+       config = message['configuration']
+
+       # Load task in browser
+       await browser_controller.load_task(task_url, config)
+
+       # Wait for RFID detection
+       primate_tag = await rfid_reader.wait_for_tag(timeout=300)
+
+       # Verify correct primate
+       if primate_tag != expected_primate_rfid:
+           await api_client.log_error("Wrong primate detected")
+           return
+
+       # Notify backend
+       await api_client.post('/experiments/{experiment_id}/events', {
+           'event_type': 'primate_detected',
+           'rfid_tag': primate_tag
+       })
+
+       # Browser task auto-starts
+       await browser_controller.signal_start()
+   ```
+
+4. **Task Execution** (100 trials):
+   ```javascript
+   // Each trial: display button → wait for hold → deliver reward → ITI
+   for (let trial = 1; trial <= 100; trial++) {
+       const result = await this.runTrial(trial);
+
+       // Send to edge agent
+       window.licsSendResult(result);
+
+       // Edge agent forwards to backend
+       POST /api/v1/experiments/{experiment_id}/results
+       {
+           "trial_number": trial,
+           "timestamp": "2024-12-01T10:15:23Z",
+           "result_data": {
+               "button_size": 87.3,
+               "hold_duration_achieved": 245,
+               "is_correct": true,
+               ...
+           }
+       }
+   }
+   ```
+
+5. **Real-Time Updates**:
+   ```python
+   # Backend receives result, broadcasts to researcher
+   @router.post("/experiments/{experiment_id}/results")
+   async def create_result(...):
+       result = await result_repo.create(result_data)
+
+       # Update experiment statistics
+       await experiment_service.update_statistics(experiment_id)
+
+       # Broadcast via WebSocket
+       await sio.emit('experiment:trial_completed', {
+           'experiment_id': str(experiment_id),
+           'trial_number': result.trial_number,
+           'is_correct': result.is_correct,
+           'cumulative_success_rate': experiment.success_rate
+       }, room=f'experiment:{experiment_id}')
+   ```
+
+6. **Experiment Completion**:
+   ```python
+   # Task finishes 100 trials, signals completion
+   window.licsExperimentComplete({
+       'total_trials': 100,
+       'completed_trials': 100,
+       'success_rate': 0.87
+   });
+
+   # Edge agent
+   POST /api/v1/experiments/{experiment_id}/complete
+
+   # Backend
+   experiment.status = 'completed'
+   experiment.actual_end = datetime.now()
+   await experiment_repo.update(experiment)
+
+   # Release device
+   device_state.is_occupied = False
+   device_state.current_experiment_id = None
+   await device_state_repo.update(device_state)
+
+   # Notify researcher
+   await sio.emit('experiment:completed', {
+       'experiment_id': str(experiment_id),
+       'final_statistics': experiment.to_dict()
+   }, room=f'user:{researcher_id}')
+   ```
+
+7. **Report Generation**:
+   ```python
+   # Researcher clicks "Generate Report"
+   POST /api/v1/reports/generate
+   {
+       'template_id': 'session-summary-uuid',
+       'experiment_id': 'experiment-uuid'
+   }
+
+   # Backend generates PDF/Excel report
+   report = await report_service.generate(
+       template_id=template_id,
+       experiment_id=experiment_id,
+       format='pdf'
+   )
+
+   # Store in MinIO
+   report_url = await minio_client.upload(report.file_path)
+
+   # Return download link
+   return {'report_url': report_url}
+   ```
+
+---
+
+## Key Advantages of LICS for Primate Research
+
+### 1. **No-Code Operation**
+Researchers interact **only through web interface**:
+- Add new tasks via visual builder (no JavaScript knowledge)
+- Configure experiment parameters via forms (no config files)
+- Register hardware via device management UI (no GPIO code)
+- Generate reports via template selection (no data analysis scripts)
+
+### 2. **Flexibility Without Code Changes**
+- **Add new task types**: Visual builder → JSON schema → automatic backend adaptation
+- **Add new hardware**: Web form → database update → edge agent polls and adapts
+- **Modify parameters**: Edit config → backend validates → edge agent receives update
+- **Custom reports**: Select metrics → system generates appropriate visualizations
+
+### 3. **Multi-Lab Scalability**
+- **Organization isolation**: Each lab has separate data, users, devices
+- **Template sharing**: Labs can publish/subscribe to task templates
+- **Collaborative studies**: Cross-lab data aggregation with privacy controls
+
+### 4. **Real-Time Monitoring**
+- **Live dashboards**: WebSocket updates show trial-by-trial progress
+- **Video streaming**: Watch primate behavior during task execution
+- **Remote control**: Start/stop/pause experiments from anywhere
+- **Alerts**: Automated notifications for errors, completion, welfare concerns
+
+### 5. **Data Integrity and Reproducibility**
+- **Complete audit trail**: Every parameter, result, and event logged
+- **Version control**: Task definitions, configurations, and protocols versioned
+- **Exact replication**: Re-run experiments with identical parameters
+- **Statistical validation**: Built-in analysis tools, export to R/Python/MATLAB
+
+---
 
 *Version: 2.0.0*
 *Last Updated: December 2024*

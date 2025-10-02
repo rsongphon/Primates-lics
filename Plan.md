@@ -1,5 +1,16 @@
 # Lab Instrument Control System (LICS) - Detailed Implementation Plan
 
+**Primary Research Focus**: LICS is specifically designed for **non-human primate behavioral research**, supporting cognitive, visual, auditory, and motor task paradigms. The system provides comprehensive subject management, experiment lifecycle tracking, and data collection for primate neuroscience studies.
+
+**Key Capabilities**:
+- **RFID-Based Participant Tracking**: Automatic primate identification and session association
+- **Cognitive Task Paradigms**: Fixation, memory (DMTS), visual/auditory discrimination, motor control tasks
+- **Browser-Based Task Execution**: Playwright automation on Raspberry Pi edge devices for no-code task deployment
+- **Welfare Monitoring**: IACUC compliance with session limits, environmental logging, health tracking
+- **Multi-Lab Collaboration**: Organization-based isolation with template sharing capabilities
+
+---
+
 ## Phase 1: Foundation Setup (Weeks 1-2)
 
 ### Week 1: Development Environment & Infrastructure
@@ -240,6 +251,7 @@
 
 **Deliverables Completed:**
 - **Complete SQLAlchemy 2.0 domain models** with async support for Devices, Experiments, Tasks, Participants, and supporting entities
+- **Primate model** for non-human primate subjects with RFID tracking, species management, training levels, and welfare monitoring
 - **Comprehensive Pydantic v2 schemas** with validation rules, examples, and comprehensive error handling (2,500+ lines of schemas)
 - **Database migration system** with Alembic integration and proper enum type creation
 - **Repository pattern implementation** with generic CRUD operations and domain-specific methods (800+ lines)
@@ -283,9 +295,7 @@
 - **Schema Import Errors**: Corrected missing ParticipantFilterSchema and TaskDefinitionSchema → TaskValidationSchema
 - **Database Migration**: Tables already exist from auth system (expected), migration ready for fresh deployments
 
-**Known Issues:**
-- ⚠️ **SQLAlchemy Warning**: "Can't validate argument 'naming_convention'" - cosmetic warning, doesn't affect functionality
-- ⚠️ **Migration Conflict**: Organizations table exists from auth system - requires careful migration ordering for fresh deployments
+**Known Issues**: See @KNOWN_ISSUES.md for complete issue tracking and resolution status
 
 **Next Steps**: Ready for Phase 2 Week 4 (API Development and Real-time Communication)
 
@@ -308,7 +318,7 @@
 - **Devices API** (10 endpoints) - Device management, registration, heartbeat monitoring, status updates, telemetry collection
 - **Experiments API** (12 endpoints) - Complete lifecycle management (draft → start → pause → resume → complete → cancel), participant management
 - **Tasks API** (11 endpoints) - CRUD operations, version control, template marketplace, publish/clone operations, validation
-- **Participants API** (6 endpoints) - Status tracking, experiment history
+- **Participants API** (6 endpoints) - Primate subject management, RFID tracking, status tracking, experiment history, welfare monitoring
 - **OrganizationService** - Created service for organization management operations
 - **DeviceData schemas** - Added comprehensive telemetry data schemas (DeviceDataCreateSchema, DeviceDataSchema)
 - **Security utilities** - Created 11 security functions (security_utils.py - 309 lines)
@@ -439,12 +449,7 @@
 - ✅ **Event Emission**: 100% operational
 - ✅ **Authentication**: 100% functional (JWT validation, permission checks)
 
-**Remaining Work for Full WebSocket Feature Completion:**
-- ⚠️ Add task execution WebSocket event emissions to task API endpoints
-- ⚠️ Create comprehensive WebSocket tests (unit, integration, load tests)
-- ⚠️ Add WebSocket monitoring and health checks with Prometheus metrics
-- ⚠️ Document WebSocket API and create client usage examples
-- ⚠️ Build connection monitoring dashboard in Grafana
+**Remaining Work**: See @KNOWN_ISSUES.md Section 3 (WebSocket & Real-time Issues) for complete list of pending tasks and implementation priorities
 
 **Next Steps**: Ready for Phase 2 Week 4 Day 5 (Background Tasks and Scheduling)
 
@@ -473,6 +478,7 @@
 ### Day 3-4: State Management and Data Fetching
 
 - Implement Zustand stores for global state
+- Implement Primate/Participant store for subject management
 - Configure React Query for API communication
 - Create API client with interceptors
 - Set up optimistic updates pattern
@@ -513,8 +519,9 @@
 - Create experiment creation wizard
 - Build experiment listing and filtering
 - Implement experiment timeline view
-- Create participant management interface
-- Build data visualization components
+- Create participant management interface (primate selection, RFID detection status)
+- Implement welfare monitoring dashboard (session limits, health tracking)
+- Build data visualization components (trial-by-trial performance, learning curves)
 - Implement export functionality
 
 ## Phase 4: Edge Device Development (Weeks 7-8)
@@ -528,14 +535,16 @@
 - Implement configuration management
 - Set up logging system
 - Create plugin architecture
+- Implement browser automation controller (Playwright integration for task execution)
 - Implement health monitoring
 
 ### Day 3-4: Hardware Abstraction Layer
 
 - Create GPIO controller abstraction
 - Implement sensor interface patterns
-- Build actuator control system
-- Create hardware detection mechanism
+- Implement RFID reader integration for primate identification
+- Build actuator control system (feeder/pellet dispenser, speaker for auditory stimuli)
+- Create hardware detection mechanism (I2C, USB, GPIO scanning)
 - Implement calibration system
 - Set up interrupt handling
 
@@ -575,6 +584,7 @@
 - Build batching mechanism
 - Create filtering rules
 - Implement sampling strategies
+- Implement welfare monitoring data collection (temperature, humidity, activity levels)
 - Set up priority queuing
 
 ## Phase 5: Task Builder System (Weeks 9-10)
@@ -584,7 +594,8 @@
 ### Day 1-2: React Flow Integration
 
 - Set up React Flow in frontend
-- Create custom node components
+- Create custom node components (cognitive task node types)
+- Implement node types for primate research (fixation, memory, discrimination, motor control)
 - Implement node property panels
 - Build connection validation
 - Create node palette
@@ -632,14 +643,172 @@
 
 - Create template storage
 - Build template marketplace UI
-- Implement sharing mechanism
+- Add primate-specific task templates (fixation training, DMTS, visual discrimination, auditory processing, motor control)
+- Implement sharing mechanism (cross-lab collaboration)
 - Create rating system
-- Build search functionality
+- Build search functionality (by species, training level, task category)
 - Implement versioning
 
-## Phase 6: Integration and Testing (Weeks 11-12)
+## Phase 5A: Primate Research Specialization (Weeks 10.5-12.5)
 
-### Week 11: System Integration
+**Note**: This phase can be developed in parallel with Phase 6 integration work, as it builds upon existing infrastructure.
+
+### Week 1: Primate Participant Management System
+
+#### Day 1-3: Primate Subject Models and APIs
+
+- Implement Primate SQLAlchemy model with full schema (species, RFID tags, training levels, demographics)
+- Create WelfareCheck model for health monitoring and IACUC compliance
+- Implement SessionLimit validation (MAX_SESSIONS_PER_DAY, MAX_DURATION_PER_SESSION, MINIMUM_REST_BETWEEN_SESSIONS)
+- Build Primate CRUD API endpoints (/api/v1/primates)
+- Implement welfare check API endpoints (/api/v1/primates/{id}/welfare-checks)
+- Create automated welfare alerts (excessive sessions, health concerns)
+
+**Deliverables**:
+- Complete primate management database schema with migrations
+- REST API endpoints for primate CRUD and welfare monitoring
+- Automated compliance validation system
+- Session history tracking with audit trails
+
+#### Day 4-5: RFID Integration and Frontend
+
+- Implement RFID detection WebSocket events (primate_detected, session_associated)
+- Create PrimateStore Zustand store for frontend state management
+- Build primate management UI (list, detail, create/edit forms)
+- Implement RFID status indicator components
+- Create welfare monitoring dashboard with alerts
+- Build session history visualization
+
+**Deliverables**:
+- Real-time RFID detection and primate association
+- Complete primate management interface
+- Welfare monitoring dashboard with compliance alerts
+
+### Week 2: Cognitive Task Paradigm Implementations
+
+#### Day 1-2: Task Definition Schema Extensions
+
+- Extend Task model with `cognitive_category` enum (fixation, memory, discrimination, auditory, motor)
+- Implement `minimum_training_level` validation in task schemas
+- Create `required_hardware` specification system (touchscreen, feeder, speaker, RFID, camera)
+- Build task-device compatibility checker
+- Implement parameter schema validation for cognitive task types
+
+**Deliverables**:
+- Extended task model with cognitive task support
+- Hardware requirement validation system
+- Training level enforcement
+
+#### Day 3-5: Cognitive Task Templates
+
+- Create fixation task template (button hold duration, visual attention)
+- Create Delayed Match-to-Sample (DMTS) template (short-term memory)
+- Create visual discrimination template (color/shape/motion)
+- Create auditory processing template (frequency discrimination, pattern recognition)
+- Create motor control template (reaching tasks, reaction time)
+- Implement task parameter schemas with defaults and validation rules
+
+**Deliverables**:
+- 5+ cognitive task templates ready for deployment
+- Complete parameter schemas with validation
+- Task template marketplace entries
+
+### Week 3: Browser Automation and Task Execution
+
+#### Day 1-3: Playwright Integration on Edge Devices
+
+- Implement TaskBrowserController class for edge agent
+- Set up headless Chromium with Raspberry Pi optimizations
+- Implement task loading mechanism (download, cache, validate)
+- Create JavaScript-Python bridge (licsSendResult, licsRequestReward, licsLogEvent)
+- Implement experiment configuration injection (window.LICS_EXPERIMENT_CONFIG)
+- Build task state management (loading, ready, running, completed)
+
+**Deliverables**:
+- Complete browser automation system on edge devices
+- JavaScript task execution environment
+- Python-JavaScript communication bridge
+- Task caching and hot-swap capability
+
+#### Day 4-5: Task Application Framework
+
+- Create JavaScript task application template structure
+- Implement FixationTask example application (complete working example)
+- Build task event handling system (trial start, response, completion)
+- Implement hardware integration from browser (feeder activation, RFID detection)
+- Create trial result submission pipeline (edge → backend → database)
+- Build error handling and recovery mechanisms
+
+**Deliverables**:
+- Working JavaScript task application framework
+- Complete fixation task example
+- Hardware control from browser tasks
+- Robust error handling
+
+### Week 4: Dynamic Report Generation
+
+#### Day 1-3: Schema-Driven Reporting System
+
+- Implement ReportGenerator service with schema introspection
+- Create dynamic metric extraction from result_schema
+- Build automatic chart generation based on available fields
+- Implement learning curve generation (trial-by-trial performance)
+- Create response time distribution analysis
+- Build success rate trending visualization
+
+**Deliverables**:
+- Dynamic report generation system
+- Automatic metric extraction and visualization
+- Schema-agnostic reporting engine
+
+#### Day 4-5: Report Templates and Export
+
+- Create session summary report template
+- Implement experiment comparison reports
+- Build participant progress reports (across multiple sessions)
+- Create PDF export functionality (using ReportLab)
+- Implement Excel export with raw data and charts
+- Build CSV export for statistical analysis (R/Python/MATLAB)
+
+**Deliverables**:
+- Multiple report templates for different use cases
+- Multi-format export (PDF, Excel, CSV)
+- Statistical software integration
+
+### Week 5: Real-Time Synchronization and Complete Data Flow
+
+#### Day 1-3: Enhanced WebSocket Integration
+
+- Implement primate_detected WebSocket event with automatic session association
+- Create experiment lifecycle WebSocket events (start → trials → completion)
+- Build real-time trial update broadcasting (trial_completed events)
+- Implement live dashboard updates (success rate, performance metrics)
+- Create welfare alert WebSocket events (session limits, health concerns)
+
+**Deliverables**:
+- Complete real-time event flow for primate experiments
+- Live dashboard with trial-by-trial updates
+- Automated welfare alerts via WebSocket
+
+#### Day 4-5: End-to-End Testing and Documentation
+
+- Test complete experiment workflow (RFID detection → task execution → data collection → report generation)
+- Validate browser automation on actual Raspberry Pi devices
+- Test multi-lab data isolation and template sharing
+- Create comprehensive documentation for primate research features
+- Build tutorial videos for task creation and experiment setup
+- Document welfare compliance features and IACUC integration
+
+**Deliverables**:
+- Validated end-to-end primate experiment workflow
+- Complete documentation for primate research features
+- Tutorial materials for researchers
+
+---
+
+## Phase 6: Integration and Testing (Weeks 13-14)
+
+### Week 13: System Integration
 
 ### Day 1-2: End-to-End Communication
 
@@ -864,7 +1033,7 @@
 - Redis: 100% functional with all advanced features validated
 - MQTT broker: Service operational with simplified configuration
 - MinIO object storage: Service healthy with basic functionality
-- Complete issue documentation and remediation roadmap (INFRASTRUCTURE_ISSUES.md)
+- Complete issue documentation and remediation roadmap (KNOWN_ISSUES.md)
 - Validated foundation ready for Phase 2 (Backend Development)
 
 **Current System Status:**
@@ -882,8 +1051,62 @@ Phase 1 (Foundation Setup) has been successfully completed with comprehensive va
 - Comprehensive testing framework for continuous validation
 - Documented issue tracking and resolution procedures
 
-The system is ready to proceed to Phase 2 (Backend Development) with confidence in the infrastructure foundation. Remaining infrastructure issues are documented in INFRASTRUCTURE_ISSUES.md and categorized for appropriate implementation phases.
+The system is ready to proceed to Phase 2 (Backend Development) with confidence in the infrastructure foundation. Remaining infrastructure and application issues are documented in KNOWN_ISSUES.md and categorized for appropriate implementation phases.
+
+---
+
+## 📋 Current Implementation Status
+
+### ✅ Completed Phases
+- **Phase 1**: Foundation Setup (100% complete - infrastructure, database, monitoring)
+- **Phase 2 Week 3**: FastAPI Application Foundation (100% complete - structure, auth, domain models)
+- **Phase 2 Week 4 Days 1-4**: API Development and WebSocket (100% complete - 84 endpoints, real-time communication)
+
+### 🔄 Current Phase
+- **Phase 2 Week 4 Day 5**: Background Tasks and Scheduling (Celery implementation) - NEXT
+
+### 📚 Documentation Updates
+- ✅ **Documentation.md Section 18**: Comprehensive Primate Research Specialization added
+  - Non-human primate participant management (RFID, species, training levels, welfare)
+  - Cognitive task paradigms (fixation, memory, discrimination, auditory, motor)
+  - Cage-based device architecture (Raspberry Pi with touchscreen, cameras, feeders, RFID)
+  - Browser automation strategy (Playwright integration for no-code task deployment)
+  - No-code task creation workflow (React Flow visual builder)
+  - Dynamic report generation (schema-driven reporting system)
+  - Multi-tenancy for research labs (organization-based isolation)
+  - Real-time state synchronization (complete data flow examples)
+
+### 🎯 Primate Research Features Status
+- ✅ **Backend Foundation**: Primate model referenced in domain models documentation
+- ✅ **API Endpoints**: Participant API includes primate management capabilities
+- ⏳ **Full Implementation**: Detailed in Phase 5A (Primate Research Specialization)
+- ⏳ **Browser Automation**: Playwright integration planned for Phase 4 (Edge Agent) and Phase 5A Week 3
+- ⏳ **Cognitive Task Templates**: Task builder enhancements planned for Phase 5 and Phase 5A Week 2
+
+### 📖 Key Design Decisions
+
+**Browser-Based Task Execution**:
+- Tasks run as JavaScript applications in headless Chromium on Raspberry Pi edge devices
+- No-code deployment: Update tasks without changing edge agent code
+- Cross-platform compatibility: Same code runs everywhere
+- Rich UI capabilities: Leverage web technologies for complex visual stimuli
+- Hot-swap capability: Update tasks without device reboot
+
+**No-Code Research Workflow**:
+- Visual task builder (React Flow) for creating experimental protocols
+- Hardware registration via web UI (no GPIO code required)
+- Automated parameter validation and device compatibility checking
+- Template marketplace for sharing tasks across labs
+- Dynamic report generation adapts to any task schema
+
+**Welfare and Ethics Compliance**:
+- IACUC integration with automated session limits
+- Environmental monitoring (temperature, humidity, light cycle)
+- Health status tracking with automated alerts
+- Complete audit trail for all experiments and sessions
 
 ---
 
 This implementation plan provides a structured approach to building the LICS system, with clear daily objectives and deliverables. Each phase builds upon the previous one, ensuring a solid foundation before adding complexity. The plan emphasizes testing, security, and documentation throughout the development process rather than treating them as afterthoughts.
+
+**Special Focus**: The system is purpose-built for non-human primate behavioral neuroscience research, with comprehensive features for participant management, cognitive task paradigms, welfare monitoring, and multi-lab collaboration.

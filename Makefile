@@ -517,3 +517,78 @@ status: ## Show project status
 	@docker-compose ps 2>/dev/null || echo "  Docker Compose not running"
 	@echo "Git status:"
 	@git status --porcelain | head -5
+## Containerized Development
+.PHONY: container-help container-shell container-dev container-stop container-logs container-clean
+
+container-help: ## Show containerized development help
+	@echo "$(YELLOW)Containerized Development Commands$(NC)"
+	@echo ""
+	@echo "$(GREEN)Quick Start:$(NC)"
+	@echo "  1. Open in VS Code and select 'Reopen in Container' OR"
+	@echo "  2. Run: make container-dev"
+	@echo ""
+	@echo "$(GREEN)Available Commands:$(NC)"
+	@./tools/dev-cli.sh help
+
+container-shell: ## Open bash shell in dev container
+	@./tools/dev-cli.sh shell
+
+container-dev: ## Start all services in containers
+	@echo "$(YELLOW)Starting containerized development environment...$(NC)"
+	@docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+	@echo "$(GREEN)✓ Services started$(NC)"
+	@echo ""
+	@echo "Access points:"
+	@echo "  Frontend:      http://localhost:3000"
+	@echo "  Backend API:   http://localhost:8000/docs"
+	@echo "  WebSocket:     ws://localhost:8001"
+	@echo "  Grafana:       http://localhost:3001"
+	@echo "  PgAdmin:       http://localhost:5050"
+	@echo ""
+	@echo "Get a shell: make container-shell"
+	@echo "View logs:   make container-logs"
+
+container-stop: ## Stop all containers
+	@echo "$(YELLOW)Stopping containers...$(NC)"
+	@docker-compose -f docker-compose.yml -f docker-compose.dev.yml down
+	@echo "$(GREEN)✓ Containers stopped$(NC)"
+
+container-logs: ## View container logs
+	@docker-compose -f docker-compose.yml -f docker-compose.dev.yml logs -f
+
+container-clean: ## Stop containers and remove volumes
+	@echo "$(RED)WARNING: This will remove all container data!$(NC)"
+	@read -p "Are you sure? (y/N) " -n 1 -r; \
+	echo; \
+	if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
+		docker-compose -f docker-compose.yml -f docker-compose.dev.yml down -v; \
+		echo "$(GREEN)✓ Containers and volumes removed$(NC)"; \
+	fi
+
+container-rebuild: ## Rebuild all containers
+	@echo "$(YELLOW)Rebuilding containers...$(NC)"
+	@docker-compose -f docker-compose.yml -f docker-compose.dev.yml build --no-cache
+	@echo "$(GREEN)✓ Rebuild complete$(NC)"
+
+# Container-based development commands using dev-cli.sh
+container-npm: ## Run npm command (usage: make container-npm ARGS="install axios")
+	@./tools/dev-cli.sh npm $(ARGS)
+
+container-pip: ## Run pip command (usage: make container-pip ARGS="install requests")
+	@./tools/dev-cli.sh pip $(ARGS)
+
+container-pytest: ## Run pytest in container
+	@./tools/dev-cli.sh pytest $(ARGS)
+
+container-alembic: ## Run alembic in container (usage: make container-alembic ARGS="upgrade head")
+	@./tools/dev-cli.sh alembic $(ARGS)
+
+container-test: ## Run all tests in containers
+	@./tools/dev-cli.sh test
+
+container-format: ## Format code in container
+	@./tools/dev-cli.sh format
+
+container-lint: ## Lint code in container
+	@./tools/dev-cli.sh lint
+
