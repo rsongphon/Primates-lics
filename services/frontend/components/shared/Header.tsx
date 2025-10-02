@@ -1,6 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -12,8 +14,42 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { useAuthStore } from '@/lib/stores/auth-store';
+import { useToast } from '@/hooks/use-toast';
 
 export function Header() {
+  const router = useRouter();
+  const { toast } = useToast();
+  const { user, logout } = useAuthStore();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await logout();
+      toast({
+        title: 'Logged out successfully',
+        description: 'You have been logged out of your account.',
+      });
+      router.push('/login');
+    } catch (error: any) {
+      toast({
+        title: 'Logout failed',
+        description: error?.message || 'An error occurred during logout',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
+
+  // Get user initials for avatar
+  const getUserInitials = () => {
+    if (!user) return 'U';
+    const firstName = user.first_name || '';
+    const lastName = user.last_name || '';
+    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || user.email.charAt(0).toUpperCase();
+  };
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-16 items-center">
@@ -82,31 +118,53 @@ export function Header() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src="/avatars/01.png" alt="User" />
-                  <AvatarFallback>AD</AvatarFallback>
+                  <AvatarImage src={user?.avatar_url} alt={user?.email || 'User'} />
+                  <AvatarFallback>{getUserInitials()}</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">Admin User</p>
-                  <p className="text-xs leading-none text-muted-foreground">admin@lics.io</p>
+                  <p className="text-sm font-medium leading-none">
+                    {user?.first_name && user?.last_name
+                      ? `${user.first_name} ${user.last_name}`
+                      : user?.email || 'User'}
+                  </p>
+                  <p className="text-xs leading-none text-muted-foreground">
+                    {user?.email || 'No email'}
+                  </p>
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <Link href="/profile" className="w-full">
+              <DropdownMenuItem asChild>
+                <Link href="/profile" className="w-full cursor-pointer">
                   Profile
                 </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Link href="/settings" className="w-full">
+              <DropdownMenuItem asChild>
+                <Link href="/settings" className="w-full cursor-pointer">
                   Settings
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive">Log out</DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-destructive cursor-pointer"
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+              >
+                {isLoggingOut ? (
+                  <span className="flex items-center">
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Logging out...
+                  </span>
+                ) : (
+                  'Log out'
+                )}
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

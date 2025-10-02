@@ -342,18 +342,32 @@ For security issues, please see our [Security Policy](SECURITY.md).
 
 ## 🗺️ Roadmap
 
-### Current Phase: Backend Development (v1.0)
+### Current Phase: Frontend Development (v1.0)
+**Phase 1 - Infrastructure (✅ Complete):**
 - [x] Core infrastructure setup
 - [x] Database layer foundation (PostgreSQL + TimescaleDB, Redis, InfluxDB)
 - [x] Database migration and management tools
 - [x] Monitoring and health check systems
 - [x] Message broker and storage layer (MQTT, MinIO, Redis Streams/Pub-Sub)
-- [x] **FastAPI backend foundation** (async SQLAlchemy 2.0, structured logging, API architecture)
-- [ ] Authentication and authorization system
-- [ ] Core domain models and business logic
+
+**Phase 2 - Backend Core (✅ Complete):**
+- [x] FastAPI backend foundation (async SQLAlchemy 2.0, structured logging, API architecture)
+- [x] Authentication and authorization system (JWT, RBAC, refresh tokens)
+- [x] Core domain models and business logic (Devices, Experiments, Tasks, Participants)
+- [x] RESTful API implementation (84 endpoints across 9 categories)
+- [x] WebSocket and real-time features (15+ event handlers)
+- [x] Background tasks and scheduling (Celery with 21 tasks)
+
+**Phase 3 - Frontend Development (🔄 In Progress):**
+- [x] Next.js 14 application foundation
+- [x] State management (Zustand + React Query + WebSocket integration)
+- [x] **Authentication flow (Login, Registration, Route Protection, Token Refresh)**
+- [ ] Dashboard and navigation components
+- [ ] Device management interface
+- [ ] Experiment management UI
 - [ ] Task builder system
-- [ ] Video streaming
-- [ ] Real-time analytics
+- [ ] Video streaming integration
+- [ ] Real-time analytics dashboard
 
 ### Next Phase: Advanced Features (v2.0)
 - [ ] Machine learning integration
