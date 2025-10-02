@@ -12,7 +12,8 @@ from app.api.v1 import (
     devices,
     experiments,
     tasks,
-    participants
+    participants,
+    tasks_monitoring
 )
 
 __all__ = [
@@ -23,5 +24,6 @@ __all__ = [
     "devices",
     "experiments",
     "tasks",
-    "participants"
+    "participants",
+    "tasks_monitoring"
 ]

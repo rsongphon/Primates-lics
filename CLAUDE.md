@@ -114,6 +114,37 @@ make k8s-deploy               # Apply manifests
 make k8s-status               # Check deployment status
 ```
 
+### Frontend Development Commands
+```bash
+# Development server (from services/frontend)
+cd services/frontend
+npm run dev                    # Start Next.js dev server (localhost:3000)
+
+# Building
+npm run build                  # Build production bundle
+npm run start                  # Start production server
+
+# Code Quality
+npm run lint                   # Run ESLint checks
+npm run format                 # Format code with Prettier
+npm run format:check           # Check formatting without changes
+npm run typecheck              # Run TypeScript type checking
+
+# Component Management
+npx shadcn@latest add <component>  # Add Shadcn/ui component
+npx shadcn@latest add button card input  # Add multiple components
+
+# Testing (when implemented)
+npm run test                   # Run Jest tests
+npm run test:watch             # Run tests in watch mode
+npm run test:e2e               # Run Playwright E2E tests
+
+# Workspace Commands (from project root)
+npm run dev --workspace=services/frontend
+npm run build --workspace=services/frontend
+npm run lint --workspace=services/frontend
+```
+
 ## Development Workflow
 
 ### Git Flow Process

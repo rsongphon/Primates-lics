@@ -127,13 +127,6 @@
       ]
     }
   },
-  "overrides": {
-    "services/frontend": {
-      "engines": {
-        "node": ">=20.0.0"
-      }
-    }
-  },
   "config": {
     "commitizen": {
       "path": "@commitlint/cz-commitlint"

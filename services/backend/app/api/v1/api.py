@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends
 
 from app.api.v1 import (
     health, auth, rbac, organizations, devices,
-    experiments, tasks, participants
+    experiments, tasks, participants, tasks_monitoring
 )
 from app.core.config import settings
 from app.core.dependencies import get_current_user
@@ -109,6 +109,19 @@ api_router.include_router(
     participants.router,
     prefix="/participants",
     tags=["participants"],
+    dependencies=[Depends(get_current_user)],
+    responses={
+        401: {"description": "Unauthorized"},
+        403: {"description": "Forbidden"},
+        404: {"description": "Not Found"}
+    }
+)
+
+# Background task monitoring (Celery)
+api_router.include_router(
+    tasks_monitoring.router,
+    prefix="/background-tasks",
+    tags=["background-tasks"],
     dependencies=[Depends(get_current_user)],
     responses={
         401: {"description": "Unauthorized"},

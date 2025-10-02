@@ -482,3 +482,31 @@ async def health_metrics(
         "endpoint": "/health/metrics",
         "format": "prometheus"
     }
+
+
+@router.get("/metrics", include_in_schema=False)
+async def prometheus_metrics():
+    """
+    Expose Prometheus metrics endpoint.
+
+    This endpoint is typically public (no authentication) so Prometheus can scrape it.
+    Include_in_schema=False to hide from API docs.
+    """
+    try:
+        from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+        from fastapi.responses import Response
+
+        # Generate Prometheus metrics output
+        metrics_output = generate_latest()
+
+        return Response(
+            content=metrics_output,
+            media_type=CONTENT_TYPE_LATEST,
+            headers={"Cache-Control": "no-cache"}
+        )
+
+    except ImportError:
+        return JSONResponse(
+            content={"error": "Prometheus metrics not available - prometheus_client not installed"},
+            status_code=503
+        )

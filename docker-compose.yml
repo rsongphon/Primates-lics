@@ -94,6 +94,29 @@ services:
       - lics-network
     restart: unless-stopped
 
+  # Flower (Celery Monitoring)
+  flower:
+    build:
+      context: ./services/backend
+      dockerfile: Dockerfile
+    command: celery -A app.tasks.celery_app flower --port=5555
+    environment:
+      - ENVIRONMENT=production
+      - DATABASE_URL=postgresql://lics:lics123@postgres:5432/lics
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+      - FLOWER_PORT=5555
+      - FLOWER_BASIC_AUTH=admin:admin123
+    ports:
+      - "5555:5555"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - lics-network
+    restart: unless-stopped
+
   # PostgreSQL Database
   postgres:
     image: timescale/timescaledb-ha:pg15-latest
