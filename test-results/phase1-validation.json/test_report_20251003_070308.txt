@@ -1,0 +1,62 @@
+====================================================================================================
+LICS COMPREHENSIVE TEST EXECUTION REPORT
+====================================================================================================
+Timestamp: 2025-10-03T07:03:08.902737
+Test Mode: STANDARD
+Parallel Execution: Disabled
+Total Duration: 5.38s
+Overall Status: ❌ UNHEALTHY
+
+EXECUTION SUMMARY:
+--------------------------------------------------
+Test Suites Run: 4
+Healthy Suites: 1
+Failed Suites: 3
+Success Rate: 25.0%
+
+INDIVIDUAL SUITE RESULTS:
+--------------------------------------------------
+❌ Infrastructure Validation
+   Duration: 3.87s
+   Key Metrics:
+     services_healthy: 4/6
+     success_rate: 66.67%
+   Detailed Results: test-results/phase1-validation.json/infrastructure_results.json
+
+❌ Database Test Suite
+   Duration: 0.38s
+   Key Metrics:
+     databases_healthy: 2/4
+     success_rate: 50.0%
+   Detailed Results: test-results/phase1-validation.json/database_results.json
+
+❌ Messaging Test Suite
+   Duration: 0.75s
+   Key Metrics:
+     components_healthy: 1/3
+     success_rate: 33.33%
+   Detailed Results: test-results/phase1-validation.json/messaging_results.json
+
+✅ System Integration Test
+   Duration: 0.38s
+   Detailed Results: test-results/phase1-validation.json/integration_results.json
+
+FAILED SUITES ANALYSIS:
+--------------------------------------------------
+❌ Infrastructure Validation
+   Error: None
+
+❌ Database Test Suite
+   Error: None
+
+❌ Messaging Test Suite
+   Error: None
+
+TEST OUTPUTS:
+--------------------------------------------------
+Output Directory: test-results/phase1-validation.json
+Generated Files:
+  - infrastructure: infrastructure_results.json
+  - database: database_results.json
+  - messaging: messaging_results.json
+  - integration: integration_results.json

@@ -16,6 +16,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { useAuthStore } from '@/lib/stores/auth-store';
 import { useToast } from '@/hooks/use-toast';
+import Breadcrumbs from '@/components/features/navigation/Breadcrumbs';
+import ThemeToggle from '@/components/features/settings/ThemeToggle';
 
 export function Header() {
   const router = useRouter();
@@ -61,36 +63,16 @@ export function Header() {
           <span className="hidden font-bold sm:inline-block">LICS</span>
         </Link>
 
-        {/* Main Navigation */}
-        <nav className="flex items-center space-x-6 text-sm font-medium">
-          <Link
-            href="/dashboard"
-            className="text-foreground/60 transition-colors hover:text-foreground/80"
-          >
-            Dashboard
-          </Link>
-          <Link
-            href="/devices"
-            className="text-foreground/60 transition-colors hover:text-foreground/80"
-          >
-            Devices
-          </Link>
-          <Link
-            href="/experiments"
-            className="text-foreground/60 transition-colors hover:text-foreground/80"
-          >
-            Experiments
-          </Link>
-          <Link
-            href="/tasks"
-            className="text-foreground/60 transition-colors hover:text-foreground/80"
-          >
-            Tasks
-          </Link>
-        </nav>
+        {/* Breadcrumbs */}
+        <div className="hidden md:flex flex-1">
+          <Breadcrumbs />
+        </div>
 
         {/* Right side */}
         <div className="ml-auto flex items-center space-x-4">
+          {/* Theme Toggle */}
+          <ThemeToggle />
+
           {/* Notifications */}
           <Button variant="ghost" size="icon" className="relative">
             <span className="sr-only">Notifications</span>

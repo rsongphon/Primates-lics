@@ -1,0 +1,757 @@
+{
+  "execution_metadata": {
+    "timestamp": "2025-10-03T07:03:08.902035",
+    "mode": "standard",
+    "parallel": false,
+    "output_directory": "test-results/phase1-validation.json"
+  },
+  "suite_results": {
+    "infrastructure": {
+      "name": "Infrastructure Validation",
+      "suite": "infrastructure",
+      "start_time": "2025-10-03T07:03:03.525726",
+      "duration_seconds": 3.87,
+      "healthy": false,
+      "output_file": "test-results/phase1-validation.json/infrastructure_results.json",
+      "error": null,
+      "detailed_results": {
+        "timestamp": "2025-10-03T07:03:07.342811",
+        "duration_seconds": 3.45,
+        "overall_healthy": false,
+        "validation_results": {
+          "docker_compose": {
+            "name": "Docker Compose Status",
+            "healthy": false,
+            "services": {
+              "primates-lics-alertmanager-1": {
+                "name": "primates-lics-alertmanager-1",
+                "state": "running",
+                "ports": "0.0.0.0:9093->9093/tcp, [::]:9093->9093/tcp",
+                "running": false,
+                "healthy": false
+              },
+              "primates-lics-cadvisor-1": {
+                "name": "primates-lics-cadvisor-1",
+                "state": "running",
+                "ports": "0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp",
+                "running": false,
+                "healthy": false
+              },
+              "primates-lics-grafana-1": {
+                "name": "primates-lics-grafana-1",
+                "state": "running",
+                "ports": "0.0.0.0:3001->3000/tcp, [::]:3001->3000/tcp",
+                "running": false,
+                "healthy": false
+              },
+              "primates-lics-influxdb-1": {
+                "name": "primates-lics-influxdb-1",
+                "state": "restarting",
+                "ports": "",
+                "running": false,
+                "healthy": false
+              },
+              "primates-lics-jaeger-1": {
+                "name": "primates-lics-jaeger-1",
+                "state": "running",
+                "ports": "0.0.0.0:14250->14250/tcp, [::]:14250->14250/tcp, 0.0.0.0:14268->14268/tcp, [::]:14268->14268/tcp, 0.0.0.0:6831-6832->6831-6832/udp, [::]:6831-6832->6831-6832/udp, 0.0.0.0:16686->16686/tcp, [::]:16686->16686/tcp",
+                "running": false,
+                "healthy": false
+              },
+              "primates-lics-loki-1": {
+                "name": "primates-lics-loki-1",
+                "state": "restarting",
+                "ports": "",
+                "running": false,
+                "healthy": false
+              },
+              "primates-lics-minio-1": {
+                "name": "primates-lics-minio-1",
+                "state": "running",
+                "ports": "0.0.0.0:9000-9001->9000-9001/tcp, [::]:9000-9001->9000-9001/tcp",
+                "running": false,
+                "healthy": false
+              },
+              "primates-lics-mqtt-1": {
+                "name": "primates-lics-mqtt-1",
+                "state": "running",
+                "ports": "0.0.0.0:1883->1883/tcp, [::]:1883->1883/tcp, 0.0.0.0:9002->9001/tcp, [::]:9002->9001/tcp",
+                "running": false,
+                "healthy": false
+              },
+              "primates-lics-postgres-1": {
+                "name": "primates-lics-postgres-1",
+                "state": "running",
+                "ports": "0.0.0.0:5432->5432/tcp, [::]:5432->5432/tcp",
+                "running": false,
+                "healthy": false
+              },
+              "primates-lics-postgres-exporter-1": {
+                "name": "primates-lics-postgres-exporter-1",
+                "state": "running",
+                "ports": "0.0.0.0:9187->9187/tcp, [::]:9187->9187/tcp",
+                "running": false,
+                "healthy": false
+              },
+              "primates-lics-prometheus-1": {
+                "name": "primates-lics-prometheus-1",
+                "state": "running",
+                "ports": "0.0.0.0:9090->9090/tcp, [::]:9090->9090/tcp",
+                "running": false,
+                "healthy": false
+              },
+              "primates-lics-redis-1": {
+                "name": "primates-lics-redis-1",
+                "state": "running",
+                "ports": "0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp",
+                "running": false,
+                "healthy": false
+              },
+              "primates-lics-redis-exporter-1": {
+                "name": "primates-lics-redis-exporter-1",
+                "state": "running",
+                "ports": "0.0.0.0:9121->9121/tcp, [::]:9121->9121/tcp",
+                "running": false,
+                "healthy": false
+              }
+            },
+            "summary": {
+              "total_services": 13,
+              "running_services": 0,
+              "healthy_services": 0,
+              "completion_percentage": 0.0
+            },
+            "errors": [
+              "Required services not healthy: postgres, pgbouncer, redis, mqtt, minio, influxdb"
+            ]
+          },
+          "connectivity": {
+            "name": "Service Connectivity",
+            "healthy": false,
+            "services": {
+              "postgres": {
+                "port_open": true,
+                "response_time_ms": 0.67,
+                "health_endpoint_ok": false,
+                "error": null
+              },
+              "pgbouncer": {
+                "port_open": false,
+                "response_time_ms": 0.23,
+                "health_endpoint_ok": false,
+                "error": null
+              },
+              "redis": {
+                "port_open": true,
+                "response_time_ms": 0.16,
+                "health_endpoint_ok": false,
+                "error": null
+              },
+              "mqtt": {
+                "port_open": true,
+                "response_time_ms": 0.12,
+                "health_endpoint_ok": false,
+                "error": null
+              },
+              "minio": {
+                "port_open": true,
+                "response_time_ms": 0.17,
+                "health_endpoint_ok": true,
+                "error": null
+              },
+              "influxdb": {
+                "port_open": false,
+                "response_time_ms": 0.18,
+                "health_endpoint_ok": false,
+                "error": null
+              },
+              "prometheus": {
+                "port_open": true,
+                "response_time_ms": 0.2,
+                "health_endpoint_ok": true,
+                "error": null
+              },
+              "grafana": {
+                "port_open": true,
+                "response_time_ms": 0.18,
+                "health_endpoint_ok": true,
+                "error": null
+              },
+              "nginx": {
+                "port_open": false,
+                "response_time_ms": 0.15,
+                "health_endpoint_ok": false,
+                "error": null
+              }
+            },
+            "summary": {
+              "total_services": 9,
+              "connected_services": 6,
+              "healthy_endpoints": 3,
+              "average_response_time_ms": 0.23
+            },
+            "errors": [
+              "Required services not accessible: pgbouncer, influxdb"
+            ]
+          },
+          "database": {
+            "name": "Database Integration",
+            "healthy": true,
+            "checks": {
+              "postgresql": {
+                "connected": true,
+                "version": "PostgreSQL 15.2 (Ubuntu 15.2-1.pgdg22.04+1) on x86..."
+              },
+              "timescaledb": {
+                "available": true,
+                "version": "2.10.2"
+              },
+              "redis": {
+                "connected": true,
+                "read_write_test": true,
+                "version": "7.4.5",
+                "memory_used": "1.63M"
+              },
+              "influxdb": {
+                "connected": true,
+                "status": "fail",
+                "version": null
+              }
+            },
+            "errors": []
+          },
+          "messaging": {
+            "name": "Messaging Integration",
+            "healthy": true,
+            "checks": {
+              "mqtt": {
+                "connected": true,
+                "publish_test": true
+              },
+              "minio": {
+                "live": true,
+                "ready": true,
+                "api_accessible": true
+              }
+            },
+            "errors": []
+          },
+          "volumes": {
+            "name": "Volume Persistence",
+            "healthy": true,
+            "volumes": {
+              "primates-lics_minio_data": {
+                "name": "primates-lics_minio_data",
+                "driver": "local",
+                "mountpoint": "/var/lib/docker/volumes/primates-lics_minio_data/_data",
+                "created": "2025-09-29T04:14:30Z",
+                "size_mb": null,
+                "labels": {
+                  "com.docker.compose.config-hash": "5d40709546348950a579b9146e107b99563791cbdd6c52baf509136cc32d30fd",
+                  "com.docker.compose.project": "primates-lics",
+                  "com.docker.compose.version": "2.38.2",
+                  "com.docker.compose.volume": "minio_data"
+                }
+              },
+              "primates-lics_postgres_data": {
+                "name": "primates-lics_postgres_data",
+                "driver": "local",
+                "mountpoint": "/var/lib/docker/volumes/primates-lics_postgres_data/_data",
+                "created": "2025-09-29T04:22:18Z",
+                "size_mb": null,
+                "labels": {
+                  "com.docker.compose.config-hash": "817ef1ed36419139a8cc1290ab5e416d165a4f5e7a6c0e5a20796ee553aab740",
+                  "com.docker.compose.project": "primates-lics",
+                  "com.docker.compose.version": "2.38.2",
+                  "com.docker.compose.volume": "postgres_data"
+                }
+              },
+              "primates-lics_grafana_data": {
+                "name": "primates-lics_grafana_data",
+                "driver": "local",
+                "mountpoint": "/var/lib/docker/volumes/primates-lics_grafana_data/_data",
+                "created": "2025-09-29T08:26:57Z",
+                "size_mb": null,
+                "labels": {
+                  "com.docker.compose.config-hash": "16e0ca41a93caba2a9092be80457136cb04a7f29af64a4f65547fa9616a48221",
+                  "com.docker.compose.project": "primates-lics",
+                  "com.docker.compose.version": "2.38.2",
+                  "com.docker.compose.volume": "grafana_data"
+                }
+              },
+              "primates-lics_influxdb_data": {
+                "name": "primates-lics_influxdb_data",
+                "driver": "local",
+                "mountpoint": "/var/lib/docker/volumes/primates-lics_influxdb_data/_data",
+                "created": "2025-09-29T04:31:01Z",
+                "size_mb": null,
+                "labels": {
+                  "com.docker.compose.config-hash": "63f969fa372f6cd1bf01344e4037161c13cc4f48c77aa137e861ea560105a988",
+                  "com.docker.compose.project": "primates-lics",
+                  "com.docker.compose.version": "2.38.2",
+                  "com.docker.compose.volume": "influxdb_data"
+                }
+              },
+              "primates-lics_prometheus_data": {
+                "name": "primates-lics_prometheus_data",
+                "driver": "local",
+                "mountpoint": "/var/lib/docker/volumes/primates-lics_prometheus_data/_data",
+                "created": "2025-09-29T08:26:57Z",
+                "size_mb": null,
+                "labels": {
+                  "com.docker.compose.config-hash": "652118446490b4ebb584fe3d06c117ab71340260d012f654b2786f81ee27d4ab",
+                  "com.docker.compose.project": "primates-lics",
+                  "com.docker.compose.version": "2.38.2",
+                  "com.docker.compose.volume": "prometheus_data"
+                }
+              },
+              "primates-lics_loki_data": {
+                "name": "primates-lics_loki_data",
+                "driver": "local",
+                "mountpoint": "/var/lib/docker/volumes/primates-lics_loki_data/_data",
+                "created": "2025-09-29T08:26:57Z",
+                "size_mb": null,
+                "labels": {
+                  "com.docker.compose.config-hash": "a10600a3312f7578ebb6031f7faa0ec5c47619a122309e757255f7df5713868c",
+                  "com.docker.compose.project": "primates-lics",
+                  "com.docker.compose.version": "2.38.2",
+                  "com.docker.compose.volume": "loki_data"
+                }
+              },
+              "primates-lics_redis_data": {
+                "name": "primates-lics_redis_data",
+                "driver": "local",
+                "mountpoint": "/var/lib/docker/volumes/primates-lics_redis_data/_data",
+                "created": "2025-09-29T04:14:30Z",
+                "size_mb": null,
+                "labels": {
+                  "com.docker.compose.config-hash": "1b06511b7bdf750c4596319c12078bd337f01175fbc5d1802c52ed4fce2549fb",
+                  "com.docker.compose.project": "primates-lics",
+                  "com.docker.compose.version": "2.38.2",
+                  "com.docker.compose.volume": "redis_data"
+                }
+              },
+              "primates-lics_mqtt_data": {
+                "name": "primates-lics_mqtt_data",
+                "driver": "local",
+                "mountpoint": "/var/lib/docker/volumes/primates-lics_mqtt_data/_data",
+                "created": "2025-09-29T04:14:30Z",
+                "size_mb": null,
+                "labels": {
+                  "com.docker.compose.config-hash": "450421e1304b2fc39575f3c61ca358a02215feccd6b94bd6f02c3eaf1a14e540",
+                  "com.docker.compose.project": "primates-lics",
+                  "com.docker.compose.version": "2.38.2",
+                  "com.docker.compose.volume": "mqtt_data"
+                }
+              },
+              "primates-lics_alertmanager_data": {
+                "name": "primates-lics_alertmanager_data",
+                "driver": "local",
+                "mountpoint": "/var/lib/docker/volumes/primates-lics_alertmanager_data/_data",
+                "created": "2025-09-29T08:26:57Z",
+                "size_mb": null,
+                "labels": {
+                  "com.docker.compose.config-hash": "af143ec88289593a926444f5b2b0bd0d780d02cea9b9fcdaa9c8959432bce2d8",
+                  "com.docker.compose.project": "primates-lics",
+                  "com.docker.compose.version": "2.38.2",
+                  "com.docker.compose.volume": "alertmanager_data"
+                }
+              },
+              "primates-lics_jaeger_data": {
+                "name": "primates-lics_jaeger_data",
+                "driver": "local",
+                "mountpoint": "/var/lib/docker/volumes/primates-lics_jaeger_data/_data",
+                "created": "2025-09-29T08:26:57Z",
+                "size_mb": null,
+                "labels": {
+                  "com.docker.compose.config-hash": "a36d240270199d812f214d94c142b50b518b0f243483004fd964abc0402a298d",
+                  "com.docker.compose.project": "primates-lics",
+                  "com.docker.compose.version": "2.38.2",
+                  "com.docker.compose.volume": "jaeger_data"
+                }
+              },
+              "primates-lics_mqtt_logs": {
+                "name": "primates-lics_mqtt_logs",
+                "driver": "local",
+                "mountpoint": "/var/lib/docker/volumes/primates-lics_mqtt_logs/_data",
+                "created": "2025-09-29T04:14:30Z",
+                "size_mb": null,
+                "labels": {
+                  "com.docker.compose.config-hash": "b53296f4fac4daedf37617e634b2ebfd648fc072d67ecd0934693ac7c31b2aa4",
+                  "com.docker.compose.project": "primates-lics",
+                  "com.docker.compose.version": "2.38.2",
+                  "com.docker.compose.volume": "mqtt_logs"
+                }
+              },
+              "primatesbehaviorwebapp_db_data": {
+                "name": "primatesbehaviorwebapp_db_data",
+                "driver": "local",
+                "mountpoint": "/var/lib/docker/volumes/primatesbehaviorwebapp_db_data/_data",
+                "created": "2025-08-05T08:18:32Z",
+                "size_mb": null,
+                "labels": {
+                  "com.docker.compose.config-hash": "bef15e27dfd116edde4684a49622c2dbe2d35dd854faaf4a2fb8ae8e33a9b054",
+                  "com.docker.compose.project": "primatesbehaviorwebapp",
+                  "com.docker.compose.version": "2.38.2",
+                  "com.docker.compose.volume": "db_data"
+                }
+              },
+              "primatesbehaviorwebapp_static_volume": {
+                "name": "primatesbehaviorwebapp_static_volume",
+                "driver": "local",
+                "mountpoint": "/var/lib/docker/volumes/primatesbehaviorwebapp_static_volume/_data",
+                "created": "2025-08-05T08:18:48Z",
+                "size_mb": null,
+                "labels": {
+                  "com.docker.compose.config-hash": "1dfca83053841c2dd2bb6bf2a997c7acd75117ff37e9bd97dd7cf8e2d7cc83e2",
+                  "com.docker.compose.project": "primatesbehaviorwebapp",
+                  "com.docker.compose.version": "2.38.2",
+                  "com.docker.compose.volume": "static_volume"
+                }
+              }
+            },
+            "errors": []
+          },
+          "ssl": {
+            "name": "SSL Certificates",
+            "healthy": true,
+            "certificates": {
+              "localhost.pem": {
+                "path": "/Users/beacon/Primates-lics/infrastructure/nginx/ssl/localhost.pem",
+                "exists": true,
+                "readable": true,
+                "valid": true,
+                "size_bytes": 1773
+              },
+              "localhost-key.pem": {
+                "path": "/Users/beacon/Primates-lics/infrastructure/nginx/ssl/localhost-key.pem",
+                "exists": true,
+                "readable": true,
+                "valid": false,
+                "size_bytes": 1704
+              },
+              "server.crt": {
+                "path": "/Users/beacon/Primates-lics/infrastructure/nginx/ssl/server.crt",
+                "exists": true,
+                "readable": true,
+                "valid": true,
+                "size_bytes": 1773
+              },
+              "server.key": {
+                "path": "/Users/beacon/Primates-lics/infrastructure/nginx/ssl/server.key",
+                "exists": true,
+                "readable": true,
+                "valid": true,
+                "size_bytes": 1704
+              }
+            },
+            "errors": []
+          }
+        },
+        "summary": {
+          "total_checks": 6,
+          "healthy_checks": 4,
+          "failed_checks": 2,
+          "success_rate": 66.67
+        },
+        "errors": [
+          "docker_compose: Required services not healthy: postgres, pgbouncer, redis, mqtt, minio, influxdb",
+          "connectivity: Required services not accessible: pgbouncer, influxdb"
+        ]
+      },
+      "end_time": "2025-10-03T07:03:07.391155"
+    },
+    "database": {
+      "name": "Database Test Suite",
+      "suite": "database",
+      "start_time": "2025-10-03T07:03:07.391345",
+      "duration_seconds": 0.38,
+      "healthy": false,
+      "output_file": "test-results/phase1-validation.json/database_results.json",
+      "error": null,
+      "detailed_results": {
+        "timestamp": "2025-10-03T07:03:07.742131",
+        "duration_seconds": 0.19,
+        "test_target": "all",
+        "benchmark_mode": false,
+        "stress_mode": false,
+        "overall_healthy": false,
+        "database_tests": {
+          "postgresql": {
+            "name": "PostgreSQL Comprehensive Test",
+            "healthy": true,
+            "tests": {
+              "connectivity": {
+                "status": "passed",
+                "postgres_version": "15.2"
+              },
+              "timescaledb": {
+                "status": "passed",
+                "version": "2.10.2",
+                "available": true
+              },
+              "schema_operations": {
+                "status": "passed"
+              },
+              "crud_operations": {
+                "status": "passed",
+                "records_inserted": 100,
+                "records_read": 100,
+                "duration_seconds": 0.018
+              },
+              "cleanup": {
+                "status": "passed"
+              }
+            },
+            "performance": {},
+            "errors": []
+          },
+          "pgbouncer": {
+            "name": "PgBouncer Connection Pooling Test",
+            "healthy": false,
+            "tests": {
+              "pooled_connectivity": {
+                "status": "failed",
+                "error": "Multiple exceptions: [Errno 61] Connect call failed ('::1', 6432, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 6432)"
+              }
+            },
+            "performance": {},
+            "errors": [
+              "PgBouncer test failed: Multiple exceptions: [Errno 61] Connect call failed ('::1', 6432, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 6432)"
+            ]
+          },
+          "redis": {
+            "name": "Redis Comprehensive Test",
+            "healthy": true,
+            "tests": {
+              "connectivity": {
+                "status": "passed",
+                "ping_response": true
+              },
+              "basic_operations": {
+                "status": "passed",
+                "key_value_test": true,
+                "hash_fields_count": 3,
+                "list_length": 3
+              },
+              "streams": {
+                "status": "passed",
+                "entries_added": 5,
+                "entries_read": 5,
+                "consumer_group_working": true
+              },
+              "pubsub": {
+                "status": "passed",
+                "message_received": true
+              }
+            },
+            "performance": {},
+            "errors": []
+          },
+          "influxdb": {
+            "name": "InfluxDB Comprehensive Test",
+            "healthy": false,
+            "tests": {
+              "connectivity": {
+                "status": "failed",
+                "error": "name 'InfluxDBClient' is not defined"
+              }
+            },
+            "performance": {},
+            "errors": [
+              "InfluxDB connection failed: name 'InfluxDBClient' is not defined"
+            ]
+          }
+        },
+        "summary": {
+          "total_databases": 4,
+          "healthy_databases": 2,
+          "failed_databases": 2,
+          "success_rate": 50.0
+        },
+        "errors": [
+          "pgbouncer: PgBouncer test failed: Multiple exceptions: [Errno 61] Connect call failed ('::1', 6432, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 6432)",
+          "influxdb: InfluxDB connection failed: name 'InfluxDBClient' is not defined"
+        ]
+      },
+      "end_time": "2025-10-03T07:03:07.772703"
+    },
+    "messaging": {
+      "name": "Messaging Test Suite",
+      "suite": "messaging",
+      "start_time": "2025-10-03T07:03:07.772848",
+      "duration_seconds": 0.75,
+      "healthy": false,
+      "output_file": "test-results/phase1-validation.json/messaging_results.json",
+      "error": null,
+      "detailed_results": {
+        "timestamp": "2025-10-03T07:03:08.483740",
+        "duration_seconds": 0.51,
+        "test_target": "all",
+        "benchmark_mode": false,
+        "load_test_mode": false,
+        "overall_healthy": false,
+        "messaging_tests": {
+          "mqtt": {
+            "name": "MQTT Broker Comprehensive Test",
+            "healthy": false,
+            "tests": {
+              "connectivity": {
+                "status": "failed",
+                "error": "'Client' object has no attribute 'message_retry_set'"
+              },
+              "publish_subscribe": {
+                "status": "failed",
+                "error": "'Client' object has no attribute 'message_retry_set'"
+              },
+              "topic_hierarchy": {
+                "status": "failed",
+                "error": "'Client' object has no attribute 'message_retry_set'"
+              },
+              "qos_levels": {
+                "status": "failed",
+                "error": "'Client' object has no attribute 'message_retry_set'"
+              },
+              "retained_messages": {
+                "status": "failed",
+                "error": "'Client' object has no attribute 'message_retry_set'"
+              }
+            },
+            "performance": {},
+            "errors": []
+          },
+          "redis": {
+            "name": "Redis Messaging Comprehensive Test",
+            "healthy": false,
+            "tests": {
+              "streams": {
+                "status": "failed",
+                "error": "Invalid input of type: 'bool'. Convert to a bytes, string, int or float first."
+              },
+              "pubsub": {
+                "status": "passed",
+                "messages_published": 3,
+                "messages_received": 3
+              },
+              "consumer_groups": {
+                "status": "failed",
+                "error": "Invalid input of type: 'bool'. Convert to a bytes, string, int or float first."
+              }
+            },
+            "performance": {},
+            "errors": []
+          },
+          "minio": {
+            "name": "MinIO Object Storage Comprehensive Test",
+            "healthy": true,
+            "tests": {
+              "health": {
+                "status": "passed",
+                "liveness_check": true,
+                "readiness_check": true
+              },
+              "bucket_operations": {
+                "status": "passed",
+                "total_buckets": 10,
+                "expected_buckets": 10,
+                "missing_buckets": [],
+                "test_bucket_operations": true
+              },
+              "object_operations": {
+                "status": "passed",
+                "upload_successful": true,
+                "download_successful": true,
+                "data_integrity": true,
+                "object_size": 195
+              },
+              "versioning": {
+                "status": "passed",
+                "versioning_supported": true,
+                "versioning_enabled": false
+              }
+            },
+            "performance": {},
+            "errors": []
+          }
+        },
+        "summary": {
+          "total_components": 3,
+          "healthy_components": 1,
+          "failed_components": 2,
+          "success_rate": 33.33
+        }
+      },
+      "end_time": "2025-10-03T07:03:08.521123"
+    },
+    "integration": {
+      "name": "System Integration Test",
+      "suite": "integration",
+      "start_time": "2025-10-03T07:03:08.521257",
+      "duration_seconds": 0.38,
+      "healthy": true,
+      "output_file": "test-results/phase1-validation.json/integration_results.json",
+      "error": null,
+      "detailed_results": {},
+      "end_time": "2025-10-03T07:03:08.901936"
+    }
+  },
+  "analysis": {
+    "execution_summary": {
+      "total_suites": 4,
+      "healthy_suites": 1,
+      "failed_suites": 3,
+      "success_rate": 25.0,
+      "total_duration": 5.38,
+      "overall_healthy": false
+    },
+    "suite_summary": {
+      "infrastructure": {
+        "healthy": false,
+        "duration": 3.87,
+        "key_metrics": {
+          "services_healthy": "4/6",
+          "success_rate": "66.67%"
+        }
+      },
+      "database": {
+        "healthy": false,
+        "duration": 0.38,
+        "key_metrics": {
+          "databases_healthy": "2/4",
+          "success_rate": "50.0%"
+        }
+      },
+      "messaging": {
+        "healthy": false,
+        "duration": 0.75,
+        "key_metrics": {
+          "components_healthy": "1/3",
+          "success_rate": "33.33%"
+        }
+      },
+      "integration": {
+        "healthy": true,
+        "duration": 0.38,
+        "key_metrics": {}
+      }
+    },
+    "recommendations": [],
+    "failed_suites": [
+      {
+        "suite": "infrastructure",
+        "name": "Infrastructure Validation",
+        "error": null
+      },
+      {
+        "suite": "database",
+        "name": "Database Test Suite",
+        "error": null
+      },
+      {
+        "suite": "messaging",
+        "name": "Messaging Test Suite",
+        "error": null
+      }
+    ]
+  }
+}

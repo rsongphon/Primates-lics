@@ -36,3 +36,16 @@ export {
   useIsAdmin,
   useIsSuperAdmin,
 } from './use-permissions';
+
+export {
+  useBreadcrumbs,
+  createBreadcrumbs,
+  getEntityBreadcrumbs,
+} from './use-breadcrumbs';
+export type { BreadcrumbItem } from './use-breadcrumbs';
+
+export { useNotifications } from './use-notifications';
+export type { NotificationOptions } from './use-notifications';
+
+export { useTheme } from './use-theme';
+export type { Theme } from './use-theme';

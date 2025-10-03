@@ -1,0 +1,97 @@
+{
+  "timestamp": "2025-10-03T07:03:08.483740",
+  "duration_seconds": 0.51,
+  "test_target": "all",
+  "benchmark_mode": false,
+  "load_test_mode": false,
+  "overall_healthy": false,
+  "messaging_tests": {
+    "mqtt": {
+      "name": "MQTT Broker Comprehensive Test",
+      "healthy": false,
+      "tests": {
+        "connectivity": {
+          "status": "failed",
+          "error": "'Client' object has no attribute 'message_retry_set'"
+        },
+        "publish_subscribe": {
+          "status": "failed",
+          "error": "'Client' object has no attribute 'message_retry_set'"
+        },
+        "topic_hierarchy": {
+          "status": "failed",
+          "error": "'Client' object has no attribute 'message_retry_set'"
+        },
+        "qos_levels": {
+          "status": "failed",
+          "error": "'Client' object has no attribute 'message_retry_set'"
+        },
+        "retained_messages": {
+          "status": "failed",
+          "error": "'Client' object has no attribute 'message_retry_set'"
+        }
+      },
+      "performance": {},
+      "errors": []
+    },
+    "redis": {
+      "name": "Redis Messaging Comprehensive Test",
+      "healthy": false,
+      "tests": {
+        "streams": {
+          "status": "failed",
+          "error": "Invalid input of type: 'bool'. Convert to a bytes, string, int or float first."
+        },
+        "pubsub": {
+          "status": "passed",
+          "messages_published": 3,
+          "messages_received": 3
+        },
+        "consumer_groups": {
+          "status": "failed",
+          "error": "Invalid input of type: 'bool'. Convert to a bytes, string, int or float first."
+        }
+      },
+      "performance": {},
+      "errors": []
+    },
+    "minio": {
+      "name": "MinIO Object Storage Comprehensive Test",
+      "healthy": true,
+      "tests": {
+        "health": {
+          "status": "passed",
+          "liveness_check": true,
+          "readiness_check": true
+        },
+        "bucket_operations": {
+          "status": "passed",
+          "total_buckets": 10,
+          "expected_buckets": 10,
+          "missing_buckets": [],
+          "test_bucket_operations": true
+        },
+        "object_operations": {
+          "status": "passed",
+          "upload_successful": true,
+          "download_successful": true,
+          "data_integrity": true,
+          "object_size": 195
+        },
+        "versioning": {
+          "status": "passed",
+          "versioning_supported": true,
+          "versioning_enabled": false
+        }
+      },
+      "performance": {},
+      "errors": []
+    }
+  },
+  "summary": {
+    "total_components": 3,
+    "healthy_components": 1,
+    "failed_components": 2,
+    "success_rate": 33.33
+  }
+}
