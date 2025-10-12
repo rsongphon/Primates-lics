@@ -1,0 +1,101 @@
+# Jaeger v2 Production Configuration
+# Based on OpenTelemetry Collector Configuration Format
+# Documentation: https://www.jaegertracing.io/docs/next-release-v2/
+
+service:
+  # Extensions provide capabilities like health checks and pprof
+  extensions:
+    - healthcheckv2
+    - jaeger_storage
+    - jaeger_query
+
+  # Pipelines define how telemetry data flows through the system
+  pipelines:
+    traces:
+      receivers:
+        - otlp        # OpenTelemetry Protocol (preferred for v2)
+        - jaeger      # Legacy Jaeger receivers for backward compatibility
+        - zipkin      # Zipkin compatibility
+      processors:
+        - batch       # Batch traces for efficiency
+        - memory_limiter
+      exporters:
+        - jaeger_storage_exporter
+
+  telemetry:
+    logs:
+      level: info  # Production logging level
+    metrics:
+      level: detailed
+
+extensions:
+  # Health check extension v2 for container health monitoring
+  healthcheckv2:
+    use_v2: true
+    http:
+      endpoint: "0.0.0.0:13133"
+
+  # Jaeger storage configuration
+  # TODO: Consider migrating to persistent storage (Badger, Cassandra, ElasticSearch)
+  # For production scale: https://www.jaegertracing.io/docs/next-release-v2/deployment/
+  jaeger_storage:
+    backends:
+      memory_store:
+        memory:
+          max_traces: 500000  # Production limit (adjust based on memory)
+
+  # Jaeger query service configuration
+  jaeger_query:
+    storage:
+      traces: memory_store
+    base_path: /
+    ui:
+      config_file: ""
+    # Query timeout configuration
+    max_clock_skew_adjustment: 0s
+
+receivers:
+  # OpenTelemetry Protocol receivers (v2 native)
+  otlp:
+    protocols:
+      grpc:
+        endpoint: "0.0.0.0:4317"
+        max_recv_msg_size_mib: 16
+      http:
+        endpoint: "0.0.0.0:4318"
+        cors:
+          allowed_origins:
+            - "${env:CORS_ALLOWED_ORIGINS:-*}"
+
+  # Legacy Jaeger receivers for backward compatibility
+  jaeger:
+    protocols:
+      grpc:
+        endpoint: "0.0.0.0:14250"
+      thrift_http:
+        endpoint: "0.0.0.0:14268"
+      thrift_compact:
+        endpoint: "0.0.0.0:6831"
+      thrift_binary:
+        endpoint: "0.0.0.0:6832"
+
+  # Zipkin receiver for compatibility
+  zipkin:
+    endpoint: "0.0.0.0:9411"
+
+processors:
+  # Batch processor for efficient trace processing
+  batch:
+    timeout: 5s
+    send_batch_size: 1000
+
+  # Memory limiter to prevent OOM
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 2048      # Increased for production
+    spike_limit_mib: 512
+
+exporters:
+  # Jaeger storage exporter
+  jaeger_storage_exporter:
+    trace_storage: memory_store

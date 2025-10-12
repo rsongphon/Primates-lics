@@ -32,128 +32,127 @@ LICS revolutionizes laboratory automation by providing:
 
 ## 🚀 Quick Start
 
-### Automated Setup (Recommended)
+### 🐳 Docker Development (Recommended)
 
-For the fastest setup experience, use our automated installation:
+LICS is designed to run entirely in Docker containers - **no local Python, Node.js, or database installation required!**
 
-1. **Clone the repository**
+1. **Prerequisites: Install Docker only**
+   - **macOS**: [Docker Desktop for Mac](https://docs.docker.com/desktop/install/mac-install/)
+   - **Linux**: [Docker Engine](https://docs.docker.com/engine/install/)
+   - **Windows**: [Docker Desktop for Windows](https://docs.docker.com/desktop/install/windows-install/)
+
+2. **Clone the repository**
    ```bash
    git clone https://github.com/rsongphon/Primates-lics.git
    cd Primates-lics
    ```
 
-2. **Run automated setup for your OS**
+3. **Start the complete development environment**
    ```bash
-   # Automatically detects your OS and sets up everything
-   make setup-dev-env
-   ```
-
-3. **Generate SSL certificates**
-   ```bash
-   make setup-ssl
-   ```
-
-4. **Copy environment configuration**
-   ```bash
-   cp .env.example .env
-   ```
-
-5. **Install dependencies and start development**
-   ```bash
-   make install
+   # One command to start everything with hot-reloading
    make dev
    ```
 
-That's it! Your development environment is now running with:
-- Frontend: https://localhost:3000 (with SSL)
-- Backend API: https://localhost:8000/docs
-- WebSocket: wss://localhost:8001
-- Grafana Monitoring: https://localhost:3001
+That's it! Your containerized development environment is now running:
 
-### 🐳 Containerized Development (Zero Local Dependencies)
+**Application Services:**
+- **Backend API**: http://localhost:8000/docs (FastAPI with auto-reload)
+- **WebSocket Server**: ws://localhost:8001 (Socket.IO real-time)
+- **Frontend**: http://localhost:3000 (Next.js with hot-reload)
 
-**NEW:** Develop with **only Docker** - no Node.js, Python, PostgreSQL, or other tools needed locally!
+**Infrastructure Services:**
+- **PostgreSQL + TimescaleDB**: localhost:5433
+- **Redis**: localhost:6380
+- **MQTT Broker**: localhost:1884
+- **MinIO Object Storage**: http://localhost:9010 (console: http://localhost:9011)
 
-#### Option 1: VS Code Dev Containers (Recommended)
+**Development Tools:**
+- **PgAdmin** (Database GUI): http://localhost:5050 (admin@lics.dev / admin123)
+- **Redis Commander** (Redis GUI): http://localhost:8081
+- **MailHog** (Email Testing): http://localhost:8025
+- **Jaeger v2** (Distributed Tracing): http://localhost:16686
+
+### Development Workflow
+
+All code changes are automatically reflected due to volume mounts:
+
 ```bash
-# 1. Open in VS Code
-code .
+# View logs for all services
+docker-compose -f docker-compose.dev.yml logs -f
 
-# 2. Click "Reopen in Container" (or Cmd/Ctrl+Shift+P → "Dev Containers: Reopen in Container")
-# 3. Wait for setup (~5-10 minutes first time)
-# 4. Start developing - everything just works!
-make dev
+# View logs for specific service
+docker-compose -f docker-compose.dev.yml logs -f backend-dev
+
+# Restart a specific service
+docker-compose -f docker-compose.dev.yml restart backend-dev
+
+# Stop all services
+docker-compose -f docker-compose.dev.yml down
+
+# Stop and remove volumes (clean slate)
+docker-compose -f docker-compose.dev.yml down -v
+
+# Execute commands inside containers
+docker-compose -f docker-compose.dev.yml exec backend-dev bash
+docker-compose -f docker-compose.dev.yml exec backend-dev pytest
 ```
 
-#### Option 2: Standalone Docker Compose
-```bash
-# Start all services in containers
-make container-dev
+### Alternative: Local Development (Not Recommended)
 
-# Get a shell in the dev environment
-make container-shell
+**⚠️ Note**: This requires installing Node.js, Python, PostgreSQL, Redis, and other dependencies locally. Docker development is strongly recommended instead.
 
-# Or run commands directly
-./tools/dev-cli.sh npm install
-./tools/dev-cli.sh pytest
-./tools/dev-cli.sh alembic upgrade head
-```
-
-**📚 Full Guide:** See [QUICKSTART_CONTAINER.md](QUICKSTART_CONTAINER.md) for detailed instructions and [docs/CONTAINERIZED_DEVELOPMENT.md](docs/CONTAINERIZED_DEVELOPMENT.md) for complete documentation.
-
-### Manual Setup
-
-If you prefer manual installation:
+<details>
+<summary>Click to expand local development instructions</summary>
 
 #### Prerequisites
 
-- **Docker** and **Docker Compose** (for containerized services)
-- **Node.js** 20+ (for frontend development)
-- **Python** 3.11+ (for backend and edge agent development)
-- **Git** (for version control)
-- **mkcert** (for SSL certificates, installed by setup scripts)
+- **Node.js** 20+ (for frontend)
+- **Python** 3.11+ (for backend)
+- **PostgreSQL** 15+ with TimescaleDB
+- **Redis** 7+
+- **MQTT Broker** (Mosquitto)
+- **MinIO** (object storage)
+- **Git**
 
-#### Manual Installation Steps
+#### Steps
 
-1. **Clone and setup Git hooks**
-   ```bash
-   git clone https://github.com/rsongphon/Primates-lics.git
-   cd Primates-lics
-   ./tools/scripts/setup-git-hooks.sh
-   ```
-
-2. **Install dependencies manually**
+1. **Install all prerequisites for your OS**
    ```bash
    # macOS
    ./tools/scripts/setup-mac.sh
 
-   # Linux (Ubuntu/CentOS/Arch/openSUSE)
+   # Linux
    ./tools/scripts/setup-linux.sh
 
-   # Windows (PowerShell as Administrator)
+   # Windows
    .\tools\scripts\setup-windows.ps1
    ```
 
-3. **Configure SSL and environment**
+2. **Start infrastructure services**
    ```bash
-   make setup-ssl
-   cp .env.example .env
+   # You'll still need Docker for databases and infrastructure
+   docker-compose up postgres redis mqtt minio -d
    ```
 
-4. **Start services**
+3. **Install application dependencies**
    ```bash
-   make install
-   make dev
+   # Frontend
+   cd services/frontend && npm install
+
+   # Backend
+   cd services/backend && pip install -r requirements.txt
    ```
 
-### Access Points
+4. **Start development servers**
+   ```bash
+   # Terminal 1: Backend
+   cd services/backend && uvicorn app.main:app --reload
 
-Once running, access these services:
-- **Web Interface**: https://localhost:3000
-- **API Documentation**: https://localhost:8000/docs
-- **WebSocket Endpoint**: wss://localhost:8001
-- **Grafana Monitoring**: https://localhost:3001 (admin/admin123)
-- **Traefik Dashboard**: http://localhost:8080
+   # Terminal 2: Frontend
+   cd services/frontend && npm run dev
+   ```
+
+</details>
 
 ### Production Deployment
 
@@ -189,75 +188,70 @@ lics/
 
 ## 🛠️ Development
 
-### Getting Started
+### Common Development Tasks
 
-1. **Install dependencies (automated):**
-   ```bash
-   # Install all service dependencies at once
-   make install
+All development is done inside Docker containers. Use these commands:
 
-   # Or install individually if needed
-   make install-frontend
-   make install-backend
-   make install-edge-agent
-   ```
+**Running Tests:**
+```bash
+# Run tests inside containers
+docker-compose -f docker-compose.dev.yml exec backend-dev pytest
+docker-compose -f docker-compose.dev.yml exec backend-dev pytest --cov=app
 
-   **Manual installation (if needed):**
-   ```bash
-   # Frontend
-   cd services/frontend && npm install
+# Or use make commands (if services are running locally)
+make test-backend
+make test-frontend
+```
 
-   # Backend
-   cd services/backend && pip install -r requirements.txt
+**Code Formatting and Linting:**
+```bash
+# Inside backend container
+docker-compose -f docker-compose.dev.yml exec backend-dev black .
+docker-compose -f docker-compose.dev.yml exec backend-dev ruff check .
 
-   # Edge Agent
-   cd services/edge-agent && pip install -r requirements.txt
-   ```
+# Inside frontend container
+docker-compose -f docker-compose.dev.yml exec frontend-dev npm run lint
+docker-compose -f docker-compose.dev.yml exec frontend-dev npm run format
+```
 
-2. **Run tests:**
-   ```bash
-   # All services
-   make test
+**Database Operations:**
+```bash
+# Run migrations inside backend container
+docker-compose -f docker-compose.dev.yml exec backend-dev alembic upgrade head
+docker-compose -f docker-compose.dev.yml exec backend-dev alembic revision --autogenerate -m "description"
 
-   # Individual services
-   make test-frontend
-   make test-backend
-   make test-edge-agent
-   ```
+# Database management
+docker-compose -f docker-compose.dev.yml exec backend-dev python infrastructure/database/manage.py migrate
+docker-compose -f docker-compose.dev.yml exec backend-dev python infrastructure/database/manage.py backup
 
-3. **Code formatting and linting:**
-   ```bash
-   # Format all code
-   make format
+# Or connect directly to PostgreSQL
+docker-compose -f docker-compose.dev.yml exec postgres-dev psql -U lics -d lics_dev
+```
 
-   # Run linting
-   make lint
-   ```
+**Installing New Dependencies:**
+```bash
+# Backend (Python)
+# 1. Add package to services/backend/requirements.txt
+# 2. Rebuild container
+docker-compose -f docker-compose.dev.yml up --build backend-dev
 
-4. **Database operations:**
-   ```bash
-   # Database migrations (standalone)
-   cd infrastructure/database && alembic upgrade head
-   cd infrastructure/database && alembic revision --autogenerate -m "description"
+# Frontend (Node.js)
+# 1. Add package to services/frontend/package.json
+# 2. Rebuild container
+docker-compose -f docker-compose.dev.yml up --build frontend-dev
+```
 
-   # Database management CLI
-   python3 infrastructure/database/manage.py migrate           # Apply migrations
-   python3 infrastructure/database/manage.py backup           # Create backup
-   python3 infrastructure/database/manage.py health-check     # Check health
-   python3 infrastructure/database/manage.py list-backups     # List backups
+**Debugging:**
+```bash
+# View backend logs
+docker-compose -f docker-compose.dev.yml logs -f backend-dev
 
-   # Database maintenance and cleanup
-   ./infrastructure/database/cleanup.sh full                  # Full cleanup
-   ./infrastructure/database/cleanup.sh maintenance          # Database maintenance
-   python3 infrastructure/database/maintenance.py            # Automated maintenance
+# Get shell inside backend container
+docker-compose -f docker-compose.dev.yml exec backend-dev bash
 
-   # Health monitoring
-   python3 infrastructure/monitoring/database/health_check.py # Check all services
-   python3 infrastructure/monitoring/database/health_check.py --format json
-
-   # Automated scheduling
-   sudo ./infrastructure/database/cron-maintenance.sh install # Install cron jobs
-   ```
+# Interactive Python shell with app context
+docker-compose -f docker-compose.dev.yml exec backend-dev python
+```
 
 ### Contributing
 
@@ -310,14 +304,17 @@ make test-e2e          # End-to-end tests
 LICS includes comprehensive monitoring and observability:
 
 - **Metrics**: Prometheus and Grafana dashboards
-- **Logging**: Structured logging with log aggregation
-- **Tracing**: Distributed tracing with OpenTelemetry
+- **Logging**: Structured logging with log aggregation (Loki + Promtail)
+- **Tracing**: Distributed tracing with Jaeger v2 and OpenTelemetry Collector
 - **Health Checks**: Service health monitoring
-- **Alerting**: Automated alert rules
+- **Alerting**: Automated alert rules (Alertmanager)
 
 Access monitoring dashboards at:
-- Grafana: http://localhost:3001
-- Prometheus: http://localhost:9090
+- **Grafana**: http://localhost:3001 (Visualization dashboards)
+- **Prometheus**: http://localhost:9090 (Metrics collection)
+- **Jaeger v2**: http://localhost:16686 (Distributed tracing UI)
+
+**Note**: LICS uses Jaeger v2 (built on OpenTelemetry Collector), which natively supports OTLP protocol for improved performance and future-proof observability. Configuration files are located in `infrastructure/monitoring/jaeger/`. See `MIGRATION_GUIDE.md` for migration details.
 
 ## 🔒 Security
 

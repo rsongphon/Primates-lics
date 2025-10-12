@@ -109,11 +109,19 @@ processors:
           - ".*_bucket"
 
 exporters:
-  # Jaeger exporter for traces
-  jaeger:
-    endpoint: jaeger:14250
+  # OTLP gRPC exporter for Jaeger v2 (v2 native protocol)
+  # Jaeger v2 is built on OpenTelemetry Collector and natively supports OTLP
+  otlp:
+    endpoint: jaeger:4317
     tls:
       insecure: true
+
+  # Legacy Jaeger exporter (DEPRECATED - Jaeger v2 uses OTLP)
+  # Kept for backward compatibility only
+  # jaeger:
+  #   endpoint: jaeger:14250
+  #   tls:
+  #     insecure: true
 
   # Prometheus exporter for metrics
   prometheus:
@@ -122,12 +130,6 @@ exporters:
     const_labels:
       environment: production
       service: otel-collector
-
-  # OTLP gRPC exporter (for forwarding to other collectors)
-  otlp:
-    endpoint: jaeger:4317
-    tls:
-      insecure: true
 
   # Logging exporter for debugging
   logging:
@@ -164,11 +166,11 @@ service:
   extensions: [health_check, pprof, zpages, memory_ballast]
 
   pipelines:
-    # Traces pipeline
+    # Traces pipeline (Jaeger v2 compatible - uses OTLP)
     traces:
       receivers: [otlp]
       processors: [memory_limiter, batch, resource, attributes]
-      exporters: [jaeger, logging]
+      exporters: [otlp, logging]  # Updated for Jaeger v2 (OTLP native)
 
     # Metrics pipeline
     metrics:
@@ -188,7 +190,8 @@ service:
     metrics:
       address: 0.0.0.0:8888
       level: detailed
-    traces:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [jaeger]
+    # Internal tracing for the collector itself (optional)
+    # traces:
+    #   receivers: [otlp]
+    #   processors: [batch]
+    #   exporters: [otlp]

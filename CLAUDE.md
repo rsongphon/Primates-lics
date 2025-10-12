@@ -27,123 +27,125 @@ LICS (Lab Instrument Control System) is a cloud-native, distributed platform for
 - **Frontend**: Next.js 14, TypeScript, Tailwind CSS, Shadcn/ui, Zustand, React Query
 - **Backend**: FastAPI, SQLAlchemy 2.0 async, PostgreSQL with TimescaleDB, Redis, Celery
 - **Edge**: Python 3.11+, SQLite, MQTT (Paho), OpenCV, GPIO control (RPi.GPIO)
-- **Infrastructure**: Docker, Kubernetes, Terraform, Prometheus, Grafana
+- **Infrastructure**: Docker, Kubernetes, Terraform, Prometheus, Grafana, Jaeger v2 (OpenTelemetry)
 
 ## Development Commands
 
-### Essential Commands
+### ⚠️ Important: Docker-First Development
+
+**LICS is designed to run in Docker containers.** All services (backend, frontend, databases, message brokers) run inside containers with hot-reloading enabled. Do NOT attempt to run services directly on your local machine.
+
+### Essential Docker Commands
+
 ```bash
-# Setup and installation
-make install                    # Install all service dependencies
-make git-hooks-install         # Install Git hooks for code quality
+# Start complete development environment (RECOMMENDED)
+make dev                                    # Starts all services with hot-reload
+                                           # Backend: http://localhost:8000
+                                           # Frontend: http://localhost:3000
+                                           # PostgreSQL: localhost:5433
+                                           # Redis: localhost:6380
+                                           # MQTT: localhost:1884
+                                           # MinIO: http://localhost:9011
 
-# Development servers
-make dev                       # Start all services in development mode
-make dev-frontend             # Next.js dev server (port 3000)
-make dev-backend              # FastAPI with auto-reload (port 8000)
-make dev-edge-agent           # Edge agent with hardware simulation
+# View logs
+docker-compose -f docker-compose.dev.yml logs -f              # All services
+docker-compose -f docker-compose.dev.yml logs -f backend-dev  # Backend only
+docker-compose -f docker-compose.dev.yml logs -f frontend-dev # Frontend only
 
-# Docker environments
-make docker-up                # Production stack
-make docker-dev               # Development stack with hot reload
+# Stop services
+docker-compose -f docker-compose.dev.yml down     # Stop all
+docker-compose -f docker-compose.dev.yml down -v  # Stop and remove volumes (clean slate)
 
-# Testing
-make test                     # Run all tests
-make test-frontend            # Jest and Playwright tests
-make test-backend             # pytest with coverage
-make test-edge-agent          # pytest with hardware mocking
-make test-integration         # Cross-service integration tests
+# Restart individual services
+docker-compose -f docker-compose.dev.yml restart backend-dev
+docker-compose -f docker-compose.dev.yml restart frontend-dev
 
-# Code quality
-make lint                     # ESLint, Ruff, Black across all services
-make format                   # Prettier, Black auto-formatting
-make typecheck                # TypeScript and mypy validation
-
-# CI/CD and deployment
-make ci-test                  # Run CI pipeline locally
-make security-scan            # Run security scans
-make performance-test         # Run performance tests
+# Execute commands inside containers
+docker-compose -f docker-compose.dev.yml exec backend-dev bash
+docker-compose -f docker-compose.dev.yml exec backend-dev pytest
+docker-compose -f docker-compose.dev.yml exec frontend-dev npm install
 ```
 
-### Database Operations
+### Testing Inside Containers
+
 ```bash
-# Database migrations (standalone Alembic)
-cd infrastructure/database && alembic upgrade head
-cd infrastructure/database && alembic revision --autogenerate -m "description"
-cd infrastructure/database && alembic current
-cd infrastructure/database && alembic history
+# Backend tests (inside container)
+docker-compose -f docker-compose.dev.yml exec backend-dev pytest
+docker-compose -f docker-compose.dev.yml exec backend-dev pytest --cov=app
+docker-compose -f docker-compose.dev.yml exec backend-dev pytest tests/unit/
 
-# Database management CLI
-python3 infrastructure/database/manage.py migrate           # Apply migrations
-python3 infrastructure/database/manage.py create-migration "Description"
-python3 infrastructure/database/manage.py backup           # Create backup
-python3 infrastructure/database/manage.py restore backup.sql
-python3 infrastructure/database/manage.py health-check     # Check health
-python3 infrastructure/database/manage.py list-backups     # List backups
-python3 infrastructure/database/manage.py validate-backup backup.sql
+# Frontend tests (inside container)
+docker-compose -f docker-compose.dev.yml exec frontend-dev npm test
+docker-compose -f docker-compose.dev.yml exec frontend-dev npm run test:coverage
 
-# Database maintenance and cleanup
-./infrastructure/database/cleanup.sh full                  # Full cleanup
-./infrastructure/database/cleanup.sh maintenance          # Database maintenance only
-./infrastructure/database/cleanup.sh quick                # Quick log cleanup
-python3 infrastructure/database/maintenance.py            # Python-based maintenance
-python3 infrastructure/database/maintenance.py --tasks postgres_maintenance redis_maintenance
-
-# Health monitoring for all database services
-python3 infrastructure/monitoring/database/health_check.py # Check all services
-python3 infrastructure/monitoring/database/health_check.py --format json
-python3 infrastructure/monitoring/database/health_check.py --service postgres
-
-# Automated maintenance scheduling
-sudo ./infrastructure/database/cron-maintenance.sh install # Install cron jobs
-./infrastructure/database/cron-maintenance.sh list        # List current jobs
-./infrastructure/database/cron-maintenance.sh test        # Test scripts
-sudo ./infrastructure/database/cron-maintenance.sh remove # Remove cron jobs
+# Edge agent tests (inside container)
+docker-compose -f docker-compose.dev.yml exec edge-agent-dev pytest
 ```
 
-### Infrastructure Commands
-```bash
-# Terraform (from infrastructure/terraform/environments/dev)
-terraform plan
-terraform apply
-make infra-plan               # Makefile wrapper
-make infra-apply              # Makefile wrapper
+### Database Operations (Inside Containers)
 
-# Kubernetes deployment
-make k8s-deploy               # Apply manifests
-make k8s-status               # Check deployment status
+```bash
+# Database migrations (inside backend container)
+docker-compose -f docker-compose.dev.yml exec backend-dev alembic upgrade head
+docker-compose -f docker-compose.dev.yml exec backend-dev alembic revision --autogenerate -m "description"
+docker-compose -f docker-compose.dev.yml exec backend-dev alembic current
+docker-compose -f docker-compose.dev.yml exec backend-dev alembic history
+
+# Database management (inside backend container)
+docker-compose -f docker-compose.dev.yml exec backend-dev python infrastructure/database/manage.py migrate
+docker-compose -f docker-compose.dev.yml exec backend-dev python infrastructure/database/manage.py backup
+docker-compose -f docker-compose.dev.yml exec backend-dev python infrastructure/database/manage.py health-check
+
+# Direct PostgreSQL access
+docker-compose -f docker-compose.dev.yml exec postgres-dev psql -U lics -d lics_dev
+
+# Redis CLI access
+docker-compose -f docker-compose.dev.yml exec redis-dev redis-cli
 ```
 
-### Frontend Development Commands
+### Code Quality (Inside Containers)
+
 ```bash
-# Development server (from services/frontend)
-cd services/frontend
-npm run dev                    # Start Next.js dev server (localhost:3000)
+# Backend linting and formatting
+docker-compose -f docker-compose.dev.yml exec backend-dev black .
+docker-compose -f docker-compose.dev.yml exec backend-dev ruff check .
+docker-compose -f docker-compose.dev.yml exec backend-dev mypy app/
 
-# Building
-npm run build                  # Build production bundle
-npm run start                  # Start production server
-
-# Code Quality
-npm run lint                   # Run ESLint checks
-npm run format                 # Format code with Prettier
-npm run format:check           # Check formatting without changes
-npm run typecheck              # Run TypeScript type checking
-
-# Component Management
-npx shadcn@latest add <component>  # Add Shadcn/ui component
-npx shadcn@latest add button card input  # Add multiple components
-
-# Testing (when implemented)
-npm run test                   # Run Jest tests
-npm run test:watch             # Run tests in watch mode
-npm run test:e2e               # Run Playwright E2E tests
-
-# Workspace Commands (from project root)
-npm run dev --workspace=services/frontend
-npm run build --workspace=services/frontend
-npm run lint --workspace=services/frontend
+# Frontend linting and formatting
+docker-compose -f docker-compose.dev.yml exec frontend-dev npm run lint
+docker-compose -f docker-compose.dev.yml exec frontend-dev npm run format
+docker-compose -f docker-compose.dev.yml exec frontend-dev npm run typecheck
 ```
+
+### Adding New Dependencies
+
+```bash
+# Backend (Python) - Add to requirements.txt, then rebuild
+echo "new-package>=1.0.0" >> services/backend/requirements.txt
+docker-compose -f docker-compose.dev.yml up --build backend-dev
+
+# Frontend (Node.js) - Add to package.json, then rebuild
+docker-compose -f docker-compose.dev.yml exec frontend-dev npm install new-package
+# OR rebuild container
+docker-compose -f docker-compose.dev.yml up --build frontend-dev
+
+# Shadcn/ui components (inside frontend container)
+docker-compose -f docker-compose.dev.yml exec frontend-dev npx shadcn@latest add button
+docker-compose -f docker-compose.dev.yml exec frontend-dev npx shadcn@latest add card input
+```
+
+### Accessing Development Tools
+
+All these tools are accessible when running `make dev`:
+
+- **PgAdmin** (PostgreSQL GUI): http://localhost:5050 (admin@lics.dev / admin123)
+- **Redis Commander** (Redis GUI): http://localhost:8081
+- **MailHog** (Email testing): http://localhost:8025
+- **Jaeger v2** (Distributed tracing): http://localhost:16686
+- **Backend API Docs**: http://localhost:8000/docs
+- **Frontend**: http://localhost:3000
+
+**Note**: The project uses **Jaeger v2**, which is built on OpenTelemetry Collector and natively supports OTLP protocol. Configuration files are located in `infrastructure/monitoring/jaeger/`.
 
 ## Development Workflow
 
@@ -269,9 +271,7 @@ Valid scopes: frontend, backend, edge-agent, infrastructure, docs, api, ui, auth
 ## Development Guidelines
 
 ### Implementation Process
-- When implementing features, use @Documentation.md as a reference for implementation details
-- After implementing features, update @Plan.md and @README.md with completed tasks
-- Always test the feature after implementation. If successful, document the progress in @Plan.md
+- This project is develop and deployed on containerized enviroment.
 - This project is done by a sole developer, always adjust the structure for solo development but have possibilities for further collaboration
 
 ### Commit Guidelines
@@ -279,16 +279,11 @@ Valid scopes: frontend, backend, edge-agent, infrastructure, docs, api, ui, auth
 - Author commits as: "Songphon <r.songphon@gmail.com>"
 - When pushing to remote, use `--no-verify` flag to bypass hooks when needed
 
-### Current Project Status
-For detailed implementation progress and completed features, see @Plan.md
+
 
 **Current Phase**: Phase 2 - Backend Core Development (Week 4)
 **Last Completed**: WebSocket and Real-time Features implementation
 **Next Steps**: Background Tasks and Scheduling (Celery implementation)
 
 ---
-
-- For implementation details and progress tracking, refer to @Plan.md
-- For architectural reference and detailed specifications, refer to @Documentation.md
 - YOU MUST use my github username and github emial when create commit message.
-- Develop this application in container so that we don't need to install ant dependencies in local. Follow @docs/CONTAINERIZED_DEVELOPMENT.md @CONTAINERIZED_DEV_IMPLEMENTATION.md @QUICKSTART_CONTAINER.md

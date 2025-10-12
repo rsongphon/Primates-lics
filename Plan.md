@@ -126,24 +126,34 @@
 - ✅ Create health check endpoints structure
 - ✅ Configure alerting rules (initially disabled)
 - ✅ Set up distributed tracing with OpenTelemetry
+- ✅ **Jaeger v1 to v2 Migration** (October 12, 2025)
 
 **Deliverables Completed:**
-- Complete monitoring stack with Prometheus (9090), Grafana (3001), Alertmanager (9093), and Jaeger (16686)
+- Complete monitoring stack with Prometheus (9090), Grafana (3001), Alertmanager (9093), and Jaeger v2 (16686)
 - Comprehensive metrics exporters (postgres, redis, node, cadvisor) with health validation
 - Advanced alerting system with 25+ monitoring rules covering infrastructure, database, application, devices, and experiments
 - Loki log aggregation service with Promtail integration for centralized logging
-- Jaeger distributed tracing with OpenTelemetry collector for performance monitoring
+- **Jaeger v2 distributed tracing** with OpenTelemetry Collector for performance monitoring (migrated from v1)
 - Unified health check system with standalone validation scripts and API endpoints
 - Organized dashboard directory structure with infrastructure, system, database, and application monitoring dashboards
-- Complete Grafana datasource integration (Prometheus, InfluxDB, Loki, Jaeger, PostgreSQL, Redis)
+- Complete Grafana datasource integration (Prometheus, InfluxDB, Loki, Jaeger v2, PostgreSQL, Redis)
 - Comprehensive configuration management for all monitoring components with production-ready settings
 
+**Jaeger v2 Migration (October 12, 2025):**
+- ✅ Migrated from `jaegertracing/all-in-one:latest` (v1, Docker Hub) to `cr.jaegertracing.io/jaegertracing/jaeger:2.11.0` (v2)
+- ✅ Created YAML-based configuration files (jaeger-v2-config.yml, jaeger-v2-dev-config.yml) replacing environment variables
+- ✅ Updated OpenTelemetry Collector to use OTLP protocol (port 4317/4318) instead of legacy Jaeger exporter
+- ✅ Maintained backward compatibility with legacy protocols (14250, 14268, 6831, 6832, 9411)
+- ✅ Added native health check endpoint (port 13133) for container health monitoring
+- ✅ Comprehensive migration guide created (`infrastructure/monitoring/jaeger/MIGRATION_GUIDE.md`)
+- **Key Benefits**: Better performance, native OTLP support, simplified architecture, future-proof (v1 EOL: Dec 31, 2025)
+
 **Current Monitoring Status:**
-- ✅ Core Infrastructure: 85% operational (Prometheus, Grafana, Alertmanager, Jaeger fully operational)
+- ✅ Core Infrastructure: 85% operational (Prometheus, Grafana, Alertmanager, Jaeger v2 fully operational)
 - ✅ Metrics Collection: 90% operational (all exporters functional, minor PostgreSQL exporter config tuning needed)
 - ✅ Health Monitoring: 100% operational with multi-format reporting (JSON, text, HTML dashboards)
 - ⚠️ Log Aggregation: 75% operational (Loki service configured, minor configuration refinements needed)
-- ✅ Distributed Tracing: 100% operational (Jaeger and OpenTelemetry collector fully functional)
+- ✅ Distributed Tracing: 100% operational (Jaeger v2 and OpenTelemetry Collector fully functional with OTLP protocol)
 
 ## Phase 2: Backend Core Development (Weeks 3-4)
 

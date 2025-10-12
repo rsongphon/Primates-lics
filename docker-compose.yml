@@ -402,23 +402,32 @@ services:
       - lics-network
     restart: unless-stopped
 
-  # Jaeger All-in-One for Distributed Tracing
+  # Jaeger v2 Distributed Tracing
   jaeger:
-    image: jaegertracing/all-in-one:latest
+    image: cr.jaegertracing.io/jaegertracing/jaeger:2.11.0
     ports:
-      - "16686:16686"  # Jaeger UI
-      - "14268:14268"  # Accept jaeger.thrift directly from clients
-      - "14250:14250"  # Accept model.proto
-      - "6831:6831/udp"  # Accept jaeger.thrift over compact thrift protocol
-      - "6832:6832/udp"  # Accept jaeger.thrift over binary thrift protocol
-    environment:
-      - COLLECTOR_OTLP_ENABLED=true
-      - COLLECTOR_ZIPKIN_HOST_PORT=:9411
+      - "16686:16686"    # Jaeger UI
+      - "4317:4317"      # OTLP gRPC (v2 native)
+      - "4318:4318"      # OTLP HTTP (v2 native)
+      - "14268:14268"    # HTTP collector (legacy compatibility)
+      - "14250:14250"    # gRPC collector (legacy compatibility)
+      - "6831:6831/udp"  # Jaeger thrift compact (legacy)
+      - "6832:6832/udp"  # Jaeger thrift binary (legacy)
+      - "9411:9411"      # Zipkin compatibility
+      - "13133:13133"    # Health check endpoint
     volumes:
+      - ./infrastructure/monitoring/jaeger/jaeger-v2-config.yml:/etc/jaeger/config.yml:ro
       - jaeger_data:/tmp
+    command: ["--config", "/etc/jaeger/config.yml"]
     networks:
       - lics-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:13133"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   # OpenTelemetry Collector
   otel-collector:
