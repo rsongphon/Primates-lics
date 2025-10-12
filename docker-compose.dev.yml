@@ -22,6 +22,12 @@ services:
     restart: unless-stopped
     stdin_open: true
     tty: true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
   # Backend Development Service
   backend-dev:
@@ -57,6 +63,12 @@ services:
     restart: unless-stopped
     stdin_open: true
     tty: true
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   # Celery Worker Development
   celery-worker-dev:
@@ -82,6 +94,12 @@ services:
     networks:
       - lics-dev-network
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.tasks.celery_app inspect ping -d celery@$$HOSTNAME"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   # Edge Agent Development (simulated) - COMMENTED OUT - Not implemented yet (Phase 4)
   # edge-agent-dev:
@@ -155,7 +173,7 @@ services:
       postgres-dev:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "psql", "-h", "localhost", "-p", "6432", "-U", "lics", "-d", "lics_dev", "-c", "SELECT 1"]
+      test: ["CMD", "nc", "-z", "localhost", "6432"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -367,7 +385,7 @@ services:
       - lics-dev-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:13133"]
+      test: ["CMD", "nc", "-z", "localhost", "13133"]
       interval: 30s
       timeout: 10s
       retries: 3
