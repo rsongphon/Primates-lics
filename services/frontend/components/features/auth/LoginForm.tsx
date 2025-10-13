@@ -57,7 +57,7 @@ export function LoginForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6" noValidate>
       {/* Email */}
       <div className="space-y-2">
         <Label htmlFor="email">Email address</Label>
@@ -67,10 +67,13 @@ export function LoginForm() {
           placeholder="you@example.com"
           autoComplete="email"
           {...register('email')}
+          aria-required="true"
+          aria-invalid={!!errors.email}
+          aria-describedby={errors.email ? 'email-error' : undefined}
           className={errors.email ? 'border-red-500' : ''}
         />
         {errors.email && (
-          <p className="text-sm text-red-600">{errors.email.message}</p>
+          <p id="email-error" className="text-sm text-red-600">{errors.email.message}</p>
         )}
       </div>
 
@@ -92,11 +95,15 @@ export function LoginForm() {
             placeholder="Enter your password"
             autoComplete="current-password"
             {...register('password')}
+            aria-required="true"
+            aria-invalid={!!errors.password}
+            aria-describedby={errors.password ? 'password-error' : undefined}
             className={errors.password ? 'border-red-500' : ''}
           />
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
+            aria-label={showPassword ? 'Hide password' : 'Show password'}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
           >
             {showPassword ? (
@@ -112,7 +119,7 @@ export function LoginForm() {
           </button>
         </div>
         {errors.password && (
-          <p className="text-sm text-red-600">{errors.password.message}</p>
+          <p id="password-error" className="text-sm text-red-600">{errors.password.message}</p>
         )}
       </div>
 

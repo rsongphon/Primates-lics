@@ -24,6 +24,16 @@ import { useAuthStore } from '@/lib/stores/auth-store'
 import * as authApi from '@/lib/api/auth'
 
 describe('Auth Store', () => {
+  // Suppress console.error for expected error tests
+  const originalError = console.error
+  beforeAll(() => {
+    console.error = jest.fn()
+  })
+
+  afterAll(() => {
+    console.error = originalError
+  })
+
   beforeEach(() => {
     // Clear storage first
     localStorage.clear()
@@ -132,22 +142,29 @@ describe('Auth Store', () => {
     })
 
     it('should handle login failure', async () => {
+      const loginError = {
+        response: {
+          data: { error: { message: 'Invalid credentials' } },
+          status: 401,
+          statusText: 'Unauthorized',
+        },
+        message: 'Invalid credentials',
+      }
+
       jest.spyOn(authApi.authApi, 'login')
-        .mockRejectedValue(mockAxiosError('Invalid credentials', 401))
+        .mockRejectedValueOnce(loginError)
 
       const { result } = renderHook(() => useAuthStore())
 
-      await act(async () => {
-        try {
+      await expect(async () => {
+        await act(async () => {
           await result.current.login({
             email: 'test@example.com',
             password: 'WrongPass123!',
             rememberMe: false,
           })
-        } catch (error) {
-          // Expected to throw
-        }
-      })
+        })
+      }).rejects.toMatchObject({ message: 'Invalid credentials' })
 
       expect(result.current.isAuthenticated).toBe(false)
       expect(result.current.user).toBeNull()
@@ -226,8 +243,20 @@ describe('Auth Store', () => {
     })
 
     it('should logout on refresh failure', async () => {
+      const refreshError = {
+        response: {
+          data: { error: { message: 'Invalid refresh token' } },
+          status: 401,
+          statusText: 'Unauthorized',
+        },
+        message: 'Invalid refresh token',
+      }
+
       jest.spyOn(authApi.authApi, 'refreshToken')
-        .mockRejectedValue(mockAxiosError('Invalid refresh token', 401))
+        .mockRejectedValueOnce(refreshError)
+
+      jest.spyOn(authApi.authApi, 'logout')
+        .mockResolvedValue(undefined as any)
 
       const { result } = renderHook(() => useAuthStore())
 
@@ -236,15 +265,18 @@ describe('Auth Store', () => {
         result.current.setTokens(mockTokens.access_token, mockTokens.refresh_token, false)
       })
 
-      await act(async () => {
-        try {
+      let caughtError
+      try {
+        await act(async () => {
           await result.current.refreshSession()
-        } catch (error) {
-          // Expected to fail
-        }
-      })
+        })
+      } catch (error) {
+        caughtError = error
+      }
 
-      expect(result.current.isAuthenticated).toBe(false)
+      expect(caughtError).toMatchObject({ message: 'Invalid refresh token' })
+      // Check store state directly instead of through hook result
+      expect(useAuthStore.getState().isAuthenticated).toBe(false)
     })
   })
 

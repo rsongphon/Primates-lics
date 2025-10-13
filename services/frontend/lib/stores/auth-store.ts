@@ -65,12 +65,24 @@ export const useAuthStore = create<AuthState>()(
       roles: [],
 
       // Setters
-      setUser: (user) =>
+      setUser: (user) => {
+        // Extract permissions from user roles
+        const permissions: string[] = [];
+        user?.roles?.forEach((role) => {
+          role.permissions?.forEach((perm) => {
+            if (!permissions.includes(perm.name)) {
+              permissions.push(perm.name);
+            }
+          });
+        });
+
         set({
           user,
+          permissions,
           isAuthenticated: !!user,
           roles: user?.roles || [],
-        }),
+        });
+      },
 
       setTokens: (accessToken, refreshToken, rememberMe = false) => {
         set({ accessToken, refreshToken, rememberMe });
@@ -116,9 +128,8 @@ export const useAuthStore = create<AuthState>()(
           const permissions: string[] = [];
           user.roles?.forEach((role) => {
             role.permissions?.forEach((perm) => {
-              const permString = `${perm.resource}:${perm.action}`;
-              if (!permissions.includes(permString)) {
-                permissions.push(permString);
+              if (!permissions.includes(perm.name)) {
+                permissions.push(perm.name);
               }
             });
           });
@@ -176,10 +187,16 @@ export const useAuthStore = create<AuthState>()(
           const response = await authApi.refreshToken(refreshToken);
           const storage = rememberMe ? localStorage : sessionStorage;
           storage.setItem('access_token', response.access_token);
-          set({ accessToken: response.access_token });
+          if (response.refresh_token) {
+            storage.setItem('refresh_token', response.refresh_token);
+          }
+          set({
+            accessToken: response.access_token,
+            refreshToken: response.refresh_token || refreshToken
+          });
         } catch (error) {
           get().stopTokenRefreshTimer();
-          get().logout();
+          await get().logout();
           throw error;
         }
       },
@@ -193,9 +210,8 @@ export const useAuthStore = create<AuthState>()(
           const permissions: string[] = [];
           user.roles?.forEach((role) => {
             role.permissions?.forEach((perm) => {
-              const permString = `${perm.resource}:${perm.action}`;
-              if (!permissions.includes(permString)) {
-                permissions.push(permString);
+              if (!permissions.includes(perm.name)) {
+                permissions.push(perm.name);
               }
             });
           });
