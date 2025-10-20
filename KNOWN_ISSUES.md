@@ -1,8 +1,8 @@
 # LICS Known Issues Documentation
 
 **Generated**: 2025-10-02
-**Last Updated**: 2025-10-02
-**System Status**: Phase 2 - Backend Core Development (Week 4, Day 5)
+**Last Updated**: 2025-10-03
+**System Status**: Phase 1 - Foundation Setup (Week 3 - Comprehensive Validation Complete)
 
 ---
 
@@ -10,14 +10,16 @@
 
 This document catalogues all known issues across the LICS platform, including infrastructure, backend application, frontend, and integration concerns. Issues are categorized by severity, implementation phase, and blocking status to facilitate prioritization and resolution planning.
 
-**Overall System Health**:
-- ✅ **Infrastructure**: 75% operational (core services stable)
-- ✅ **Backend API**: 100% operational (84 endpoints functional)
-- ✅ **Database Layer**: 100% operational (PostgreSQL, Redis fully functional)
-- ✅ **WebSocket System**: 90% operational (handlers complete, monitoring pending)
-- ⚠️ **Messaging Layer**: 80% operational (services running, minor tuning needed)
-- 🔄 **Frontend**: Not yet implemented (Phase 3)
-- 🔄 **Edge Devices**: Not yet implemented (Phase 4)
+**Overall System Health** (Phase 1 Complete):
+- ✅ **Core Infrastructure**: 85% operational (PostgreSQL, Redis, MinIO, MQTT, monitoring stack fully functional)
+- ✅ **Database Layer**: 100% operational (PostgreSQL + TimescaleDB 2.10.2, Redis with streams/pub-sub)
+- ✅ **Object Storage**: 100% operational (MinIO with all 10 buckets initialized)
+- ✅ **Monitoring Stack**: 100% operational (Prometheus, Grafana, Jaeger, Alertmanager)
+- ⚠️ **InfluxDB**: Deferred to Phase 5 (restart loop issue, not critical for Phase 2)
+- ⚠️ **PgBouncer**: Deferred to Phase 6 (connection pooling optimization)
+- 🔄 **Backend API**: Ready for Phase 2 development
+- 🔄 **Frontend**: Phase 3
+- 🔄 **Edge Devices**: Phase 4
 
 ---
 
@@ -97,38 +99,69 @@ This document catalogues all known issues across the LICS platform, including in
 
 ---
 
+#### MinIO Bucket Initialization
+**Status**: ✅ **RESOLVED**
+**Date Resolved**: 2025-10-03
+
+**Issue**: MinIO service healthy but missing 10 expected buckets
+
+**Root Cause**: Buckets not automatically created during initial MinIO setup
+
+**Resolution**:
+```bash
+# Configured MinIO client with correct credentials
+docker exec primates-lics-minio-1 mc alias set local http://localhost:9000 minioadmin minioadmin
+
+# Created all 10 required buckets
+docker exec primates-lics-minio-1 mc mb local/lics-assets local/lics-uploads local/lics-videos \
+  local/lics-data local/lics-exports local/lics-logs local/lics-backups local/lics-ml \
+  local/lics-temp local/lics-config
+```
+
+**Validation**: All 10 buckets successfully created and verified via `mc ls local`
+
+---
+
 ### 🟡 Active Issues (Need Immediate Attention)
 
 #### 1. InfluxDB Initialization Loop
-**Severity**: Medium
+**Severity**: Medium (Deferred to Phase 5)
 **Impact**: Time-series data storage unavailable
-**Status**: ⚠️ **ACTIVE ISSUE**
+**Status**: ⚠️ **DEFERRED - NOT CRITICAL FOR PHASE 2**
 
 **Problem**:
-- InfluxDB container in restart loop
+- InfluxDB 2.7.12 container in persistent restart loop
 - Error: `config name "default" already exists`
-- Bolt and engine files conflict on retry
+- Docker initialization script conflict with existing configuration
+- Issue persists even after volume removal and complete container reset
 
-**Logs**:
-```
-Error: config name "default" already exists
-warn: cleaning bolt and engine files to prevent conflicts on retry
-```
+**Root Cause**:
+- Known bug with InfluxDB 2.7.x Docker initialization mode
+- Environment variable DOCKER_INFLUXDB_INIT_MODE=setup creates config "default"
+- Config already exists in initialization cycle, causing loop
+- Volume pruning doesn't resolve as issue is in initialization script itself
 
-**Recommended Fix**:
+**Tested Fixes (Unsuccessful)**:
 ```bash
-# Option 1: Fresh start
-docker-compose down influxdb
-docker volume rm primates-lics_influxdb_data
-docker-compose up -d influxdb
+# Attempted: Volume removal
+docker-compose down influxdb && docker volume rm primates-lics_influxdb_data
 
-# Option 2: Manual initialization
-docker exec -it influxdb-container influx setup --force
+# Attempted: Complete container reset
+docker-compose down influxdb && docker volume prune -f && docker-compose up -d influxdb
+
+# Result: Issue persists in all attempts
 ```
 
-**Priority**: Medium - affects time-series data collection but not core functionality
+**Recommended Future Fix**:
+1. Downgrade to InfluxDB 2.6.x (stable initialization)
+2. Use manual initialization instead of environment variables
+3. Skip initialization mode and configure via UI/API
 
-**Implementation Phase**: Phase 2 Week 4 Day 5 (Background Tasks) or Phase 3
+**Priority**: Low for Phase 2, High for Phase 5 - Not needed for backend development, critical for advanced analytics
+
+**Implementation Phase**: Phase 5 (Advanced Analytics and Time-Series Features)
+
+**Workaround**: Use PostgreSQL + TimescaleDB for time-series data until Phase 5
 
 ---
 
@@ -153,39 +186,6 @@ docker exec -it influxdb-container influx setup --force
 **Priority**: Low - service operational, testing configuration issue
 
 **Implementation Phase**: Phase 2 Week 4 Day 5 or Phase 4 (Edge Device Development)
-
----
-
-#### 3. MinIO Bucket Initialization
-**Severity**: Low
-**Impact**: Object storage functional but missing expected bucket structure
-**Status**: ⚠️ **CONFIGURATION NEEDED**
-
-**Problem**:
-- MinIO service healthy but missing 10 expected buckets
-- Tests show `total_buckets: 0, expected_buckets: 10`
-- Missing buckets: lics-config, lics-temp, lics-logs, lics-videos, lics-data, lics-ml, lics-exports, lics-uploads, lics-assets, lics-backups
-
-**Test Results**:
-- ✅ Health checks passing
-- ✅ Basic operations functional
-- ✅ Versioning supported
-- ❌ Expected bucket structure missing
-
-**Recommended Fix**:
-```bash
-# Create buckets via MinIO client or API
-docker exec minio-container mc mb /data/lics-config
-docker exec minio-container mc mb /data/lics-temp
-# ... repeat for all 10 buckets
-
-# Or create initialization script
-./infrastructure/storage/init-buckets.sh
-```
-
-**Priority**: Low - easily fixable, doesn't block development
-
-**Implementation Phase**: Phase 2 Week 4 Day 5
 
 ---
 

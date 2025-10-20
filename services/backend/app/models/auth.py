@@ -119,10 +119,10 @@ class User(BaseModelWithSoftDelete, BaseModelWithAudit, OrganizationMixin):
 
     # Email verification
     email_verification_token: Mapped[Optional[str]] = mapped_column(
-        String(255),
+        String(512),
         nullable=True,
         index=True,
-        doc="Token for email verification"
+        doc="Token for email verification (JWT)"
     )
 
     email_verified_at: Mapped[Optional[datetime]] = mapped_column(
@@ -133,10 +133,10 @@ class User(BaseModelWithSoftDelete, BaseModelWithAudit, OrganizationMixin):
 
     # Password reset
     password_reset_token: Mapped[Optional[str]] = mapped_column(
-        String(255),
+        String(512),
         nullable=True,
         index=True,
-        doc="Token for password reset"
+        doc="Token for password reset (JWT)"
     )
 
     password_reset_expires_at: Mapped[Optional[datetime]] = mapped_column(

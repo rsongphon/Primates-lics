@@ -12,6 +12,11 @@ from typing import Final
 class DeviceEvent(str, Enum):
     """Device-related WebSocket events."""
 
+    # Device subscription
+    SUBSCRIBE = "device.subscribe"
+    UNSUBSCRIBE = "device.unsubscribe"
+    SUBSCRIBED = "device.subscribed"
+
     # Device telemetry and data
     TELEMETRY = "device.telemetry"
     DATA = "device.data"
@@ -38,6 +43,10 @@ class DeviceEvent(str, Enum):
 
 class ExperimentEvent(str, Enum):
     """Experiment-related WebSocket events."""
+
+    # Experiment subscription
+    SUBSCRIBE = "experiment.subscribe"
+    UNSUBSCRIBE = "experiment.unsubscribe"
 
     # Experiment lifecycle
     CREATED = "experiment.created"
@@ -67,6 +76,10 @@ class ExperimentEvent(str, Enum):
 
 class TaskEvent(str, Enum):
     """Task-related WebSocket events."""
+
+    # Task subscription
+    SUBSCRIBE_EXECUTION = "task.subscribe_execution"
+    UNSUBSCRIBE_EXECUTION = "task.unsubscribe_execution"
 
     # Task lifecycle
     CREATED = "task.created"

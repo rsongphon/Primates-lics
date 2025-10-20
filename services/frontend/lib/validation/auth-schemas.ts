@@ -64,11 +64,15 @@ export type RegisterProfileData = z.infer<typeof registerProfileSchema>;
  * Registration form schema - Step 3 (Organization)
  */
 export const registerOrganizationSchema = z.object({
-  organizationName: z.string().min(1, 'Organization name is required').max(100),
+  organizationName: z.string().max(100).optional(),
   joinExisting: z.boolean().default(false),
   organizationCode: z.string().optional(),
 }).refine(
   (data) => {
+    // If creating new organization, name is required
+    if (!data.joinExisting && !data.organizationName) {
+      return false;
+    }
     // If joining existing organization, code is required
     if (data.joinExisting && !data.organizationCode) {
       return false;
@@ -76,8 +80,8 @@ export const registerOrganizationSchema = z.object({
     return true;
   },
   {
-    message: 'Organization code is required when joining an existing organization',
-    path: ['organizationCode'],
+    message: 'Organization name is required when creating a new organization, or code is required when joining',
+    path: ['organizationName'],
   }
 );
 

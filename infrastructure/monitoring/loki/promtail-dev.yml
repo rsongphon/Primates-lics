@@ -1,0 +1,78 @@
+# Promtail Development Configuration
+# Log collection agent for LICS development services
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki-dev:3100/loki/api/v1/push
+
+scrape_configs:
+  # LICS Backend Application Logs
+  - job_name: lics-backend-dev
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: lics-backend-dev
+          service: backend
+          environment: development
+          __path__: /host/logs/backend-dev/*.log
+
+  # LICS Frontend Application Logs
+  - job_name: lics-frontend-dev
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: lics-frontend-dev
+          service: frontend
+          environment: development
+          __path__: /host/logs/frontend-dev/*.log
+
+  # Celery Worker Logs
+  - job_name: celery-worker-dev
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: celery-worker-dev
+          service: celery
+          environment: development
+          __path__: /host/logs/celery-dev/*.log
+
+  # Docker Container Logs
+  - job_name: docker-containers-dev
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: label
+            values: ["com.docker.compose.project=primates-lics"]
+    relabel_configs:
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container_name'
+      - source_labels: ['__meta_docker_container_log_stream']
+        target_label: 'log_stream'
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
+        target_label: 'compose_service'
+    pipeline_stages:
+      - docker: {}
+      - match:
+          selector: '{compose_service=~".*-dev|postgres-dev|redis-dev|mqtt-dev|minio-dev"}'
+          stages:
+            - multiline:
+                firstline: '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}'
+                max_wait_time: 3s
+            - regex:
+                expression: '^(?P<timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[.\d]*Z?) (?P<level>\w+) (?P<message>.*)'
+            - labels:
+                level:
+            - timestamp:
+                source: timestamp
+                format: RFC3339

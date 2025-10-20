@@ -36,6 +36,14 @@ import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import statistics
 
+# Import centralized test configuration
+try:
+    from test_config import get_test_config
+    TEST_CONFIG = get_test_config()
+except ImportError:
+    print("Warning: test_config.py not found. Using default ports.")
+    TEST_CONFIG = None
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -46,6 +54,100 @@ logging.basicConfig(
     ]
 )
 logger = logging.getLogger(__name__)
+
+def check_and_install_dependencies() -> bool:
+    """
+    Check for missing Python dependencies and offer to install them.
+
+    Returns:
+        bool: True if all dependencies are available, False otherwise
+    """
+    required_packages = {
+        'asyncpg': 'asyncpg',
+        'redis': 'redis',
+        'influxdb_client': 'influxdb-client',
+        'requests': 'requests',
+        'docker': 'docker',
+        'paho.mqtt.client': 'paho-mqtt',
+        'minio': 'minio'
+    }
+
+    missing_packages = []
+
+    # Check which packages are missing
+    for module_name, package_name in required_packages.items():
+        try:
+            __import__(module_name.replace('.', '_'))
+        except ImportError:
+            missing_packages.append(package_name)
+
+    if not missing_packages:
+        return True
+
+    # Inform user about missing packages
+    print("\n" + "=" * 80)
+    print("Missing Python Dependencies")
+    print("=" * 80)
+    print(f"\nThe following packages are required but not installed:")
+    for package in missing_packages:
+        print(f"  • {package}")
+
+    print(f"\nThese packages are needed to run integration tests that validate:")
+    print("  • Database connectivity (asyncpg, redis, influxdb-client)")
+    print("  • MQTT messaging (paho-mqtt)")
+    print("  • Object storage (minio)")
+    print("  • Container orchestration (docker)")
+    print("  • HTTP requests (requests)")
+
+    print("\nOptions:")
+    print("  1. Install automatically (recommended)")
+    print("  2. Skip - Run with limited functionality (some tests will be skipped)")
+    print("  3. Exit - Install manually and re-run")
+
+    while True:
+        choice = input("\nChoose an option [1/2/3]: ").strip()
+
+        if choice == '1':
+            print(f"\n📦 Installing missing packages...")
+            try:
+                import subprocess
+                install_cmd = [sys.executable, "-m", "pip", "install"] + missing_packages
+                result = subprocess.run(
+                    install_cmd,
+                    capture_output=True,
+                    text=True
+                )
+
+                if result.returncode == 0:
+                    print("✅ All packages installed successfully!")
+                    print("\n" + "=" * 80 + "\n")
+                    return True
+                else:
+                    print(f"❌ Installation failed: {result.stderr}")
+                    print("\nYou can install manually with:")
+                    print(f"  pip install {' '.join(missing_packages)}")
+                    return False
+
+            except Exception as e:
+                print(f"❌ Installation failed: {e}")
+                print("\nYou can install manually with:")
+                print(f"  pip install {' '.join(missing_packages)}")
+                return False
+
+        elif choice == '2':
+            print("\n⚠️  Running with limited functionality.")
+            print("Some integration tests will be skipped due to missing dependencies.")
+            print("=" * 80 + "\n")
+            return False
+
+        elif choice == '3':
+            print("\n💡 To install dependencies manually, run:")
+            print(f"  pip install {' '.join(missing_packages)}")
+            print("\nThen re-run this script.")
+            sys.exit(0)
+
+        else:
+            print("Invalid choice. Please enter 1, 2, or 3.")
 
 class SystemIntegrationTestSuite:
     """End-to-end system integration testing orchestrator."""
@@ -149,26 +251,32 @@ class SystemIntegrationTestSuite:
             result["checks"]["docker_compose"] = {"available": False, "error": str(e)}
             result["errors"].append(f"Docker Compose not available: {e}")
 
-        # Check Python dependencies
+        # Check Python dependencies (informational only - tests will be skipped if modules missing)
         required_modules = [
             'asyncpg', 'redis', 'influxdb_client', 'requests',
             'docker', 'paho.mqtt.client', 'minio'
         ]
 
         missing_modules = []
+        available_modules = []
         for module_name in required_modules:
             try:
                 __import__(module_name.replace('.', '_'))
+                available_modules.append(module_name)
             except ImportError:
                 missing_modules.append(module_name)
 
         result["checks"]["python_dependencies"] = {
             "all_available": len(missing_modules) == 0,
+            "available_modules": available_modules,
             "missing_modules": missing_modules
         }
 
         if missing_modules:
-            result["errors"].append(f"Missing Python modules: {', '.join(missing_modules)}")
+            # Non-fatal warning - tests will be skipped if modules are unavailable
+            logger.warning(f"⚠️  Some Python modules are not available on the host: {', '.join(missing_modules)}")
+            logger.warning(f"⚠️  Integration tests requiring these modules will be skipped")
+            logger.warning(f"⚠️  To run full tests, execute inside a container with: docker-compose exec backend-dev python tools/scripts/test-system-integration.py")
 
         # Check if services are running
         try:
@@ -185,10 +293,10 @@ class SystemIntegrationTestSuite:
                 running_services = 0
                 if services_output:
                     for line in services_output.split('\n'):
-                        if line.strip():
+                        if line.strip() and line.strip().startswith('{'):
                             try:
                                 service_info = json.loads(line)
-                                if "Up" in service_info.get("State", ""):
+                                if "Up" in service_info.get("State", "") or "running" in service_info.get("State", "").lower():
                                     running_services += 1
                             except json.JSONDecodeError:
                                 pass
@@ -236,13 +344,14 @@ class SystemIntegrationTestSuite:
         except Exception as e:
             result["checks"]["disk_space"] = {"sufficient": True, "error": str(e)}
 
-        # Overall health assessment
+        # Overall health assessment - only critical infrastructure checks must pass
+        # Python modules are optional (tests will be skipped if unavailable)
         critical_checks = ["docker", "docker_compose", "running_services"]
         critical_passed = sum(1 for check in critical_checks
                             if result["checks"].get(check, {}).get("available", False) or
                                result["checks"].get(check, {}).get("services_detected", False))
 
-        result["healthy"] = critical_passed >= len(critical_checks) and len(missing_modules) == 0
+        result["healthy"] = critical_passed >= len(critical_checks)
 
         return result
 
@@ -401,54 +510,97 @@ class SystemIntegrationTestSuite:
             "errors": []
         }
 
+        # Get configuration from TEST_CONFIG or use defaults
+        if TEST_CONFIG:
+            pg_config = TEST_CONFIG['postgresql']
+            redis_config = TEST_CONFIG['redis']
+            mqtt_config = TEST_CONFIG['mqtt']
+            minio_port = int(TEST_CONFIG['minio']['endpoint'].split(':')[1])
+        else:
+            # Fallback to development ports
+            pg_config = {'host': 'localhost', 'port': 5433, 'user': 'lics', 'password': 'lics123', 'database': 'lics_dev'}
+            redis_config = {'host': 'localhost', 'port': 6380}
+            mqtt_config = {'host': 'localhost', 'port': 1884}
+            minio_port = 9010
+
         # Test database connections from different services
         try:
             # Test PostgreSQL accessibility
-            import asyncpg
             try:
-                conn = await asyncpg.connect(
-                    host='localhost', port=5432, user='lics',
-                    password='lics123', database='lics'
-                )
-                await conn.fetchval("SELECT 1")
-                await conn.close()
-                result["tests"]["postgresql_connectivity"] = {"status": "passed"}
-            except Exception as e:
-                result["tests"]["postgresql_connectivity"] = {"status": "failed", "error": str(e)}
-                result["errors"].append(f"PostgreSQL connectivity failed: {e}")
+                import asyncpg
+            except ImportError:
+                result["tests"]["postgresql_connectivity"] = {"status": "skipped", "error": "asyncpg module not available"}
+                logger.warning("⚠️  Skipping PostgreSQL test - asyncpg module not available")
+            else:
+                try:
+                    conn = await asyncpg.connect(
+                        host=pg_config['host'],
+                        port=pg_config['port'],
+                        user=pg_config['user'],
+                        password=pg_config['password'],
+                        database=pg_config['database']
+                    )
+                    await conn.fetchval("SELECT 1")
+                    await conn.close()
+                    result["tests"]["postgresql_connectivity"] = {"status": "passed"}
+                except Exception as e:
+                    result["tests"]["postgresql_connectivity"] = {"status": "failed", "error": str(e)}
+                    result["errors"].append(f"PostgreSQL connectivity failed: {e}")
 
             # Test Redis accessibility
-            import redis.asyncio as redis
             try:
-                redis_client = redis.Redis(host='localhost', port=6379, decode_responses=True)
-                await redis_client.ping()
-                await redis_client.close()
-                result["tests"]["redis_connectivity"] = {"status": "passed"}
-            except Exception as e:
-                result["tests"]["redis_connectivity"] = {"status": "failed", "error": str(e)}
-                result["errors"].append(f"Redis connectivity failed: {e}")
+                import redis.asyncio as redis
+            except ImportError:
+                result["tests"]["redis_connectivity"] = {"status": "skipped", "error": "redis module not available"}
+                logger.warning("⚠️  Skipping Redis test - redis module not available")
+            else:
+                try:
+                    redis_client = redis.Redis(
+                        host=redis_config['host'],
+                        port=redis_config['port'],
+                        decode_responses=True
+                    )
+                    await redis_client.ping()
+                    await redis_client.close()
+                    result["tests"]["redis_connectivity"] = {"status": "passed"}
+                except Exception as e:
+                    result["tests"]["redis_connectivity"] = {"status": "failed", "error": str(e)}
+                    result["errors"].append(f"Redis connectivity failed: {e}")
 
             # Test MQTT broker accessibility
-            import asyncio_mqtt
             try:
-                async with asyncio_mqtt.Client(hostname='localhost', port=1883) as client:
-                    await client.publish("lics/test/connectivity", "test")
-                result["tests"]["mqtt_connectivity"] = {"status": "passed"}
-            except Exception as e:
-                result["tests"]["mqtt_connectivity"] = {"status": "failed", "error": str(e)}
-                result["errors"].append(f"MQTT connectivity failed: {e}")
+                import aiomqtt
+            except ImportError:
+                result["tests"]["mqtt_connectivity"] = {"status": "skipped", "error": "aiomqtt module not available"}
+                logger.warning("⚠️  Skipping MQTT test - aiomqtt module not available")
+            else:
+                try:
+                    async with aiomqtt.Client(
+                        hostname=mqtt_config['host'],
+                        port=mqtt_config['port']
+                    ) as client:
+                        await client.publish("lics/test/connectivity", b"test")
+                    result["tests"]["mqtt_connectivity"] = {"status": "passed"}
+                except Exception as e:
+                    result["tests"]["mqtt_connectivity"] = {"status": "failed", "error": str(e)}
+                    result["errors"].append(f"MQTT connectivity failed: {e}")
 
             # Test MinIO accessibility
-            import requests
             try:
-                response = requests.get("http://localhost:9000/minio/health/live", timeout=5)
-                if response.status_code == 200:
-                    result["tests"]["minio_connectivity"] = {"status": "passed"}
-                else:
-                    result["tests"]["minio_connectivity"] = {"status": "failed", "error": f"HTTP {response.status_code}"}
-            except Exception as e:
-                result["tests"]["minio_connectivity"] = {"status": "failed", "error": str(e)}
-                result["errors"].append(f"MinIO connectivity failed: {e}")
+                import requests
+            except ImportError:
+                result["tests"]["minio_connectivity"] = {"status": "skipped", "error": "requests module not available"}
+                logger.warning("⚠️  Skipping MinIO test - requests module not available")
+            else:
+                try:
+                    response = requests.get(f"http://localhost:{minio_port}/minio/health/live", timeout=5)
+                    if response.status_code == 200:
+                        result["tests"]["minio_connectivity"] = {"status": "passed"}
+                    else:
+                        result["tests"]["minio_connectivity"] = {"status": "failed", "error": f"HTTP {response.status_code}"}
+                except Exception as e:
+                    result["tests"]["minio_connectivity"] = {"status": "failed", "error": str(e)}
+                    result["errors"].append(f"MinIO connectivity failed: {e}")
 
             # Overall assessment
             passed_tests = sum(1 for test in result["tests"].values() if test.get("status") == "passed")
@@ -471,16 +623,33 @@ class SystemIntegrationTestSuite:
             "errors": []
         }
 
+        # Get configuration from TEST_CONFIG or use defaults
+        if TEST_CONFIG:
+            pg_config = TEST_CONFIG['postgresql']
+            redis_config = TEST_CONFIG['redis']
+            mqtt_config = TEST_CONFIG['mqtt']
+            influx_config = TEST_CONFIG['influxdb']
+        else:
+            # Fallback to development ports
+            pg_config = {'host': 'localhost', 'port': 5433, 'user': 'lics', 'password': 'lics123', 'database': 'lics_dev'}
+            redis_config = {'host': 'localhost', 'port': 6380}
+            mqtt_config = {'host': 'localhost', 'port': 1884}
+            influx_config = {'url': 'http://localhost:8087', 'token': 'lics-dev-admin-token', 'org': 'lics-dev', 'bucket': 'telemetry-dev'}
+
         try:
             # Test MQTT -> Redis flow
             try:
-                import asyncio_mqtt
+                import aiomqtt
                 import redis.asyncio as redis
                 import json
                 import uuid
 
                 # Set up Redis subscriber
-                redis_client = redis.Redis(host='localhost', port=6379, decode_responses=True)
+                redis_client = redis.Redis(
+                    host=redis_config['host'],
+                    port=redis_config['port'],
+                    decode_responses=True
+                )
                 pubsub = redis_client.pubsub()
                 channel = "lics:test:data_flow"
                 await pubsub.subscribe(channel)
@@ -492,8 +661,11 @@ class SystemIntegrationTestSuite:
                     "timestamp": datetime.now().isoformat()
                 }
 
-                async with asyncio_mqtt.Client(hostname='localhost', port=1883) as mqtt_client:
-                    await mqtt_client.publish("lics/test/data_flow", json.dumps(test_message))
+                async with aiomqtt.Client(
+                    hostname=mqtt_config['host'],
+                    port=mqtt_config['port']
+                ) as mqtt_client:
+                    await mqtt_client.publish("lics/test/data_flow", json.dumps(test_message).encode())
 
                 # Simulate message processing (would normally be done by backend service)
                 await redis_client.publish(channel, json.dumps(test_message))
@@ -528,8 +700,11 @@ class SystemIntegrationTestSuite:
 
                 # Write test data to PostgreSQL
                 conn = await asyncpg.connect(
-                    host='localhost', port=5432, user='lics',
-                    password='lics123', database='lics'
+                    host=pg_config['host'],
+                    port=pg_config['port'],
+                    user=pg_config['user'],
+                    password=pg_config['password'],
+                    database=pg_config['database']
                 )
 
                 test_device_id = str(uuid.uuid4())
@@ -549,9 +724,9 @@ class SystemIntegrationTestSuite:
 
                 # Simulate writing to InfluxDB (would normally be done by backend service)
                 influx_client = InfluxDBClient(
-                    url="http://localhost:8086",
-                    token="lics-admin-token-change-in-production",
-                    org="lics"
+                    url=influx_config['url'],
+                    token=influx_config['token'],
+                    org=influx_config['org']
                 )
 
                 write_api = influx_client.write_api(write_options=SYNCHRONOUS)
@@ -560,12 +735,12 @@ class SystemIntegrationTestSuite:
                     .field("temperature", 25.5) \
                     .time(datetime.now())
 
-                write_api.write(bucket="telemetry", record=point)
+                write_api.write(bucket=influx_config['bucket'], record=point)
 
                 # Verify data in InfluxDB
                 query_api = influx_client.query_api()
                 query = f'''
-                    from(bucket: "telemetry")
+                    from(bucket: "{influx_config['bucket']}")
                     |> range(start: -1h)
                     |> filter(fn: (r) => r._measurement == "test_measurement")
                     |> filter(fn: (r) => r.device_id == "{test_device_id}")
@@ -732,13 +907,15 @@ class SystemIntegrationTestSuite:
         # Check prerequisites first
         prerequisites = self.check_prerequisites()
         if not prerequisites["healthy"]:
-            return {
+            result = {
                 "timestamp": datetime.now().isoformat(),
                 "duration_seconds": 0,
                 "overall_healthy": False,
                 "error": "Prerequisites check failed",
                 "prerequisites": prerequisites
             }
+            self.results = result
+            return result
 
         # Determine which test suites to run
         suites_to_run = included_suites if included_suites else list(self.test_suites.keys())
@@ -817,13 +994,15 @@ class SystemIntegrationTestSuite:
 
         except Exception as e:
             logger.error(f"System test execution failed: {e}")
-            return {
+            result = {
                 "timestamp": datetime.now().isoformat(),
                 "duration_seconds": round(time.time() - self.start_time, 2),
                 "overall_healthy": False,
                 "error": str(e),
                 "prerequisites": prerequisites
             }
+            self.results = result
+            return result
 
         # Calculate overall results
         total_duration = time.time() - self.start_time
@@ -904,6 +1083,10 @@ class SystemIntegrationTestSuite:
 
     def format_results(self, format_type: str = "text") -> str:
         """Format system integration test results."""
+        # Check if results is empty or missing required keys
+        if not self.results:
+            return "❌ No test results available"
+
         if format_type == "json":
             return json.dumps(self.results, indent=2)
 
@@ -912,61 +1095,67 @@ class SystemIntegrationTestSuite:
         output.append("=" * 100)
         output.append("LICS SYSTEM INTEGRATION TEST REPORT")
         output.append("=" * 100)
-        output.append(f"Timestamp: {self.results['timestamp']}")
-        output.append(f"Duration: {self.results['duration_seconds']}s")
-        output.append(f"Overall Status: {'✅ HEALTHY' if self.results['overall_healthy'] else '❌ UNHEALTHY'}")
+        output.append(f"Timestamp: {self.results.get('timestamp', 'N/A')}")
+        output.append(f"Duration: {self.results.get('duration_seconds', 0)}s")
+        output.append(f"Overall Status: {'✅ HEALTHY' if self.results.get('overall_healthy', False) else '❌ UNHEALTHY'}")
         output.append("")
 
         # Test configuration
-        config = self.results["test_configuration"]
-        output.append("Test Configuration:")
-        output.append(f"  Quick Mode: {config['quick_mode']}")
-        output.append(f"  Benchmark Mode: {config['benchmark_mode']}")
-        output.append(f"  Stress Mode: {config['stress_mode']}")
-        output.append(f"  Parallel Mode: {config['parallel_mode']}")
-        output.append(f"  Included Suites: {', '.join(config['included_suites'])}")
-        output.append("")
-
-        # Summary
-        summary = self.results["summary"]
-        output.append(f"Summary:")
-        output.append(f"  Test Suites: {summary['healthy_test_suites']}/{summary['total_test_suites']} healthy")
-        output.append(f"  Integration Scenarios: {summary['healthy_integration_scenarios']}/{summary['total_integration_scenarios']} healthy")
-        output.append(f"  Overall Success Rate: {summary['overall_success_rate']}%")
-        output.append("")
-
-        # Prerequisites
-        prereq = self.results["prerequisites"]
-        output.append(f"Prerequisites: {'✅ PASSED' if prereq['healthy'] else '❌ FAILED'}")
-        if not prereq["healthy"] and prereq.get("errors"):
-            for error in prereq["errors"]:
-                output.append(f"  ❌ {error}")
-        output.append("")
-
-        # Test Suites Results
-        output.append("TEST SUITES RESULTS:")
-        output.append("-" * 50)
-        for suite_name, suite_result in self.results["test_suites"].items():
-            status_icon = "✅" if suite_result.get("healthy", False) else "❌"
-            output.append(f"{status_icon} {suite_result.get('name', suite_name)}")
-            output.append(f"   Duration: {suite_result.get('duration_seconds', 0)}s")
-
-            if suite_result.get("error"):
-                output.append(f"   Error: {suite_result['error']}")
-            elif suite_result.get("test_results"):
-                test_results = suite_result["test_results"]
-                if "summary" in test_results:
-                    summary_data = test_results["summary"]
-                    if isinstance(summary_data, dict):
-                        for key, value in summary_data.items():
-                            output.append(f"   {key}: {value}")
+        config = self.results.get("test_configuration", {})
+        if config:
+            output.append("Test Configuration:")
+            output.append(f"  Quick Mode: {config.get('quick_mode', False)}")
+            output.append(f"  Benchmark Mode: {config.get('benchmark_mode', False)}")
+            output.append(f"  Stress Mode: {config.get('stress_mode', False)}")
+            output.append(f"  Parallel Mode: {config.get('parallel_mode', False)}")
+            output.append(f"  Included Suites: {', '.join(config.get('included_suites', []))}")
             output.append("")
 
+        # Summary
+        summary = self.results.get("summary", {})
+        if summary:
+            output.append(f"Summary:")
+            output.append(f"  Test Suites: {summary.get('healthy_test_suites', 0)}/{summary.get('total_test_suites', 0)} healthy")
+            output.append(f"  Integration Scenarios: {summary.get('healthy_integration_scenarios', 0)}/{summary.get('total_integration_scenarios', 0)} healthy")
+            output.append(f"  Overall Success Rate: {summary.get('overall_success_rate', 0)}%")
+            output.append("")
+
+        # Prerequisites
+        prereq = self.results.get("prerequisites", {})
+        if prereq:
+            output.append(f"Prerequisites: {'✅ PASSED' if prereq.get('healthy', False) else '❌ FAILED'}")
+            if not prereq.get("healthy", False) and prereq.get("errors"):
+                for error in prereq.get("errors", []):
+                    output.append(f"  ❌ {error}")
+            output.append("")
+
+        # Test Suites Results
+        test_suites = self.results.get("test_suites", {})
+        if test_suites:
+            output.append("TEST SUITES RESULTS:")
+            output.append("-" * 50)
+            for suite_name, suite_result in test_suites.items():
+                status_icon = "✅" if suite_result.get("healthy", False) else "❌"
+                output.append(f"{status_icon} {suite_result.get('name', suite_name)}")
+                output.append(f"   Duration: {suite_result.get('duration_seconds', 0)}s")
+
+                if suite_result.get("error"):
+                    output.append(f"   Error: {suite_result['error']}")
+                elif suite_result.get("test_results"):
+                    test_results = suite_result["test_results"]
+                    if "summary" in test_results:
+                        summary_data = test_results["summary"]
+                        if isinstance(summary_data, dict):
+                            for key, value in summary_data.items():
+                                output.append(f"   {key}: {value}")
+                output.append("")
+
         # Integration Scenarios Results
-        if self.results["integration_scenarios"]:
+        integration_scenarios = self.results.get("integration_scenarios", {})
+        if integration_scenarios:
             output.append("INTEGRATION SCENARIOS RESULTS:")
             output.append("-" * 50)
-            for scenario_name, scenario_result in self.results["integration_scenarios"].items():
+            for scenario_name, scenario_result in integration_scenarios.items():
                 status_icon = "✅" if scenario_result.get("healthy", False) else "❌"
                 output.append(f"{status_icon} {scenario_result.get('name', scenario_name)}")
 
@@ -1008,11 +1197,11 @@ class SystemIntegrationTestSuite:
                 output.append("")
 
         # Recommendations
-        if not self.results["overall_healthy"]:
+        if not self.results.get("overall_healthy", False):
             output.append("RECOMMENDATIONS:")
             output.append("-" * 50)
 
-            if not prereq["healthy"]:
+            if prereq and not prereq.get("healthy", False):
                 output.append("1. Fix prerequisite issues before running tests")
                 if "docker" in str(prereq.get("errors", [])):
                     output.append("   - Ensure Docker is installed and running")
@@ -1021,7 +1210,7 @@ class SystemIntegrationTestSuite:
                 if "missing modules" in str(prereq.get("errors", [])):
                     output.append("   - Install missing Python dependencies")
 
-            unhealthy_suites = [name for name, result in self.results["test_suites"].items()
+            unhealthy_suites = [name for name, result in self.results.get("test_suites", {}).items()
                               if not result.get("healthy", False)]
             if unhealthy_suites:
                 output.append("2. Address failed test suites:")
@@ -1053,6 +1242,10 @@ async def main():
                        help='Exit with non-zero code if tests fail')
 
     args = parser.parse_args()
+
+    # Check and install dependencies if needed (only in interactive mode)
+    if sys.stdin.isatty() and sys.stdout.isatty():
+        check_and_install_dependencies()
 
     # Parse included suites
     included_suites = None

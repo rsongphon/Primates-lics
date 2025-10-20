@@ -52,6 +52,8 @@ services:
       - MINIO_SECRET_KEY=lics-dev-minio-password-2024
     volumes:
       - ./services/backend:/app
+      - ./infrastructure/database:/infrastructure/database
+      - ./tools:/tools:ro
       - ./logs/backend-dev:/app/logs
     depends_on:
       postgres-dev:
@@ -85,6 +87,8 @@ services:
       - CELERY_RESULT_BACKEND=redis://redis-dev:6379/1
     volumes:
       - ./services/backend:/app
+      - ./infrastructure/database:/infrastructure/database
+      - ./tools:/tools:ro
       - ./logs/celery-dev:/app/logs
     depends_on:
       postgres-dev:
@@ -403,6 +407,156 @@ services:
       - lics-dev-network
     restart: unless-stopped
 
+  # Prometheus - Metrics Collection (Development)
+  prometheus-dev:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infrastructure/monitoring/prometheus-dev.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infrastructure/monitoring/prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus_dev_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=7d'
+      - '--web.enable-lifecycle'
+    networks:
+      - lics-dev-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Grafana - Visualization Dashboards (Development)
+  grafana-dev:
+    image: grafana/grafana:latest
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=http://localhost:3001
+      - GF_INSTALL_PLUGINS=redis-datasource
+    volumes:
+      - grafana_dev_data:/var/lib/grafana
+      - ./infrastructure/monitoring/grafana/provisioning/datasources/datasources-dev.yml:/etc/grafana/provisioning/datasources/datasources-dev.yml:ro
+      - ./infrastructure/monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./infrastructure/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - lics-dev-network
+    restart: unless-stopped
+    depends_on:
+      prometheus-dev:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Loki - Log Aggregation (Development)
+  loki-dev:
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    command: -config.file=/etc/loki/loki.yml
+    volumes:
+      - ./infrastructure/monitoring/loki/loki-dev.yml:/etc/loki/loki.yml:ro
+      - loki_dev_data:/loki
+    networks:
+      - lics-dev-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3100/ready"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  # Promtail - Log Collection Agent (Development)
+  promtail-dev:
+    image: grafana/promtail:latest
+    volumes:
+      - ./infrastructure/monitoring/loki/promtail-dev.yml:/etc/promtail/promtail.yml:ro
+      - /var/log:/var/log:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./logs:/host/logs:ro
+    command: -config.file=/etc/promtail/promtail.yml
+    networks:
+      - lics-dev-network
+    restart: unless-stopped
+    depends_on:
+      loki-dev:
+        condition: service_healthy
+
+  # Alertmanager - Alert Handling (Development)
+  alertmanager-dev:
+    image: prom/alertmanager:latest
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./infrastructure/monitoring/alertmanager/alertmanager-dev.yml:/etc/alertmanager/alertmanager.yml:ro
+      - alertmanager_dev_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+    networks:
+      - lics-dev-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # PostgreSQL Exporter (Development)
+  postgres-exporter-dev:
+    image: prometheuscommunity/postgres-exporter:latest
+    ports:
+      - "9187:9187"
+    environment:
+      - DATA_SOURCE_NAME=postgresql://lics:lics123@postgres-dev:5432/lics_dev?sslmode=disable
+    networks:
+      - lics-dev-network
+    restart: unless-stopped
+    depends_on:
+      postgres-dev:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9187/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Redis Exporter (Development)
+  redis-exporter-dev:
+    image: oliver006/redis_exporter:latest
+    ports:
+      - "9121:9121"
+    environment:
+      - REDIS_ADDR=redis://redis-dev:6379
+      - REDIS_EXPORTER_LOG_FORMAT=json
+    networks:
+      - lics-dev-network
+    restart: unless-stopped
+    depends_on:
+      redis-dev:
+        condition: service_healthy
+    # Note: No healthcheck - distroless container has no shell/tools for health checks
+    # Service exposes metrics at :9121/metrics and is monitored by Prometheus
+
 networks:
   lics-dev-network:
     driver: bridge
@@ -423,4 +577,12 @@ volumes:
   influxdb_dev_data:
     driver: local
   pgadmin_dev_data:
+    driver: local
+  prometheus_dev_data:
+    driver: local
+  grafana_dev_data:
+    driver: local
+  loki_dev_data:
+    driver: local
+  alertmanager_dev_data:
     driver: local

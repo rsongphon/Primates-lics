@@ -144,6 +144,10 @@ class Settings(BaseSettings):
     SESSION_COOKIE_SAMESITE: str = "lax"
     SESSION_MAX_AGE: int = 86400  # 24 hours in seconds
 
+    # Account Security - Login Attempts
+    MAX_LOGIN_ATTEMPTS: int = 5
+    ACCOUNT_LOCK_DURATION_MINUTES: int = 15
+
     # JWT Cookie Configuration
     JWT_COOKIE_NAME: str = "lics_access_token"
     JWT_REFRESH_COOKIE_NAME: str = "lics_refresh_token"

@@ -1,0 +1,10 @@
+- For implementation details and progress tracking, refer to @Plan.md
+- For architectural reference and detailed specifications, refer to @Documentation.md
+
+
+- When implementing features, use @Documentation.md as a reference for implementation details
+- After implementing features, update @Plan.md and @README.md with completed tasks
+- Always test the feature after implementation. If successful, document the progress in @Plan.md
+
+### Current Project Status
+For detailed implementation progress and completed features, see @Plan.md

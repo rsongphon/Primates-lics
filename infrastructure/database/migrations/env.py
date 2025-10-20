@@ -30,7 +30,15 @@ if config.config_file_name is not None:
 
 # Import all the models so they are available to Alembic
 import sys
-sys.path.append('../../services/backend')
+from pathlib import Path
+
+# Add backend path to Python path - works in both development and container
+backend_path = Path(__file__).parent.parent.parent / "services" / "backend"
+if not backend_path.exists():
+    # Try alternative path for Docker container
+    backend_path = Path("/app")
+
+sys.path.insert(0, str(backend_path))
 
 try:
     # Import the FastAPI application models
@@ -43,6 +51,7 @@ try:
 
 except ImportError as e:
     print(f"Warning: Could not import FastAPI models: {e}")
+    print(f"Backend path attempted: {backend_path}")
     print("Falling back to basic configuration")
 
     # Fallback to basic configuration

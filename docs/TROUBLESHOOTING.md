@@ -2,22 +2,30 @@
 
 This guide helps you resolve common issues encountered during LICS development and deployment.
 
+## ⚠️ Important: Docker-First Development
+
+**All LICS services run in Docker containers.** Most troubleshooting commands should be executed inside containers using:
+
+```bash
+docker-compose -f docker-compose.dev.yml exec <service-name> <command>
+```
+
 ## Quick Diagnosis
 
 Run these commands to quickly check your system status:
 
 ```bash
-# Check overall project status
-make status
+# Check Docker containers status
+docker-compose -f docker-compose.dev.yml ps
 
 # Check service health
 make health-check
 
-# Verify SSL certificates
-make ssl-verify
+# View all service logs
+docker-compose -f docker-compose.dev.yml logs -f
 
-# Check Docker status
-docker-compose ps
+# Check specific service logs
+docker-compose -f docker-compose.dev.yml logs -f backend-dev
 ```
 
 ---
@@ -152,38 +160,42 @@ docker volume prune
 **Issue:** Cannot connect to database
 ```bash
 # Check if PostgreSQL container is running
-docker-compose ps postgres-dev
+docker-compose -f docker-compose.dev.yml ps postgres-dev
 
 # Check database logs
-docker-compose logs postgres-dev
+docker-compose -f docker-compose.dev.yml logs postgres-dev
 
-# Reset database
-make db-reset
+# Check connection manually from backend container
+docker-compose -f docker-compose.dev.yml exec backend-dev python -c "from app.core.database import engine; print('Connected!')"
 
-# Check connection manually
-docker-compose exec postgres-dev psql -U lics -d lics_dev
+# Or connect directly to PostgreSQL
+docker-compose -f docker-compose.dev.yml exec postgres-dev psql -U lics -d lics_dev
 ```
 
 **Issue:** Database migration errors
 ```bash
+# Run migrations inside backend container
+docker-compose -f docker-compose.dev.yml exec backend-dev alembic upgrade head
+
 # Check migration status
-make db-migrate
+docker-compose -f docker-compose.dev.yml exec backend-dev alembic current
 
 # Rollback and retry
-make db-rollback
-make db-migrate
+docker-compose -f docker-compose.dev.yml exec backend-dev alembic downgrade -1
+docker-compose -f docker-compose.dev.yml exec backend-dev alembic upgrade head
 
-# Reset if corrupted
-make db-reset
+# Reset if corrupted (destroys data!)
+docker-compose -f docker-compose.dev.yml down -v
+docker-compose -f docker-compose.dev.yml up -d
 ```
 
 **Issue:** Permission denied to database
 ```bash
 # Check database credentials in .env
-DATABASE_URL=postgresql://lics:lics123@localhost:5432/lics_dev
+DATABASE_URL=postgresql://lics:lics123@postgres-dev:5432/lics_dev
 
 # Restart database container
-docker-compose restart postgres-dev
+docker-compose -f docker-compose.dev.yml restart postgres-dev
 ```
 
 ### TimescaleDB Issues
@@ -403,47 +415,51 @@ pip install -r services/backend/requirements.txt
 
 **Issue:** Next.js build fails
 ```bash
-# Check for TypeScript errors
-cd services/frontend
-npm run type-check
+# Check for TypeScript errors inside container
+docker-compose -f docker-compose.dev.yml exec frontend-dev npm run type-check
 
-# Clear cache and rebuild
-rm -rf .next node_modules
-npm install
-npm run build
+# Check build logs
+docker-compose -f docker-compose.dev.yml logs frontend-dev
+
+# Rebuild container from scratch
+docker-compose -f docker-compose.dev.yml build --no-cache frontend-dev
+docker-compose -f docker-compose.dev.yml up -d frontend-dev
 ```
 
 **Issue:** Hot reload not working
 ```bash
-# Check file permissions
-# Ensure you're not running in VM with shared folders
+# Check if file watching is working
+docker-compose -f docker-compose.dev.yml logs -f frontend-dev
 
 # Restart development server
-make dev-frontend
+docker-compose -f docker-compose.dev.yml restart frontend-dev
+
+# If still not working, rebuild container
+docker-compose -f docker-compose.dev.yml up -d --build frontend-dev
 ```
 
 ### Backend Issues
 
 **Issue:** FastAPI import errors
 ```bash
-# Check Python path
-echo $PYTHONPATH
+# Check logs inside container
+docker-compose -f docker-compose.dev.yml logs backend-dev
 
-# Install in development mode
-cd services/backend
-pip install -e .
+# Verify dependencies are installed
+docker-compose -f docker-compose.dev.yml exec backend-dev pip list
 
-# Check for missing dependencies
-pip install -r requirements.txt
+# Rebuild container with fresh dependencies
+docker-compose -f docker-compose.dev.yml build --no-cache backend-dev
+docker-compose -f docker-compose.dev.yml up -d backend-dev
 ```
 
 **Issue:** Database models not found
 ```bash
-# Run migrations
-make db-migrate
+# Run migrations inside backend container
+docker-compose -f docker-compose.dev.yml exec backend-dev alembic upgrade head
 
 # Check if tables exist
-docker-compose exec postgres-dev psql -U lics -d lics_dev -c "\dt"
+docker-compose -f docker-compose.dev.yml exec postgres-dev psql -U lics -d lics_dev -c "\dt"
 ```
 
 ### Edge Agent Issues
@@ -537,22 +553,19 @@ curl http://localhost:8000/metrics
 If all else fails, perform a complete reset:
 
 ```bash
-# 1. Stop all services
-make docker-down
+# 1. Stop all services and remove volumes
+docker-compose -f docker-compose.dev.yml down -v
 
-# 2. Clean everything
-make clean
-make docker-clean
+# 2. Remove all containers and images
+docker-compose -f docker-compose.dev.yml down --rmi all
 
-# 3. Remove SSL certificates
-make ssl-clean
+# 3. Clean Docker system
+docker system prune -af
 
-# 4. Remove Docker volumes
-docker volume prune -f
+# 4. Rebuild and start fresh
+docker-compose -f docker-compose.dev.yml up -d --build
 
-# 5. Restart from scratch
-make setup-ssl
-make install
+# 5. Or use make command
 make dev
 ```
 
@@ -560,17 +573,17 @@ make dev
 
 **Create backup before major changes:**
 ```bash
-# Backup database
-docker-compose exec postgres-dev pg_dump -U lics lics_dev > backup.sql
+# Backup database from container
+docker-compose -f docker-compose.dev.yml exec -T postgres-dev pg_dump -U lics lics_dev > backup.sql
 
 # Backup configuration
-tar czf lics-backup.tar.gz .env infrastructure/nginx/ssl/
+tar czf lics-backup.tar.gz .env
 ```
 
 **Restore from backup:**
 ```bash
-# Restore database
-docker-compose exec -T postgres-dev psql -U lics lics_dev < backup.sql
+# Restore database to container
+docker-compose -f docker-compose.dev.yml exec -T postgres-dev psql -U lics lics_dev < backup.sql
 
 # Restore configuration
 tar xzf lics-backup.tar.gz
@@ -582,23 +595,32 @@ tar xzf lics-backup.tar.gz
 
 ### Log Analysis
 
-1. **Collect logs:**
+1. **Collect logs from all containers:**
    ```bash
    # All service logs
-   make docker-logs > logs.txt
+   docker-compose -f docker-compose.dev.yml logs > logs.txt
 
-   # System information
-   make status >> logs.txt
+   # Container status
+   docker-compose -f docker-compose.dev.yml ps >> logs.txt
 
-   # Environment info
-   env | grep -E "(NODE|PYTHON|DOCKER)" >> logs.txt
+   # Docker info
+   docker info >> logs.txt
    ```
 
 2. **Check specific service logs:**
    ```bash
-   docker-compose logs -f frontend-dev
-   docker-compose logs -f backend-dev
-   docker-compose logs -f postgres-dev
+   docker-compose -f docker-compose.dev.yml logs -f frontend-dev
+   docker-compose -f docker-compose.dev.yml logs -f backend-dev
+   docker-compose -f docker-compose.dev.yml logs -f postgres-dev
+   ```
+
+3. **Check logs inside containers:**
+   ```bash
+   # Backend logs
+   docker-compose -f docker-compose.dev.yml exec backend-dev cat /app/logs/app.log
+
+   # Frontend logs
+   docker-compose -f docker-compose.dev.yml exec frontend-dev npm run build 2>&1
    ```
 
 ### Community Resources
@@ -616,8 +638,10 @@ Include this information when seeking help:
    uname -a                    # Operating system
    docker --version            # Docker version
    docker-compose --version    # Compose version
-   node --version              # Node.js version
-   python3 --version           # Python version
+
+   # Versions inside containers
+   docker-compose -f docker-compose.dev.yml exec frontend-dev node --version
+   docker-compose -f docker-compose.dev.yml exec backend-dev python --version
    ```
 
 2. **Error details:**
@@ -626,11 +650,10 @@ Include this information when seeking help:
    - What you were trying to achieve
    - Recent changes made
 
-3. **Service status:**
+3. **Container status:**
    ```bash
-   make status
-   make health-check
-   docker-compose ps
+   docker-compose -f docker-compose.dev.yml ps
+   docker-compose -f docker-compose.dev.yml logs --tail=50
    ```
 
 ---

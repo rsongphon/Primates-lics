@@ -15,8 +15,8 @@ import csv
 import io
 
 from app.tasks.celery_app import celery_app
-from app.core.database import get_async_session
-from app.models.domain import Experiment, ExperimentData, Primate, Organization, Device
+from app.core.database import db_manager
+from app.models.domain import Experiment, ExperimentData, Participant, Organization, Device
 from app.tasks.notifications import send_email_notification
 import asyncio
 
@@ -49,7 +49,7 @@ def generate_experiment_report(
         Report generation status and file path
     """
     async def _generate():
-        async for session in get_async_session():
+        async with db_manager.session_scope() as session:
             try:
                 # Get experiment with related data
                 result = await session.execute(
@@ -204,15 +204,15 @@ def generate_participant_progress_report(
         Report generation status and statistics
     """
     async def _generate():
-        async for session in get_async_session():
+        async with db_manager.session_scope() as session:
             try:
-                # Get primate
-                primate_result = await session.execute(
-                    select(Primate).where(Primate.id == primate_id)
+                # Get participant (primate)
+                participant_result = await session.execute(
+                    select(Participant).where(Participant.id == primate_id)
                 )
-                primate = primate_result.scalar_one_or_none()
+                participant = participant_result.scalar_one_or_none()
 
-                if not primate:
+                if not participant:
                     return {
                         "status": "not_found",
                         "primate_id": primate_id
@@ -299,7 +299,7 @@ def generate_organization_summary(
         Report generation status and summary data
     """
     async def _generate():
-        async for session in get_async_session():
+        async with db_manager.session_scope() as session:
             try:
                 # Get organization(s)
                 if organization_id:
@@ -326,7 +326,7 @@ def generate_organization_summary(
 
                     # Count primates
                     primate_count = await session.scalar(
-                        select(func.count(Primate.id)).where(Primate.organization_id == org.id)
+                        select(func.count(Participant.id)).where(Participant.organization_id == org.id)
                     )
 
                     # Get recent experiments

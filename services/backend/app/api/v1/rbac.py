@@ -232,8 +232,7 @@ async def get_role(
 )
 async def create_role(
     role_data: RoleCreateRequest,
-    current_user: UserProfile = Depends(get_current_admin_user),
-    session: AsyncSession = Depends(get_db_session)
+    current_user: UserProfile = Depends(get_current_admin_user)
 ) -> BaseResponse[RoleInfo]:
     """
     Create new role with permissions (admin only).
@@ -248,38 +247,14 @@ async def create_role(
     Returns created role with permissions.
     """
     try:
-        role = await role_service.create_role(
+        # Service now returns a dict to avoid SQLAlchemy lazy loading issues
+        role_dict = await role_service.create_role(
             role_data=role_data,
             current_user_id=current_user.id
         )
 
-        permission_infos = []
-        for permission in role.permissions:
-            permission_info = PermissionInfo(
-                id=permission.id,
-                name=permission.name,
-                display_name=permission.display_name,
-                description=permission.description,
-                resource=permission.resource,
-                action=permission.action,
-                is_system_permission=permission.is_system_permission,
-                created_at=permission.created_at,
-                updated_at=permission.updated_at
-            )
-            permission_infos.append(permission_info)
-
-        role_info = RoleInfo(
-            id=role.id,
-            name=role.name,
-            display_name=role.display_name,
-            description=role.description,
-            is_system_role=role.is_system_role,
-            is_default=role.is_default,
-            parent_role_id=role.parent_role_id,
-            created_at=role.created_at,
-            updated_at=role.updated_at,
-            permissions=permission_infos
-        )
+        # Convert dict to RoleInfo schema
+        role_info = RoleInfo(**role_dict)
 
         return create_response(role_info)
 
@@ -720,6 +695,111 @@ async def create_permission(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create permission"
+        )
+
+
+# ===== USER MANAGEMENT ENDPOINTS =====
+
+@router.get(
+    "/users",
+    status_code=status.HTTP_200_OK,
+    summary="List Users",
+    description="Get paginated list of users (admin only)"
+)
+async def list_users(
+    skip: int = Query(0, ge=0, description="Number of users to skip"),
+    limit: int = Query(100, ge=1, le=1000, description="Maximum number of users to return"),
+    search: Optional[str] = Query(None, description="Search users by email or username"),
+    current_user: UserProfile = Depends(get_current_admin_user),
+    session: AsyncSession = Depends(get_db_session)
+):
+    """
+    Get paginated list of all users (admin only).
+
+    Query Parameters:
+    - **skip**: Number of users to skip (pagination)
+    - **limit**: Maximum number of users to return (1-1000)
+    - **search**: Search by email or username
+
+    Returns paginated list of users.
+    """
+    try:
+        from app.models.auth import User
+        from app.repositories.base import BaseRepository
+
+        # Get user repository
+        user_repo = UserRepository(User, session)
+
+        # Build filters
+        filters = {}
+        if search:
+            filters["search"] = search
+
+        # Get users with pagination
+        from sqlalchemy import select, func, or_
+
+        query = select(User)
+        if search:
+            query = query.where(
+                or_(
+                    User.email.ilike(f"%{search}%"),
+                    User.username.ilike(f"%{search}%")
+                )
+            )
+
+        # Get total count
+        count_query = select(func.count()).select_from(User)
+        if search:
+            count_query = count_query.where(
+                or_(
+                    User.email.ilike(f"%{search}%"),
+                    User.username.ilike(f"%{search}%")
+                )
+            )
+        total_result = await session.execute(count_query)
+        total_count = total_result.scalar()
+
+        # Get paginated results
+        query = query.offset(skip).limit(limit)
+        result = await session.execute(query)
+        users = result.scalars().all()
+
+        # Convert to user profiles
+        user_profiles = []
+        for user in users:
+            user_profile = UserProfile(
+                id=user.id,
+                email=user.email,
+                username=user.username,
+                first_name=user.first_name,
+                last_name=user.last_name,
+                is_active=user.is_active,
+                is_verified=user.is_verified,
+                is_superuser=user.is_superuser,
+                organization_id=user.organization_id,
+                timezone=user.timezone,
+                language=user.language,
+                last_login_at=user.last_login_at,
+                mfa_enabled=user.mfa_enabled,
+                created_at=user.created_at,
+                updated_at=user.updated_at,
+                roles=[],
+                permissions=set()
+            )
+            user_profiles.append(user_profile)
+
+        return {
+            "users": user_profiles,
+            "total_count": total_count,
+            "page": (skip // limit) + 1,
+            "page_size": limit
+        }
+
+    except Exception as e:
+        logger.error(f"List users error: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve users"
         )
 
 

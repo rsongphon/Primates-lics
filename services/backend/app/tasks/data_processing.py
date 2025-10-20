@@ -12,8 +12,8 @@ from sqlalchemy import select, delete, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.tasks.celery_app import celery_app
-from app.core.database import get_async_session
-from app.models.domain import Experiment, ExperimentData, Device, DeviceData, Primate
+from app.core.database import db_manager
+from app.models.domain import Experiment, ExperimentData, Device, DeviceData, Participant
 from app.services.domain import ExperimentService
 import asyncio
 
@@ -35,7 +35,7 @@ def process_experiment_data(self, experiment_id: str) -> Dict[str, Any]:
         Dictionary with processing results and statistics
     """
     async def _process():
-        async for session in get_async_session():
+        async with db_manager.session_scope() as session:
             try:
                 # Get experiment with data
                 result = await session.execute(
@@ -84,7 +84,7 @@ def process_experiment_data(self, experiment_id: str) -> Dict[str, Any]:
                     "processed_at": datetime.utcnow().isoformat()
                 }
 
-                await session.commit()
+                # session_scope handles commit automatically
 
                 logger.info(
                     f"Processed experiment {experiment_id}",
@@ -103,7 +103,7 @@ def process_experiment_data(self, experiment_id: str) -> Dict[str, Any]:
                 }
 
             except Exception as e:
-                await session.rollback()
+                # session_scope handles rollback automatically
                 logger.error(f"Error processing experiment data: {e}")
                 raise
 
@@ -125,7 +125,7 @@ def process_device_telemetry(self, device_id: str, batch_size: int = 100) -> Dic
         Processing results with record count
     """
     async def _process():
-        async for session in get_async_session():
+        async with db_manager.session_scope() as session:
             try:
                 # Get unprocessed telemetry data
                 result = await session.execute(
@@ -162,7 +162,7 @@ def process_device_telemetry(self, device_id: str, batch_size: int = 100) -> Dic
                     record.data_metadata["processed_at"] = datetime.utcnow().isoformat()
                     processed_count += 1
 
-                await session.commit()
+                # session_scope handles commit automatically
 
                 logger.info(
                     f"Processed {processed_count} telemetry records for device {device_id}"
@@ -175,7 +175,7 @@ def process_device_telemetry(self, device_id: str, batch_size: int = 100) -> Dic
                 }
 
             except Exception as e:
-                await session.rollback()
+                # session_scope handles rollback automatically
                 logger.error(f"Error processing telemetry: {e}")
                 raise
 
@@ -197,7 +197,7 @@ def cleanup_old_data(self, days_to_keep: int = 90) -> Dict[str, Any]:
         Cleanup results with record counts
     """
     async def _cleanup():
-        async for session in get_async_session():
+        async with db_manager.session_scope() as session:
             try:
                 cutoff_date = datetime.utcnow() - timedelta(days=days_to_keep)
 
@@ -215,7 +215,7 @@ def cleanup_old_data(self, days_to_keep: int = 90) -> Dict[str, Any]:
                 )
                 telemetry_records_deleted = telemetry_delete.rowcount
 
-                await session.commit()
+                # session_scope handles commit automatically
 
                 logger.info(
                     f"Cleaned up old data",
@@ -234,7 +234,7 @@ def cleanup_old_data(self, days_to_keep: int = 90) -> Dict[str, Any]:
                 }
 
             except Exception as e:
-                await session.rollback()
+                # session_scope handles rollback automatically
                 logger.error(f"Error during data cleanup: {e}")
                 raise
 
@@ -253,7 +253,7 @@ def generate_analytics(self) -> Dict[str, Any]:
         Analytics results with statistics count
     """
     async def _generate():
-        async for session in get_async_session():
+        async with db_manager.session_scope() as session:
             try:
                 # Get all active experiments
                 result = await session.execute(

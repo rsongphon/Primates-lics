@@ -41,19 +41,26 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         "/docs",
         "/redoc",
         "/openapi.json",
+        "/metrics",
         "/api/v1/auth/register",
         "/api/v1/auth/login",
         "/api/v1/auth/refresh",
+        "/api/v1/auth/password/forgot",
+        "/api/v1/auth/password/reset",
         "/api/v1/auth/password/reset/request",
         "/api/v1/auth/password/reset/confirm",
+        "/api/v1/auth/request-password-reset",
         "/api/v1/auth/verify-email",
-        "/api/v1/health/basic",
-        "/api/v1/health/detailed"
+        "/api/v1/auth/resend-verification",
+        "/api/v1/health",
+        "/api/v1/health/ready",
+        "/api/v1/health/live",
+        "/api/v1/health/database",
+        "/api/v1/health/redis"
     }
 
     # Routes that support optional authentication (enhanced features if authenticated)
     OPTIONAL_AUTH_ROUTES: Set[str] = {
-        "/api/v1/health/detailed",
         "/api/v1/public/experiments",
         "/api/v1/public/templates"
     }
@@ -98,7 +105,19 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
 
             # Verify and decode token
             try:
-                payload = verify_token(token, ACCESS_TOKEN_TYPE)
+                payload = verify_token(token, ACCESS_TOKEN_TYPE, return_payload=True)
+                if not payload:
+                    if optional_auth:
+                        # Continue without authentication for optional routes
+                        request.state.user = None
+                        request.state.authenticated = False
+                        return await call_next(request)
+                    else:
+                        return self._create_auth_error_response(
+                            "Invalid or expired token",
+                            "TOKEN_INVALID",
+                            request
+                        )
             except Exception as e:
                 if optional_auth:
                     # Continue without authentication for optional routes
@@ -147,7 +166,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                 )
 
             # Check if user is locked
-            if user.is_locked:
+            if user.is_account_locked:
                 return self._create_auth_error_response(
                     "User account is locked",
                     "USER_LOCKED",
@@ -155,7 +174,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                 )
 
             # Check if email is verified (for certain operations)
-            if not user.email_verified and self._requires_verified_email(path):
+            if not user.is_verified and self._requires_verified_email(path):
                 return self._create_auth_error_response(
                     "Email verification required",
                     "EMAIL_NOT_VERIFIED",
@@ -273,7 +292,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         request: Request
     ) -> JSONResponse:
         """
-        Create standardized authentication error response.
+        Create standardized authentication error response matching FastAPI format.
         """
         correlation_id = getattr(request.state, "correlation_id", "unknown")
 
@@ -293,11 +312,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
             content={
-                "error": {
-                    "code": error_code,
-                    "message": message,
-                    "trace_id": correlation_id
-                }
+                "detail": message  # Match FastAPI's standard error format
             },
             headers={
                 "X-Correlation-ID": correlation_id,

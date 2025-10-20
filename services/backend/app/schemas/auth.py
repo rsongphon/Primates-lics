@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Set
 
-from pydantic import BaseModel, ConfigDict, Field, EmailStr, field_validator
+from pydantic import BaseModel, ConfigDict, Field, EmailStr, field_validator, ValidationInfo
 
 from .base import (
     BaseSchema, BaseCreateSchema, BaseUpdateSchema, BaseFilterSchema,
@@ -251,9 +251,9 @@ class UserRegistrationRequest(BaseCreateSchema):
 
     @field_validator('password_confirm')
     @classmethod
-    def validate_passwords_match(cls, v: str, values: Dict[str, Any]) -> str:
+    def validate_passwords_match(cls, v: str, info: ValidationInfo) -> str:
         """Validate password confirmation matches password."""
-        if 'password' in values and v != values['password']:
+        if 'password' in info.data and v != info.data['password']:
             raise ValueError("Passwords do not match")
         return v
 
@@ -345,9 +345,9 @@ class PasswordResetConfirm(BaseSchema):
 
     @field_validator('password_confirm')
     @classmethod
-    def validate_passwords_match(cls, v: str, values: Dict[str, Any]) -> str:
+    def validate_passwords_match(cls, v: str, info: ValidationInfo) -> str:
         """Validate password confirmation matches password."""
-        if 'password' in values and v != values['password']:
+        if 'password' in info.data and v != info.data['password']:
             raise ValueError("Passwords do not match")
         return v
 
@@ -477,7 +477,8 @@ class PasswordChangeRequest(BaseSchema):
     )
     new_password_confirm: str = Field(
         ...,
-        description="New password confirmation"
+        description="New password confirmation",
+        validation_alias="confirm_password"  # Also accept confirm_password for backwards compatibility
     )
 
     @field_validator('new_password')
@@ -496,9 +497,9 @@ class PasswordChangeRequest(BaseSchema):
 
     @field_validator('new_password_confirm')
     @classmethod
-    def validate_passwords_match(cls, v: str, values: Dict[str, Any]) -> str:
+    def validate_passwords_match(cls, v: str, info: ValidationInfo) -> str:
         """Validate password confirmation matches new password."""
-        if 'new_password' in values and v != values['new_password']:
+        if 'new_password' in info.data and v != info.data['new_password']:
             raise ValueError("New passwords do not match")
         return v
 

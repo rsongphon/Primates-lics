@@ -1,0 +1,336 @@
+name: Phase 2 - Backend Core Development Tests
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - 'feature/**'
+    paths:
+      - 'services/backend/**'
+      - 'infrastructure/database/**'
+      - 'tools/scripts/test-phase2-manual.py'
+      - 'docs/tests/PHASE2_TESTING_GUIDE.md'
+      - '.github/workflows/phase2-backend-tests.yml'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'services/backend/**'
+      - 'infrastructure/database/**'
+
+  workflow_dispatch:
+    inputs:
+      test_case:
+        description: 'Specific test case to run (e.g., TC-AUTH-001) or "all"'
+        required: false
+        default: 'all'
+      verbose:
+        description: 'Verbose output'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  PYTHON_VERSION: '3.11'
+  NODE_VERSION: '20'
+
+jobs:
+  # Job 1: Setup and validate environment
+  setup:
+    name: Setup Test Environment
+    runs-on: ubuntu-latest
+    outputs:
+      cache-key: ${{ steps.cache-key.outputs.key }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Generate cache key
+        id: cache-key
+        run: |
+          echo "key=docker-compose-${{ hashFiles('docker-compose.dev.yml', 'services/backend/requirements.txt') }}" >> $GITHUB_OUTPUT
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install test dependencies
+        run: |
+          pip install aiohttp websockets redis asyncpg PyYAML
+
+      - name: Validate docker-compose configuration
+        run: |
+          docker-compose -f docker-compose.dev.yml config > /dev/null
+
+  # Job 2: Run Phase 2 automated tests
+  automated-tests:
+    name: Automated Manual Test Suite
+    runs-on: ubuntu-latest
+    needs: setup
+    timeout-minutes: 30
+
+    services:
+      # We'll use docker-compose instead of individual services
+      # This ensures the complete environment is set up correctly
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install aiohttp websockets redis asyncpg PyYAML
+
+      - name: Start development environment
+        run: |
+          make dev-detached
+          sleep 90  # Wait for all services to initialize
+
+      - name: Verify services are running
+        run: |
+          docker-compose -f docker-compose.dev.yml ps
+          docker-compose -f docker-compose.dev.yml ps | grep -E "(Up|healthy)"
+
+      - name: Run database migrations
+        run: |
+          docker-compose -f docker-compose.dev.yml exec -T backend-dev alembic upgrade head
+
+      - name: Wait for backend to be ready
+        run: |
+          timeout 60 bash -c 'until curl -f http://localhost:8000/api/v1/health; do sleep 2; done'
+
+      - name: Run Phase 2 automated tests
+        id: run-tests
+        run: |
+          if [ "${{ github.event.inputs.test_case }}" != "" ] && [ "${{ github.event.inputs.test_case }}" != "all" ]; then
+            # Run specific test case
+            python3 tools/scripts/test-phase2-manual.py \
+              --tc "${{ github.event.inputs.test_case }}" \
+              --verbose \
+              --output test-results/phase2_manual_${{ github.run_number }}.json
+          else
+            # Run all tests
+            if [ "${{ github.event.inputs.verbose }}" == "true" ]; then
+              python3 tools/scripts/test-phase2-manual.py \
+                --verbose \
+                --output test-results/phase2_manual_${{ github.run_number }}.json
+            else
+              python3 tools/scripts/test-phase2-manual.py \
+                --output test-results/phase2_manual_${{ github.run_number }}.json
+            fi
+          fi
+        continue-on-error: true
+
+      - name: Generate test reports
+        if: always()
+        run: |
+          python3 tools/scripts/generate-test-report.py \
+            --input test-results/phase2_manual_${{ github.run_number }}.json \
+            --format both \
+            --output test-results/reports/phase2_report_${{ github.run_number }}.md
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase2-test-results-${{ github.run_number }}
+          path: |
+            test-results/*.json
+            test-results/reports/*.md
+            test-results/reports/*.html
+          retention-days: 30
+
+      - name: Display test summary
+        if: always()
+        run: |
+          if [ -f test-results/phase2_manual_${{ github.run_number }}.json ]; then
+            python3 -c "
+            import json
+            with open('test-results/phase2_manual_${{ github.run_number }}.json') as f:
+                results = json.load(f)
+                summary = results.get('summary', {})
+                print('=' * 60)
+                print('PHASE 2 TEST SUMMARY')
+                print('=' * 60)
+                print(f\"Total Tests: {summary.get('total_tests', 0)}\")
+                print(f\"Passed: {summary.get('passed_tests', 0)}\")
+                print(f\"Failed: {summary.get('failed_tests', 0)}\")
+                print(f\"Skipped: {summary.get('skipped_tests', 0)}\")
+                print(f\"Success Rate: {summary.get('success_rate', 0):.1f}%\")
+                print(f\"Duration: {results.get('duration_seconds', 0):.1f}s\")
+                print('=' * 60)
+            "
+          fi
+
+      - name: Check test results
+        if: always()
+        run: |
+          # Exit with error if tests failed
+          if [ -f test-results/phase2_manual_${{ github.run_number }}.json ]; then
+            FAILED=$(python3 -c "import json; f=open('test-results/phase2_manual_${{ github.run_number }}.json'); print(json.load(f)['summary']['failed_tests'])")
+            if [ "$FAILED" -gt "0" ]; then
+              echo "::error::$FAILED test(s) failed"
+              exit 1
+            fi
+          else
+            echo "::error::Test results file not found"
+            exit 1
+          fi
+
+      - name: Collect container logs on failure
+        if: failure()
+        run: |
+          mkdir -p test-results/logs
+          docker-compose -f docker-compose.dev.yml logs > test-results/logs/docker-compose.log
+          docker-compose -f docker-compose.dev.yml logs backend-dev > test-results/logs/backend.log
+          docker-compose -f docker-compose.dev.yml logs postgres-dev > test-results/logs/postgres.log
+          docker-compose -f docker-compose.dev.yml logs redis-dev > test-results/logs/redis.log
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase2-test-logs-${{ github.run_number }}
+          path: test-results/logs/
+          retention-days: 7
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker-compose -f docker-compose.dev.yml down -v
+
+  # Job 3: Comment PR with test results
+  comment-pr:
+    name: Comment PR with Results
+    runs-on: ubuntu-latest
+    needs: automated-tests
+    if: github.event_name == 'pull_request' && always()
+    permissions:
+      pull-requests: write
+
+    steps:
+      - name: Download test results
+        uses: actions/download-artifact@v4
+        with:
+          name: phase2-test-results-${{ github.run_number }}
+          path: test-results
+
+      - name: Comment PR with results
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const resultsPath = 'test-results/phase2_manual_${{ github.run_number }}.json';
+
+            if (!fs.existsSync(resultsPath)) {
+              console.log('Results file not found');
+              return;
+            }
+
+            const results = JSON.parse(fs.readFileSync(resultsPath, 'utf8'));
+            const summary = results.summary;
+
+            let statusEmoji = '✅';
+            let statusText = 'PASSED';
+            if (summary.success_rate < 100) {
+              statusEmoji = summary.success_rate >= 85 ? '⚠️' : '❌';
+              statusText = summary.success_rate >= 85 ? 'CONDITIONAL PASS' : 'FAILED';
+            }
+
+            const body = `## ${statusEmoji} Phase 2 Backend Test Results
+
+            **Status**: ${statusText}
+
+            ### Summary
+            | Metric | Value |
+            |--------|-------|
+            | **Total Tests** | ${summary.total_tests} |
+            | **Passed** | ✅ ${summary.passed_tests} |
+            | **Failed** | ❌ ${summary.failed_tests} |
+            | **Skipped** | ⊘ ${summary.skipped_tests} |
+            | **Success Rate** | ${summary.success_rate.toFixed(1)}% |
+            | **Duration** | ${results.duration_seconds.toFixed(1)}s |
+
+            ### Test Categories
+            ${Object.entries(results.test_cases).map(([category, tests]) => {
+              const testArray = Array.isArray(tests) ? tests : Object.values(tests);
+              const passed = testArray.filter(t => t.passed).length;
+              const total = testArray.length;
+              const emoji = passed === total ? '✅' : '⚠️';
+              return `- ${emoji} **${category}**: ${passed}/${total} passed`;
+            }).join('\n')}
+
+            ${summary.failed_tests > 0 ? `
+            ### ⚠️ Failed Tests
+            ${Object.entries(results.test_cases)
+              .flatMap(([category, tests]) => {
+                const testArray = Array.isArray(tests) ? tests : Object.values(tests);
+                return testArray
+                  .filter(t => !t.passed && !t.skipped)
+                  .map(t => `- ❌ **${t.test_id}**: ${t.test_name}`)
+              })
+              .join('\n')}
+            ` : ''}
+
+            ---
+            <details>
+            <summary>📊 View detailed test report</summary>
+
+            Download the full HTML report from the [workflow artifacts](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}).
+
+            </details>
+
+            🤖 *Generated by [Phase 2 Backend Tests Workflow](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})*
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+  # Job 4: Update status badge (optional)
+  update-badge:
+    name: Update Test Badge
+    runs-on: ubuntu-latest
+    needs: automated-tests
+    if: github.ref == 'refs/heads/main' && always()
+
+    steps:
+      - name: Download test results
+        uses: actions/download-artifact@v4
+        with:
+          name: phase2-test-results-${{ github.run_number }}
+          path: test-results
+
+      - name: Create badge
+        run: |
+          RESULTS_FILE="test-results/phase2_manual_${{ github.run_number }}.json"
+          if [ -f "$RESULTS_FILE" ]; then
+            SUCCESS_RATE=$(python3 -c "import json; print(json.load(open('$RESULTS_FILE'))['summary']['success_rate'])")
+
+            if (( $(echo "$SUCCESS_RATE >= 95" | bc -l) )); then
+              COLOR="brightgreen"
+              STATUS="passing"
+            elif (( $(echo "$SUCCESS_RATE >= 85" | bc -l) )); then
+              COLOR="yellow"
+              STATUS="conditional"
+            else
+              COLOR="red"
+              STATUS="failing"
+            fi
+
+            echo "Phase 2 Tests: $STATUS ($SUCCESS_RATE%)" >> $GITHUB_STEP_SUMMARY
+            echo "Badge color: $COLOR" >> $GITHUB_STEP_SUMMARY
+          fi

@@ -586,6 +586,7 @@ async def get_pagination_params(
 # Aliases for common naming conventions
 PaginationParams = dict
 get_pagination = get_pagination_params
+get_db = get_database_session  # Alias for database session dependency
 
 
 async def get_ordering_params(

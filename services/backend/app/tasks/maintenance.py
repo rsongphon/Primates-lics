@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import redis
 
 from app.tasks.celery_app import celery_app
-from app.core.database import get_async_session
+from app.core.database import db_manager
 from app.core.config import settings
 from app.models.auth import UserSession, RefreshToken
 from app.models.domain import Device, Experiment
@@ -37,7 +37,7 @@ def cleanup_expired_sessions(self) -> Dict[str, Any]:
         Cleanup results with record counts
     """
     async def _cleanup():
-        async for session in get_async_session():
+        async with db_manager.session_scope() as session:
             try:
                 cutoff_time = datetime.utcnow()
 
@@ -70,7 +70,7 @@ def cleanup_expired_sessions(self) -> Dict[str, Any]:
                     logger.warning(f"Redis cleanup failed: {e}")
                     redis_deleted = 0
 
-                await session.commit()
+                # session_scope handles commit automatically
 
                 logger.info(
                     f"Cleaned up expired sessions",
@@ -90,7 +90,7 @@ def cleanup_expired_sessions(self) -> Dict[str, Any]:
                 }
 
             except Exception as e:
-                await session.rollback()
+                # session_scope handles rollback automatically
                 logger.error(f"Error during session cleanup: {e}")
                 raise
 
@@ -114,7 +114,7 @@ def refresh_cache_warmup(self) -> Dict[str, Any]:
         redis_client = redis.from_url(settings.REDIS_URL)
 
         async def _warmup():
-            async for session in get_async_session():
+            async with db_manager.session_scope() as session:
                 # Get active experiments for cache
                 active_experiments = await session.execute(
                     select(Experiment)
@@ -248,7 +248,7 @@ def update_device_status(self) -> Dict[str, Any]:
         Device status update results
     """
     async def _update():
-        async for session in get_async_session():
+        async with db_manager.session_scope() as session:
             try:
                 # Devices offline if no heartbeat in last 5 minutes
                 offline_threshold = datetime.utcnow() - timedelta(minutes=5)
@@ -285,7 +285,7 @@ def update_device_status(self) -> Dict[str, Any]:
 
                 devices_marked_offline = len(devices_to_mark_offline)
 
-                await session.commit()
+                # session_scope handles commit automatically
 
                 logger.info(
                     f"Updated device status",
@@ -302,7 +302,7 @@ def update_device_status(self) -> Dict[str, Any]:
                 }
 
             except Exception as e:
-                await session.rollback()
+                # session_scope handles rollback automatically
                 logger.error(f"Error updating device status: {e}")
                 raise
 
@@ -386,7 +386,7 @@ def optimize_database(self) -> Dict[str, Any]:
         Optimization results
     """
     async def _optimize():
-        async for session in get_async_session():
+        async with db_manager.session_scope() as session:
             try:
                 # Run VACUUM ANALYZE (Note: requires AUTOCOMMIT)
                 # await session.execute("VACUUM ANALYZE")

@@ -572,6 +572,69 @@ class Experiment(OrganizationBaseModelFull):
                 self.experiment_metadata['cancellation_reason'] = reason
 
 
+class ExperimentData(OrganizationBaseModelFull):
+    """
+    Experiment data model for storing trial-level data and results.
+
+    Represents individual trial data collected during experiment execution,
+    including responses, timings, and trial-specific metadata.
+    """
+
+    __tablename__ = 'experiment_data'
+
+    # Relationships
+    experiment_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey('experiments.id'),
+        nullable=False,
+        index=True,
+        doc="Experiment this data belongs to"
+    )
+
+    participant_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey('participants.id'),
+        nullable=True,
+        index=True,
+        doc="Participant who generated this data (if applicable)"
+    )
+
+    # Trial identification
+    trial_number: Mapped[Optional[int]] = mapped_column(
+        Integer,
+        nullable=True,
+        doc="Trial number within the experiment"
+    )
+
+    trial_type: Mapped[Optional[str]] = mapped_column(
+        String(100),
+        nullable=True,
+        index=True,
+        doc="Type of trial (e.g., 'training', 'test', 'probe')"
+    )
+
+    # Data content
+    data_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(
+        JSON,
+        nullable=True,
+        default={},
+        doc="Trial data including responses, timings, and results"
+    )
+
+    # Timing
+    trial_start_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        doc="When the trial started"
+    )
+
+    trial_end_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        doc="When the trial ended"
+    )
+
+
 # ===== TASK MODELS =====
 
 class Task(OrganizationBaseModelFull):

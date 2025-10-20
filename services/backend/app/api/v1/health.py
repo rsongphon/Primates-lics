@@ -48,8 +48,9 @@ class HealthChecker:
 
         start_time = time.time()
         try:
-            # Connection string from settings
-            conn = await asyncpg.connect(settings.DATABASE_URL)
+            # Connection string from settings (convert SQLAlchemy format to asyncpg format)
+            db_url = settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
+            conn = await asyncpg.connect(db_url)
 
             # Basic connectivity test
             version = await conn.fetchval("SELECT version()")
@@ -64,9 +65,9 @@ class HealthChecker:
                 "SELECT count(*) FROM pg_stat_activity"
             )
 
-            # Database size
+            # Database size (use current database)
             db_size = await conn.fetchval(
-                "SELECT pg_database_size('lics')"
+                "SELECT pg_database_size(current_database())"
             )
 
             await conn.close()
@@ -102,8 +103,7 @@ class HealthChecker:
 
         start_time = time.time()
         try:
-            # Parse Redis URL
-            import redis
+            # Create async Redis client
             r = redis.from_url(settings.REDIS_URL, decode_responses=True)
 
             # Basic connectivity test
@@ -116,7 +116,7 @@ class HealthChecker:
             await r.set("health_check", "ok", ex=60)
             health_value = await r.get("health_check")
 
-            await r.close()
+            await r.aclose()
 
             result.update({
                 "status": "healthy" if pong and health_value == "ok" else "unhealthy",
@@ -342,7 +342,7 @@ class HealthChecker:
 health_checker = HealthChecker()
 
 
-@router.get("/health")
+@router.get("")
 async def health_check():
     """Basic health check endpoint."""
     return {
@@ -352,7 +352,7 @@ async def health_check():
     }
 
 
-@router.get("/health/ready")
+@router.get("/ready")
 async def readiness_check():
     """Readiness probe for Kubernetes."""
     return {
@@ -361,7 +361,7 @@ async def readiness_check():
     }
 
 
-@router.get("/health/live")
+@router.get("/live")
 async def liveness_check():
     """Liveness probe for Kubernetes."""
     return {
@@ -370,7 +370,23 @@ async def liveness_check():
     }
 
 
-@router.get("/health/comprehensive")
+@router.get("/database")
+async def database_health_check():
+    """Public database health check endpoint."""
+    result = await health_checker.check_postgresql()
+    status_code = 200 if result["status"] == "healthy" else 503
+    return JSONResponse(content=result, status_code=status_code)
+
+
+@router.get("/redis")
+async def redis_health_check():
+    """Public Redis health check endpoint."""
+    result = await health_checker.check_redis()
+    status_code = 200 if result["status"] == "healthy" else 503
+    return JSONResponse(content=result, status_code=status_code)
+
+
+@router.get("/comprehensive")
 async def comprehensive_health_check(
     include_details: bool = Query(True, description="Include detailed health information"),
     services: Optional[str] = Query(None, description="Comma-separated list of services to check"),
@@ -444,7 +460,7 @@ async def comprehensive_health_check(
     return JSONResponse(content=response, status_code=status_code)
 
 
-@router.get("/health/services/{service_name}")
+@router.get("/services/{service_name}")
 async def service_health_check(
     service_name: str,
     current_user = Depends(require_any_permission(["system:monitor", "system:admin"]))
@@ -469,7 +485,7 @@ async def service_health_check(
     return JSONResponse(content=result, status_code=status_code)
 
 
-@router.get("/health/metrics")
+@router.get("/metrics")
 async def health_metrics(
     current_user = Depends(require_any_permission(["system:monitor", "system:admin"]))
 ):

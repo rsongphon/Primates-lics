@@ -93,6 +93,7 @@ class DatabaseManager:
                     "application_name": f"lics-backend-{settings.ENVIRONMENT}",
                     "jit": "off",  # Disable JIT for connection stability
                 },
+                "ssl": False,  # Disable SSL for local Docker connections
             },
         )
 

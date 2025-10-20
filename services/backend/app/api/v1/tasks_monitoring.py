@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.tasks.celery_app import celery_app
 from app.core.dependencies import get_current_user, get_db, require_permission
 from app.models.auth import User
-from app.schemas.common import PaginatedResponse
+from app.schemas.base import PaginatedResponse
 
 import logging
 

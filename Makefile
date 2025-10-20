@@ -1,7 +1,7 @@
 # LICS Project Makefile
 # Provides common development tasks and workflows
 
-.PHONY: help install test build clean lint format docker-build docker-up docker-down deploy setup-dev-env setup-mac setup-linux setup-windows setup-ssl ssl-install-ca ssl-clean ssl-verify dev-https test-comprehensive test-comprehensive-quick test-comprehensive-benchmark test-comprehensive-stress test-comprehensive-parallel test-infrastructure test-infrastructure-quick test-database test-database-benchmark test-database-stress test-messaging test-messaging-benchmark test-messaging-load test-system-integration test-system-integration-parallel health-check health-check-database health-check-messaging health-check-continuous performance-test performance-baseline test-report test-report-continuous validate-all validate-quick validate-performance validate-stress
+.PHONY: help install test build clean lint format docker-build docker-up docker-down deploy setup-dev-env setup-mac setup-linux setup-windows setup-ssl ssl-install-ca ssl-clean ssl-verify dev-https dev-stop dev-clean test-comprehensive test-comprehensive-quick test-comprehensive-benchmark test-comprehensive-stress test-comprehensive-parallel test-infrastructure test-infrastructure-quick test-database test-database-benchmark test-database-stress test-messaging test-messaging-benchmark test-messaging-load test-system-integration test-system-integration-parallel test-phase1-manual test-phase1-manual-verbose test-phase1-manual-tc test-phase1-list test-phase2-manual test-phase2-manual-verbose test-phase2-manual-tc test-phase2-list test-phase2-full test-phase2-app test-phase2-auth test-phase2-domain test-phase2-api test-phase2-websocket test-phase2-celery test-phase2-quick test-phase2-smoke generate-test-report test-phase1-full health-check health-check-database health-check-messaging health-check-continuous performance-test performance-baseline test-report test-report-continuous validate-all validate-quick validate-performance validate-stress
 
 # Default target
 .DEFAULT_GOAL := help
@@ -48,9 +48,40 @@ install-edge-agent: ## Install edge agent dependencies
 	cd services/edge-agent && pip install -r requirements.txt -r requirements-dev.txt
 
 ## Development
-dev: ## Start all services in development mode
+dev: ## Start all services in development mode (Ctrl+C to stop and cleanup)
 	@echo "$(YELLOW)Starting development environment...$(NC)"
-	docker-compose -f docker-compose.dev.yml up --build
+	@mkdir -p logs
+	@echo "$(YELLOW)Logs will be saved to: logs/dev-$(shell date +%Y%m%d-%H%M%S).log$(NC)"
+	@echo "$(YELLOW)Press Ctrl+C to stop and cleanup all services$(NC)"
+	@trap 'echo "\n$(YELLOW)Stopping and cleaning up services...$(NC)"; docker-compose -f docker-compose.dev.yml down; echo "$(GREEN)✓ Services stopped and cleaned up$(NC)"; exit 0' INT TERM; \
+	docker-compose -f docker-compose.dev.yml up --build 2>&1 | tee logs/dev-$(shell date +%Y%m%d-%H%M%S).log
+
+dev-detached: ## Start all services in detached mode with logs
+	@echo "$(YELLOW)Starting development environment in detached mode...$(NC)"
+	@mkdir -p logs
+	@echo "$(YELLOW)Logs will be saved to: logs/dev-detached-$(shell date +%Y%m%d-%H%M%S).log$(NC)"
+	@docker-compose -f docker-compose.dev.yml up --build -d > logs/dev-detached-$(shell date +%Y%m%d-%H%M%S).log 2>&1
+	@echo "$(GREEN)✓ Services started in background$(NC)"
+	@echo "$(YELLOW)View logs with: docker-compose -f docker-compose.dev.yml logs -f$(NC)"
+	@echo "$(YELLOW)Stop with: make dev-stop$(NC)"
+	@echo "$(YELLOW)Or check: logs/dev-detached-*.log$(NC)"
+
+dev-stop: ## Stop development environment
+	@echo "$(YELLOW)Stopping development environment...$(NC)"
+	@docker-compose -f docker-compose.dev.yml down
+	@echo "$(GREEN)✓ Development environment stopped$(NC)"
+
+dev-clean: ## Stop and remove all volumes (WARNING: destroys data)
+	@echo "$(RED)WARNING: This will remove all development data!$(NC)"
+	@read -p "Are you sure? (y/N) " -n 1 -r; \
+	echo; \
+	if [[ $$REPLY =~ ^[Yy]$$ ]]; then \
+		echo "$(YELLOW)Stopping and cleaning up...$(NC)"; \
+		docker-compose -f docker-compose.dev.yml down -v; \
+		echo "$(GREEN)✓ Development environment cleaned$(NC)"; \
+	else \
+		echo "$(YELLOW)Cleanup cancelled$(NC)"; \
+	fi
 
 dev-frontend: ## Start frontend development server
 	@echo "$(YELLOW)Starting frontend development server...$(NC)"
@@ -173,6 +204,295 @@ test-system-integration-parallel: ## Run system integration tests in parallel
 	@echo "$(YELLOW)Running system integration tests in parallel...$(NC)"
 	python3 tools/scripts/test-system-integration.py --parallel --format text
 	@echo "$(GREEN)✓ Parallel system integration testing completed$(NC)"
+
+## Phase 1 Manual Test Automation
+test-phase1-manual: ## Run all Phase 1 manual tests (automated)
+	@echo "$(YELLOW)Running automated Phase 1 manual test suite...$(NC)"
+	@mkdir -p test-results
+	python3 tools/scripts/test-phase1-manual-suite.py --test all --format json --output test-results/phase1_manual_$(shell date +%Y%m%d_%H%M%S).json
+	@echo "$(GREEN)✓ Phase 1 manual tests completed$(NC)"
+
+test-phase1-manual-verbose: ## Run Phase 1 manual tests with verbose output
+	@echo "$(YELLOW)Running automated Phase 1 manual test suite (verbose)...$(NC)"
+	@mkdir -p test-results
+	python3 tools/scripts/test-phase1-manual-suite.py --test all --format text --verbose
+	@echo "$(GREEN)✓ Phase 1 manual tests completed$(NC)"
+
+test-phase1-manual-tc: ## Run specific Phase 1 test case (usage: make test-phase1-manual-tc TC=TC-INFRA-001)
+	@if [ -z "$(TC)" ]; then \
+		echo "$(RED)Please specify test case: make test-phase1-manual-tc TC=TC-INFRA-001$(NC)"; \
+		python3 tools/scripts/test-phase1-manual-suite.py --list-tests; \
+		exit 1; \
+	fi
+	@echo "$(YELLOW)Running Phase 1 test case: $(TC)$(NC)"
+	@mkdir -p test-results
+	python3 tools/scripts/test-phase1-manual-suite.py --test $(TC) --format text --verbose
+	@echo "$(GREEN)✓ Test case $(TC) completed$(NC)"
+
+test-phase1-list: ## List all available Phase 1 test cases
+	@echo "$(YELLOW)Available Phase 1 Test Cases:$(NC)"
+	@python3 tools/scripts/test-phase1-manual-suite.py --list-tests
+
+generate-test-report: ## Generate formatted test report from JSON results (usage: make generate-test-report INPUT=results.json)
+	@if [ -z "$(INPUT)" ]; then \
+		echo "$(RED)Please specify input file: make generate-test-report INPUT=test-results/phase*_manual_*.json$(NC)"; \
+		echo "$(YELLOW)Available Phase 1 results:$(NC)"; \
+		ls -lt test-results/phase1_manual_*.json 2>/dev/null | head -3 || echo "  No Phase 1 results found"; \
+		echo ""; \
+		echo "$(YELLOW)Available Phase 2 results:$(NC)"; \
+		ls -lt test-results/phase2_manual_*.json 2>/dev/null | head -3 || echo "  No Phase 2 results found"; \
+		exit 1; \
+	fi
+	@echo "$(YELLOW)Generating test report from $(INPUT)...$(NC)"
+	@mkdir -p test-results/reports
+	@TIMESTAMP="$(shell date +%Y%m%d_%H%M%S)"; \
+	REPORT_BASE="test-results/reports/report_$$TIMESTAMP"; \
+	python3 tools/scripts/generate-test-report.py --input $(INPUT) --format both --output $$REPORT_BASE.md; \
+	echo "$(GREEN)✓ Test report generated$(NC)"; \
+	echo "  📝 Markdown: $$REPORT_BASE.md"; \
+	echo "  🌐 HTML:     $$REPORT_BASE.html"
+
+clean-test-reports: ## Remove all test reports from test-results/reports directory
+	@echo "$(YELLOW)Cleaning test reports...$(NC)"
+	@if [ -d "test-results/reports" ]; then \
+		rm -rf test-results/reports/*; \
+		echo "$(GREEN)✓ Test reports cleaned$(NC)"; \
+	else \
+		echo "$(YELLOW)No reports directory found (test-results/reports)$(NC)"; \
+	fi
+
+test-phase1-full: ## Run Phase 1 tests and generate reports (complete workflow)
+	@echo "$(YELLOW)Starting complete Phase 1 test workflow...$(NC)"
+	@mkdir -p test-results test-results/reports
+	@RESULT_FILE="test-results/phase1_manual_$(shell date +%Y%m%d_%H%M%S).json"; \
+	REPORT_BASE="test-results/reports/phase1_report_$(shell date +%Y%m%d_%H%M%S)"; \
+	echo "$(YELLOW)Step 1/2: Running automated tests...$(NC)"; \
+	python3 tools/scripts/test-phase1-manual-suite.py --test all --format json --output $$RESULT_FILE --verbose || true; \
+	echo "$(YELLOW)Step 2/2: Generating reports...$(NC)"; \
+	python3 tools/scripts/generate-test-report.py --input $$RESULT_FILE --format both --output $$REPORT_BASE.md; \
+	echo ""; \
+	echo "$(GREEN)✓ Complete Phase 1 test workflow finished$(NC)"; \
+	echo ""; \
+	echo "$(YELLOW)Generated Files:$(NC)"; \
+	echo "  JSON Results:  $$RESULT_FILE"; \
+	echo "  Markdown Report: $$REPORT_BASE.md"; \
+	echo "  HTML Report:   $$REPORT_BASE.html"; \
+	echo ""; \
+	echo "$(YELLOW)Open HTML report:$(NC)"; \
+	echo "  open $$REPORT_BASE.html"
+
+## Phase 2 Manual Test Automation
+test-phase2-manual: ## Run all Phase 2 manual tests (automated - 125 tests)
+	@echo "$(YELLOW)Running automated Phase 2 manual test suite (125 tests)...$(NC)"
+	@mkdir -p test-results
+	python3 tools/scripts/test-phase2-manual.py --output test-results/phase2_manual_$(shell date +%Y%m%d_%H%M%S).json
+	@echo "$(GREEN)✓ Phase 2 manual tests completed$(NC)"
+
+test-phase2-manual-verbose: ## Run Phase 2 manual tests with verbose output (shows steps)
+	@echo "$(YELLOW)Running automated Phase 2 manual test suite (verbose)...$(NC)"
+	@mkdir -p test-results
+	python3 tools/scripts/test-phase2-manual.py --verbose --output test-results/phase2_manual_$(shell date +%Y%m%d_%H%M%S).json
+	@echo "$(GREEN)✓ Phase 2 manual tests completed$(NC)"
+
+test-phase2-manual-debug: ## Run Phase 2 manual tests with debug output (shows all HTTP requests/responses)
+	@echo "$(YELLOW)Running automated Phase 2 manual test suite (debug mode)...$(NC)"
+	@mkdir -p test-results
+	python3 tools/scripts/test-phase2-manual.py --debug --output test-results/phase2_manual_$(shell date +%Y%m%d_%H%M%S).json
+	@echo "$(GREEN)✓ Phase 2 manual tests completed$(NC)"
+
+test-phase2-manual-tc: ## Run specific Phase 2 test case (usage: make test-phase2-manual-tc TC=TC-AUTH-001)
+	@if [ -z "$(TC)" ]; then \
+		echo "$(RED)Please specify test case: make test-phase2-manual-tc TC=TC-AUTH-001$(NC)"; \
+		python3 tools/scripts/test-phase2-manual.py --list; \
+		exit 1; \
+	fi
+	@echo "$(YELLOW)Running Phase 2 test case: $(TC) (verbose)$(NC)"
+	@mkdir -p test-results
+	python3 tools/scripts/test-phase2-manual.py --tc $(TC) --verbose
+	@echo "$(GREEN)✓ Test case $(TC) completed$(NC)"
+
+test-phase2-manual-tc-debug: ## Run specific Phase 2 test case with debug output (usage: make test-phase2-manual-tc-debug TC=TC-AUTH-001)
+	@if [ -z "$(TC)" ]; then \
+		echo "$(RED)Please specify test case: make test-phase2-manual-tc-debug TC=TC-AUTH-001$(NC)"; \
+		python3 tools/scripts/test-phase2-manual.py --list; \
+		exit 1; \
+	fi
+	@echo "$(YELLOW)Running Phase 2 test case: $(TC) (debug mode)$(NC)"
+	@mkdir -p test-results
+	python3 tools/scripts/test-phase2-manual.py --tc $(TC) --debug
+	@echo "$(GREEN)✓ Test case $(TC) completed$(NC)"
+
+test-phase2-list: ## List all available Phase 2 test cases (125 total)
+	@echo "$(YELLOW)Available Phase 2 Test Cases:$(NC)"
+	@python3 tools/scripts/test-phase2-manual.py --list
+
+test-phase2-full: ## Run Phase 2 tests and generate markdown + HTML reports (complete workflow)
+	@echo "$(YELLOW)Starting complete Phase 2 test workflow...$(NC)"
+	@mkdir -p test-results test-results/reports
+	@TIMESTAMP="$(shell date +%Y%m%d_%H%M%S)"; \
+	RESULT_FILE="test-results/phase2_manual_$$TIMESTAMP.json"; \
+	REPORT_BASE="test-results/reports/phase2_report_$$TIMESTAMP"; \
+	echo "$(YELLOW)Step 1/2: Running automated Phase 2 tests (125 tests)...$(NC)"; \
+	python3 tools/scripts/test-phase2-manual.py --verbose --output $$RESULT_FILE || true; \
+	echo ""; \
+	echo "$(YELLOW)Step 2/2: Generating test reports (Markdown + HTML)...$(NC)"; \
+	python3 tools/scripts/generate-test-report.py --input $$RESULT_FILE --format both --output $$REPORT_BASE.md; \
+	echo ""; \
+	echo "$(GREEN)================================================================$(NC)"; \
+	echo "$(GREEN)✓ Complete Phase 2 test workflow finished successfully$(NC)"; \
+	echo "$(GREEN)================================================================$(NC)"; \
+	echo ""; \
+	echo "$(YELLOW)Generated Files:$(NC)"; \
+	echo "  📄 JSON Results:     $$RESULT_FILE"; \
+	echo "  📝 Markdown Report:  $$REPORT_BASE.md"; \
+	echo "  🌐 HTML Report:      $$REPORT_BASE.html"; \
+	echo ""; \
+	echo "$(YELLOW)Quick Actions:$(NC)"; \
+	echo "  View Markdown: cat $$REPORT_BASE.md"; \
+	echo "  Open HTML:     open $$REPORT_BASE.html"; \
+	echo ""; \
+	echo "$(YELLOW)Reports saved to:$(NC) test-results/reports/"
+
+## Phase 2 Category-Specific Tests
+test-phase2-app: ## Run Phase 2 Application Foundation tests (5 tests) with reports
+	@echo "$(YELLOW)Running Application Foundation tests (5 tests)...$(NC)"
+	@mkdir -p test-results test-results/reports
+	@TIMESTAMP="$(shell date +%Y%m%d_%H%M%S)"; \
+	RESULT_FILE="test-results/phase2_app_$$TIMESTAMP.json"; \
+	REPORT_BASE="test-results/reports/phase2_app_report_$$TIMESTAMP"; \
+	echo "$(YELLOW)Step 1/2: Running tests...$(NC)"; \
+	python3 tools/scripts/test-phase2-manual.py --category app --verbose --output $$RESULT_FILE || true; \
+	echo ""; \
+	echo "$(YELLOW)Step 2/2: Generating test reports...$(NC)"; \
+	python3 tools/scripts/generate-test-report.py --input $$RESULT_FILE --format both --output $$REPORT_BASE.md; \
+	echo ""; \
+	echo "$(GREEN)✓ Application Foundation tests completed$(NC)"; \
+	echo ""; \
+	echo "$(YELLOW)Generated Files:$(NC)"; \
+	echo "  📄 JSON:     $$RESULT_FILE"; \
+	echo "  📝 Markdown: $$REPORT_BASE.md"; \
+	echo "  🌐 HTML:     $$REPORT_BASE.html"
+
+test-phase2-auth: ## Run Phase 2 Authentication tests (20 tests) with reports
+	@echo "$(YELLOW)Running Authentication & Authorization tests (20 tests)...$(NC)"
+	@mkdir -p test-results test-results/reports
+	@TIMESTAMP="$(shell date +%Y%m%d_%H%M%S)"; \
+	RESULT_FILE="test-results/phase2_auth_$$TIMESTAMP.json"; \
+	REPORT_BASE="test-results/reports/phase2_auth_report_$$TIMESTAMP"; \
+	echo "$(YELLOW)Step 1/2: Running tests...$(NC)"; \
+	python3 tools/scripts/test-phase2-manual.py --category auth --verbose --output $$RESULT_FILE || true; \
+	echo ""; \
+	echo "$(YELLOW)Step 2/2: Generating test reports...$(NC)"; \
+	python3 tools/scripts/generate-test-report.py --input $$RESULT_FILE --format both --output $$REPORT_BASE.md; \
+	echo ""; \
+	echo "$(GREEN)✓ Authentication tests completed$(NC)"; \
+	echo ""; \
+	echo "$(YELLOW)Generated Files:$(NC)"; \
+	echo "  📄 JSON:     $$RESULT_FILE"; \
+	echo "  📝 Markdown: $$REPORT_BASE.md"; \
+	echo "  🌐 HTML:     $$REPORT_BASE.html"
+
+test-phase2-domain: ## Run Phase 2 Domain Model tests (15 tests) with reports
+	@echo "$(YELLOW)Running Core Domain Models tests (15 tests)...$(NC)"
+	@mkdir -p test-results test-results/reports
+	@TIMESTAMP="$(shell date +%Y%m%d_%H%M%S)"; \
+	RESULT_FILE="test-results/phase2_domain_$$TIMESTAMP.json"; \
+	REPORT_BASE="test-results/reports/phase2_domain_report_$$TIMESTAMP"; \
+	echo "$(YELLOW)Step 1/2: Running tests...$(NC)"; \
+	python3 tools/scripts/test-phase2-manual.py --category domain --verbose --output $$RESULT_FILE || true; \
+	echo ""; \
+	echo "$(YELLOW)Step 2/2: Generating test reports...$(NC)"; \
+	python3 tools/scripts/generate-test-report.py --input $$RESULT_FILE --format both --output $$REPORT_BASE.md; \
+	echo ""; \
+	echo "$(GREEN)✓ Domain Model tests completed$(NC)"; \
+	echo ""; \
+	echo "$(YELLOW)Generated Files:$(NC)"; \
+	echo "  📄 JSON:     $$RESULT_FILE"; \
+	echo "  📝 Markdown: $$REPORT_BASE.md"; \
+	echo "  🌐 HTML:     $$REPORT_BASE.html"
+
+test-phase2-api: ## Run Phase 2 RESTful API tests (40 tests) with reports
+	@echo "$(YELLOW)Running RESTful API Implementation tests (40 tests)...$(NC)"
+	@mkdir -p test-results test-results/reports
+	@TIMESTAMP="$(shell date +%Y%m%d_%H%M%S)"; \
+	RESULT_FILE="test-results/phase2_api_$$TIMESTAMP.json"; \
+	REPORT_BASE="test-results/reports/phase2_api_report_$$TIMESTAMP"; \
+	echo "$(YELLOW)Step 1/2: Running tests...$(NC)"; \
+	python3 tools/scripts/test-phase2-manual.py --category api --verbose --output $$RESULT_FILE || true; \
+	echo ""; \
+	echo "$(YELLOW)Step 2/2: Generating test reports...$(NC)"; \
+	python3 tools/scripts/generate-test-report.py --input $$RESULT_FILE --format both --output $$REPORT_BASE.md; \
+	echo ""; \
+	echo "$(GREEN)✓ RESTful API tests completed$(NC)"; \
+	echo ""; \
+	echo "$(YELLOW)Generated Files:$(NC)"; \
+	echo "  📄 JSON:     $$RESULT_FILE"; \
+	echo "  📝 Markdown: $$REPORT_BASE.md"; \
+	echo "  🌐 HTML:     $$REPORT_BASE.html"
+
+test-phase2-websocket: ## Run Phase 2 WebSocket tests (20 tests) with reports
+	@echo "$(YELLOW)Running WebSocket and Real-time Features tests (20 tests)...$(NC)"
+	@mkdir -p test-results test-results/reports
+	@TIMESTAMP="$(shell date +%Y%m%d_%H%M%S)"; \
+	RESULT_FILE="test-results/phase2_websocket_$$TIMESTAMP.json"; \
+	REPORT_BASE="test-results/reports/phase2_websocket_report_$$TIMESTAMP"; \
+	echo "$(YELLOW)Step 1/2: Running tests...$(NC)"; \
+	python3 tools/scripts/test-phase2-manual.py --category websocket --verbose --output $$RESULT_FILE || true; \
+	echo ""; \
+	echo "$(YELLOW)Step 2/2: Generating test reports...$(NC)"; \
+	python3 tools/scripts/generate-test-report.py --input $$RESULT_FILE --format both --output $$REPORT_BASE.md; \
+	echo ""; \
+	echo "$(GREEN)✓ WebSocket tests completed$(NC)"; \
+	echo ""; \
+	echo "$(YELLOW)Generated Files:$(NC)"; \
+	echo "  📄 JSON:     $$RESULT_FILE"; \
+	echo "  📝 Markdown: $$REPORT_BASE.md"; \
+	echo "  🌐 HTML:     $$REPORT_BASE.html"
+
+test-phase2-celery: ## Run Phase 2 Background Tasks tests (25 tests) with reports
+	@echo "$(YELLOW)Running Background Tasks and Scheduling tests (25 tests)...$(NC)"
+	@mkdir -p test-results test-results/reports
+	@TIMESTAMP="$(shell date +%Y%m%d_%H%M%S)"; \
+	RESULT_FILE="test-results/phase2_celery_$$TIMESTAMP.json"; \
+	REPORT_BASE="test-results/reports/phase2_celery_report_$$TIMESTAMP"; \
+	echo "$(YELLOW)Step 1/2: Running tests...$(NC)"; \
+	python3 tools/scripts/test-phase2-manual.py --category celery --verbose --output $$RESULT_FILE || true; \
+	echo ""; \
+	echo "$(YELLOW)Step 2/2: Generating test reports...$(NC)"; \
+	python3 tools/scripts/generate-test-report.py --input $$RESULT_FILE --format both --output $$REPORT_BASE.md; \
+	echo ""; \
+	echo "$(GREEN)✓ Background Tasks tests completed$(NC)"; \
+	echo ""; \
+	echo "$(YELLOW)Generated Files:$(NC)"; \
+	echo "  📄 JSON:     $$RESULT_FILE"; \
+	echo "  📝 Markdown: $$REPORT_BASE.md"; \
+	echo "  🌐 HTML:     $$REPORT_BASE.html"
+
+## Phase 2 Quick Validation
+test-phase2-quick: ## Run quick Phase 2 validation (core tests only) with verbose output
+	@echo "$(YELLOW)Running quick Phase 2 validation (verbose)...$(NC)"
+	@mkdir -p test-results
+	@echo "Testing Application Foundation..."
+	@python3 tools/scripts/test-phase2-manual.py --tc TC-APP-001 --verbose || true
+	@python3 tools/scripts/test-phase2-manual.py --tc TC-APP-002 --verbose || true
+	@echo "Testing Authentication..."
+	@python3 tools/scripts/test-phase2-manual.py --tc TC-AUTH-001 --verbose || true
+	@python3 tools/scripts/test-phase2-manual.py --tc TC-AUTH-002 --verbose || true
+	@echo "Testing API..."
+	@python3 tools/scripts/test-phase2-manual.py --tc TC-API-001 --verbose || true
+	@python3 tools/scripts/test-phase2-manual.py --tc TC-API-004 --verbose || true
+	@echo "Testing WebSocket..."
+	@python3 tools/scripts/test-phase2-manual.py --tc TC-WS-001 --verbose || true
+	@echo "Testing Celery..."
+	@python3 tools/scripts/test-phase2-manual.py --tc TC-CELERY-001 --verbose || true
+	@echo "$(GREEN)✓ Quick Phase 2 validation completed$(NC)"
+
+test-phase2-smoke: ## Run Phase 2 smoke tests (fastest validation) with verbose output
+	@echo "$(YELLOW)Running Phase 2 smoke tests (verbose)...$(NC)"
+	@mkdir -p test-results
+	@python3 tools/scripts/test-phase2-manual.py --tc TC-APP-001 --verbose || true
+	@python3 tools/scripts/test-phase2-manual.py --tc TC-AUTH-001 --verbose || true
+	@echo "$(GREEN)✓ Phase 2 smoke tests completed$(NC)"
 
 ## Health Monitoring
 health-check: ## Check overall system health
@@ -505,7 +825,7 @@ release: ## Create a release
 	@echo "$(RED)Please use GitHub releases or your CI/CD pipeline$(NC)"
 
 ## Health Checks
-health-check: ## Check service health
+health-check-services: ## Check service health
 	@echo "$(YELLOW)Checking service health...$(NC)"
 	@curl -f http://localhost:8000/health || echo "$(RED)Backend unhealthy$(NC)"
 	@curl -f http://localhost:3000 || echo "$(RED)Frontend unhealthy$(NC)"
@@ -538,12 +858,23 @@ container-dev: ## Start all services in containers
 	@docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 	@echo "$(GREEN)✓ Services started$(NC)"
 	@echo ""
-	@echo "Access points:"
+	@echo "$(YELLOW)Application:$(NC)"
 	@echo "  Frontend:      http://localhost:3000"
 	@echo "  Backend API:   http://localhost:8000/docs"
 	@echo "  WebSocket:     ws://localhost:8001"
-	@echo "  Grafana:       http://localhost:3001"
+	@echo ""
+	@echo "$(YELLOW)Monitoring Stack:$(NC)"
+	@echo "  Grafana:       http://localhost:3001 (admin/admin123)"
+	@echo "  Prometheus:    http://localhost:9090"
+	@echo "  Alertmanager:  http://localhost:9093"
+	@echo "  Loki:          http://localhost:3100"
+	@echo "  Jaeger:        http://localhost:16686"
+	@echo ""
+	@echo "$(YELLOW)Development Tools:$(NC)"
 	@echo "  PgAdmin:       http://localhost:5050"
+	@echo "  Redis Cmd:     http://localhost:8081"
+	@echo "  MinIO Console: http://localhost:9011"
+	@echo "  MailHog:       http://localhost:8025"
 	@echo ""
 	@echo "Get a shell: make container-shell"
 	@echo "View logs:   make container-logs"

@@ -45,12 +45,24 @@ try:
     import requests
     import minio
     from minio.error import S3Error
-    import asyncio_mqtt
+    try:
+        import aiomqtt
+    except ImportError:
+        # Fallback to asyncio-mqtt for backward compatibility
+        import asyncio_mqtt as aiomqtt
     import numpy as np
 except ImportError as e:
     print(f"Missing required dependency: {e}")
-    print("Install with: pip install redis paho-mqtt requests minio asyncio-mqtt numpy")
+    print("Install with: pip install redis paho-mqtt requests minio aiomqtt numpy")
     sys.exit(1)
+
+# Import centralized test configuration
+try:
+    from test_config import get_test_config
+    TEST_CONFIG = get_test_config()
+except ImportError:
+    print("Warning: test_config.py not found. Using default ports.")
+    TEST_CONFIG = None
 
 # Configure logging
 logging.basicConfig(
@@ -79,28 +91,36 @@ class MessagingTestSuite:
         self.results = {}
         self.start_time = time.time()
 
-        # Configuration
-        self.config = {
-            'mqtt': {
-                'host': 'localhost',
-                'port': 1883,
-                'websocket_port': 9001,
-                'username': None,
-                'password': None,
-                'timeout': 10
-            },
-            'redis': {
-                'host': 'localhost',
-                'port': 6379,
-                'db': 0
-            },
-            'minio': {
-                'endpoint': 'localhost:9000',
-                'access_key': 'minioadmin',
-                'secret_key': 'minioadmin',
-                'secure': False
+        # Configuration - use TEST_CONFIG if available
+        if TEST_CONFIG:
+            self.config = {
+                'mqtt': TEST_CONFIG['mqtt'],
+                'redis': TEST_CONFIG['redis'],
+                'minio': TEST_CONFIG['minio']
             }
-        }
+        else:
+            # Fallback to development ports
+            self.config = {
+                'mqtt': {
+                    'host': 'localhost',
+                    'port': 1884,
+                    'websocket_port': 9003,
+                    'username': None,
+                    'password': None,
+                    'timeout': 10
+                },
+                'redis': {
+                    'host': 'localhost',
+                    'port': 6380,
+                    'db': 0
+                },
+                'minio': {
+                    'endpoint': 'localhost:9010',
+                    'access_key': 'lics-dev-admin',
+                    'secret_key': 'lics-dev-minio-password-2024',
+                    'secure': False
+                }
+            }
 
         # Test topic hierarchy for MQTT
         self.mqtt_topics = {
@@ -225,7 +245,7 @@ class MessagingTestSuite:
     async def _test_mqtt_connectivity(self) -> Dict[str, Any]:
         """Test basic MQTT connectivity."""
         try:
-            async with asyncio_mqtt.Client(
+            async with aiomqtt.Client(
                 hostname=self.config['mqtt']['host'],
                 port=self.config['mqtt']['port']
             ) as client:
@@ -253,7 +273,7 @@ class MessagingTestSuite:
             messages_received = []
             test_topic = "lics/test/pubsub"
 
-            async with asyncio_mqtt.Client(
+            async with aiomqtt.Client(
                 hostname=self.config['mqtt']['host'],
                 port=self.config['mqtt']['port']
             ) as client:
@@ -313,7 +333,7 @@ class MessagingTestSuite:
         try:
             received_topics = set()
 
-            async with asyncio_mqtt.Client(
+            async with aiomqtt.Client(
                 hostname=self.config['mqtt']['host'],
                 port=self.config['mqtt']['port']
             ) as client:
@@ -368,7 +388,7 @@ class MessagingTestSuite:
         try:
             qos_results = {}
 
-            async with asyncio_mqtt.Client(
+            async with aiomqtt.Client(
                 hostname=self.config['mqtt']['host'],
                 port=self.config['mqtt']['port']
             ) as client:
@@ -409,7 +429,7 @@ class MessagingTestSuite:
     async def _test_mqtt_retained_messages(self) -> Dict[str, Any]:
         """Test MQTT retained messages functionality."""
         try:
-            async with asyncio_mqtt.Client(
+            async with aiomqtt.Client(
                 hostname=self.config['mqtt']['host'],
                 port=self.config['mqtt']['port']
             ) as client:
@@ -457,7 +477,7 @@ class MessagingTestSuite:
             publish_times = []
             message_count = 100
 
-            async with asyncio_mqtt.Client(
+            async with aiomqtt.Client(
                 hostname=self.config['mqtt']['host'],
                 port=self.config['mqtt']['port']
             ) as client:
@@ -491,7 +511,7 @@ class MessagingTestSuite:
 
             async def client_load_test(client_id: int):
                 try:
-                    async with asyncio_mqtt.Client(
+                    async with aiomqtt.Client(
                         hostname=self.config['mqtt']['host'],
                         port=self.config['mqtt']['port'],
                         client_id=f"load_test_client_{client_id}"
@@ -590,7 +610,9 @@ class MessagingTestSuite:
             # Add entries to stream
             for i in range(5):
                 message = self.generate_test_message("telemetry")
-                entry_id = await redis_client.xadd(stream_name, message)
+                # Convert all values to strings for Redis compatibility
+                message_str = {k: str(v) for k, v in message.items()}
+                entry_id = await redis_client.xadd(stream_name, message_str)
                 entries_added.append(entry_id)
 
             # Read from stream
@@ -680,7 +702,9 @@ class MessagingTestSuite:
             # Add test data to stream
             for i in range(3):
                 message = self.generate_test_message("telemetry")
-                await redis_client.xadd(stream_name, message)
+                # Convert all values to strings for Redis compatibility
+                message_str = {k: str(v) for k, v in message.items()}
+                await redis_client.xadd(stream_name, message_str)
 
             # Create consumer group
             try:
@@ -720,8 +744,10 @@ class MessagingTestSuite:
 
             for i in range(50):
                 message = self.generate_test_message()
+                # Convert all values to strings for Redis compatibility
+                message_str = {k: str(v) for k, v in message.items()}
                 start_time = time.time()
-                await redis_client.xadd(stream_name, message)
+                await redis_client.xadd(stream_name, message_str)
                 stream_times.append(time.time() - start_time)
 
             # Benchmark Pub/Sub
@@ -755,7 +781,9 @@ class MessagingTestSuite:
                 stream_name = f"load_test:stream:{uuid.uuid4()}"
                 for i in range(20):
                     message = self.generate_test_message()
-                    await redis_client.xadd(stream_name, message)
+                    # Convert all values to strings for Redis compatibility
+                    message_str = {k: str(v) for k, v in message.items()}
+                    await redis_client.xadd(stream_name, message_str)
                 await redis_client.delete(stream_name)
                 return 20
 
@@ -803,8 +831,9 @@ class MessagingTestSuite:
         }
 
         try:
-            # Initialize MinIO client
-            minio_client = minio.Minio(**self.config['minio'])
+            # Initialize MinIO client (remove console_endpoint if present)
+            minio_config = {k: v for k, v in self.config['minio'].items() if k != 'console_endpoint'}
+            minio_client = minio.Minio(**minio_config)
 
             # 1. Connectivity and health test
             health_result = self._test_minio_health()

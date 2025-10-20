@@ -1,0 +1,5 @@
+# MQTT Authentication Files
+passwords.txt
+mqtt-credentials.env
+*.backup.*
+mqtt-auth-setup.log

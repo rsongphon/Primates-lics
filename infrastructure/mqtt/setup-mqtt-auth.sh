@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # LICS MQTT Authentication Setup Script
 # Creates users and passwords for MQTT broker authentication
@@ -6,10 +6,13 @@
 set -e
 
 # Script configuration
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PASSWORD_FILE="${SCRIPT_DIR}/passwords.txt"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+# Use /output for password file in Docker (writable volume), /scripts is read-only
+OUTPUT_DIR="${OUTPUT_DIR:-/output}"
+PASSWORD_FILE="${OUTPUT_DIR}/passwords.txt"
 TEMP_PASSWORD_FILE="${PASSWORD_FILE}.tmp"
-LOG_FILE="${SCRIPT_DIR}/mqtt-auth-setup.log"
+# Use /tmp for logs in Docker container (read-only /scripts volume mount)
+LOG_FILE="/tmp/mqtt-auth-setup.log"
 
 # Colors for output
 RED='\033[0;31m'
@@ -39,7 +42,7 @@ warning() {
 check_dependencies() {
     log "Checking dependencies..."
 
-    if ! command -v mosquitto_passwd &> /dev/null; then
+    if ! command -v mosquitto_passwd > /dev/null 2>&1; then
         error "mosquitto_passwd command not found. Please install mosquitto-clients."
         error "  Ubuntu/Debian: sudo apt-get install mosquitto-clients"
         error "  CentOS/RHEL: sudo yum install mosquitto"
@@ -53,7 +56,8 @@ check_dependencies() {
 # Generate secure random password
 generate_password() {
     local length=${1:-16}
-    openssl rand -base64 $length | tr -d "=+/" | cut -c1-$length
+    # Use /dev/urandom instead of openssl (not available in mosquitto image)
+    tr -dc 'A-Za-z0-9' < /dev/urandom | head -c "$length"
 }
 
 # Create or update user password
@@ -142,8 +146,8 @@ setup_default_users() {
     create_user "lics-device-template" "$device_password" "Template for device users"
     create_user "lics-monitor" "$monitor_password" "Monitoring and health checks"
 
-    # Create environment file with passwords
-    local env_file="${SCRIPT_DIR}/mqtt-credentials.env"
+    # Create environment file with passwords (in OUTPUT_DIR for Docker)
+    local env_file="${OUTPUT_DIR}/mqtt-credentials.env"
     cat > "$env_file" << EOF
 # LICS MQTT Credentials
 # Generated on: $(date)
@@ -171,8 +175,8 @@ EOF
     chmod 600 "$env_file"
     success "Credentials saved to: $env_file"
 
-    # Create .gitignore entry
-    local gitignore_file="${SCRIPT_DIR}/.gitignore"
+    # Create .gitignore entry (in OUTPUT_DIR for Docker)
+    local gitignore_file="${OUTPUT_DIR}/.gitignore"
     if [ ! -f "$gitignore_file" ]; then
         cat > "$gitignore_file" << EOF
 # MQTT Authentication Files
@@ -200,8 +204,8 @@ create_device_user() {
 
     create_user "$username" "$password" "Device user for $device_id"
 
-    # Add to device credentials file
-    local device_env="${SCRIPT_DIR}/device-credentials.env"
+    # Add to device credentials file (in OUTPUT_DIR for Docker)
+    local device_env="${OUTPUT_DIR}/device-credentials.env"
     echo "# Device: $device_id" >> "$device_env"
     echo "MQTT_${device_id^^}_USERNAME=$username" >> "$device_env"
     echo "MQTT_${device_id^^}_PASSWORD=$password" >> "$device_env"

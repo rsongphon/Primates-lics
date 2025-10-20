@@ -1,0 +1,9 @@
+{
+  "email": "testuser789@example.com",
+  "username": "testuser789",
+  "password": "Test123!@#",
+  "password_confirm": "Test123!@#",
+  "first_name": "Test",
+  "last_name": "User",
+  "organization_id": "00000000-0000-0000-0000-000000000001"
+}

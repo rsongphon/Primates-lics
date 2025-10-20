@@ -23,12 +23,12 @@ except ImportError as e:
     sys.exit(1)
 
 # Configure logging
+# FileHandler removed - Docker containers should log to stdout only
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
     handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('redis-pubsub-config.log')
+        logging.StreamHandler()
     ]
 )
 logger = logging.getLogger(__name__)
@@ -38,7 +38,7 @@ class LICSRedisPubSubManager:
     LICS Redis Pub/Sub Manager for real-time communication
     """
 
-    def __init__(self, redis_url: str = "redis://localhost:6379/0"):
+    def __init__(self, redis_url: str = None):
         """
         Initialize Redis Pub/Sub Manager
 
@@ -545,7 +545,7 @@ def main():
     parser = argparse.ArgumentParser(description="LICS Redis Pub/Sub Configuration")
     parser.add_argument(
         "--redis-url",
-        default="redis://localhost:6379/0",
+        default=os.getenv("REDIS_URL", "redis://localhost:6379/0"),
         help="Redis connection URL"
     )
     parser.add_argument(

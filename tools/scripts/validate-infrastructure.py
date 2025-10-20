@@ -44,6 +44,14 @@ except ImportError as e:
     print("Install with: pip install docker requests asyncpg redis paho-mqtt influxdb-client")
     sys.exit(1)
 
+# Import centralized test configuration
+try:
+    from test_config import get_test_config
+    TEST_CONFIG = get_test_config()
+except ImportError:
+    print("Warning: test_config.py not found. Using default ports.")
+    TEST_CONFIG = None
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -71,53 +79,73 @@ class InfrastructureValidator:
         self.docker_client = None
         self.project_root = Path(__file__).parent.parent.parent
 
-        # Service configuration
+        # Service configuration - use TEST_CONFIG if available, otherwise defaults
+        if TEST_CONFIG:
+            postgres_port = TEST_CONFIG['postgresql']['port']
+            pgbouncer_port = TEST_CONFIG['pgbouncer']['port']
+            redis_port = TEST_CONFIG['redis']['port']
+            mqtt_port = TEST_CONFIG['mqtt']['port']
+            minio_port = int(TEST_CONFIG['minio']['endpoint'].split(':')[1])
+            influxdb_port = int(TEST_CONFIG['influxdb']['url'].split(':')[-1])
+            prometheus_port = TEST_CONFIG['prometheus']['port']
+            grafana_port = TEST_CONFIG['grafana']['port']
+        else:
+            # Fallback to development ports
+            postgres_port = 5433
+            pgbouncer_port = 6433
+            redis_port = 6380
+            mqtt_port = 1884
+            minio_port = 9010
+            influxdb_port = 8087
+            prometheus_port = 9090
+            grafana_port = 3001
+
         self.services = {
             'postgres': {
-                'port': 5432,
+                'port': postgres_port,
                 'health_endpoint': None,
                 'required': True,
                 'timeout': 30
             },
             'pgbouncer': {
-                'port': 6432,
+                'port': pgbouncer_port,
                 'health_endpoint': None,
                 'required': True,
                 'timeout': 15
             },
             'redis': {
-                'port': 6379,
+                'port': redis_port,
                 'health_endpoint': None,
                 'required': True,
                 'timeout': 10
             },
             'mqtt': {
-                'port': 1883,
+                'port': mqtt_port,
                 'health_endpoint': None,
                 'required': True,
                 'timeout': 10
             },
             'minio': {
-                'port': 9000,
-                'health_endpoint': 'http://localhost:9000/minio/health/live',
+                'port': minio_port,
+                'health_endpoint': f'http://localhost:{minio_port}/minio/health/live',
                 'required': True,
                 'timeout': 15
             },
             'influxdb': {
-                'port': 8086,
-                'health_endpoint': 'http://localhost:8086/health',
+                'port': influxdb_port,
+                'health_endpoint': f'http://localhost:{influxdb_port}/health',
                 'required': True,
                 'timeout': 20
             },
             'prometheus': {
-                'port': 9090,
-                'health_endpoint': 'http://localhost:9090/-/healthy',
+                'port': prometheus_port,
+                'health_endpoint': f'http://localhost:{prometheus_port}/-/healthy',
                 'required': False,
                 'timeout': 15
             },
             'grafana': {
-                'port': 3001,
-                'health_endpoint': 'http://localhost:3001/api/health',
+                'port': grafana_port,
+                'health_endpoint': f'http://localhost:{grafana_port}/api/health',
                 'required': False,
                 'timeout': 15
             },
@@ -194,7 +222,11 @@ class InfrastructureValidator:
             healthy_count = 0
 
             for service in services_data:
-                service_name = service.get("Name", "").replace("primates-lics_", "").replace("_1", "")
+                # Extract service name - handle both hyphen and underscore prefixes
+                full_name = service.get("Name", "")
+                service_name = full_name.replace("primates-lics-", "").replace("primates-lics_", "")
+                service_name = service_name.replace("-dev-1", "").replace("_dev_1", "").replace("-1", "").replace("_1", "")
+
                 if not service_name:
                     continue
 
@@ -205,8 +237,8 @@ class InfrastructureValidator:
                     "name": service_name,
                     "state": state,
                     "ports": ports,
-                    "running": "Up" in state,
-                    "healthy": "healthy" in state.lower() or ("Up" in state and "unhealthy" not in state.lower())
+                    "running": state.lower() in ["running", "up"] or "up" in state.lower(),
+                    "healthy": "healthy" in state.lower() or (state.lower() == "running" and "unhealthy" not in state.lower())
                 }
 
                 result["services"][service_name] = service_info
@@ -341,14 +373,24 @@ class InfrastructureValidator:
             "errors": []
         }
 
+        # Get configuration
+        if TEST_CONFIG:
+            pg_config = TEST_CONFIG['postgresql']
+            redis_config = TEST_CONFIG['redis']
+            influx_config = TEST_CONFIG['influxdb']
+        else:
+            pg_config = {'host': 'localhost', 'port': 5433, 'user': 'lics', 'password': 'lics123', 'database': 'lics_dev'}
+            redis_config = {'host': 'localhost', 'port': 6380, 'db': 0}
+            influx_config = {'url': 'http://localhost:8087', 'token': 'lics-dev-admin-token', 'org': 'lics-dev'}
+
         # PostgreSQL connectivity test
         try:
             conn = await asyncpg.connect(
-                host='localhost',
-                port=5432,
-                user='lics',
-                password='lics123',
-                database='lics'
+                host=pg_config['host'],
+                port=pg_config['port'],
+                user=pg_config['user'],
+                password=pg_config['password'],
+                database=pg_config['database']
             )
 
             # Basic query test
@@ -384,7 +426,12 @@ class InfrastructureValidator:
 
         # Redis connectivity test
         try:
-            redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
+            redis_client = redis.Redis(
+                host=redis_config['host'],
+                port=redis_config['port'],
+                db=redis_config['db'],
+                decode_responses=True
+            )
 
             # Test basic operations
             redis_client.set("health_check", "ok", ex=10)
@@ -412,9 +459,9 @@ class InfrastructureValidator:
         # InfluxDB connectivity test
         try:
             influx_client = InfluxDBClient(
-                url="http://localhost:8086",
-                token="lics-admin-token-change-in-production",
-                org="lics"
+                url=influx_config['url'],
+                token=influx_config['token'],
+                org=influx_config['org']
             )
 
             health = influx_client.health()
@@ -454,6 +501,14 @@ class InfrastructureValidator:
             "errors": []
         }
 
+        # Get configuration
+        if TEST_CONFIG:
+            mqtt_config = TEST_CONFIG['mqtt']
+            minio_port = int(TEST_CONFIG['minio']['endpoint'].split(':')[1])
+        else:
+            mqtt_config = {'host': 'localhost', 'port': 1884}
+            minio_port = 9010
+
         # MQTT connectivity test
         try:
             mqtt_result = {"connected": False, "publish_test": False}
@@ -472,7 +527,7 @@ class InfrastructureValidator:
             client.on_connect = on_connect
             client.on_message = on_message
 
-            client.connect("localhost", 1883, 10)
+            client.connect(mqtt_config['host'], mqtt_config['port'], 10)
             client.loop_start()
 
             # Wait for connection
@@ -498,8 +553,8 @@ class InfrastructureValidator:
 
         # MinIO connectivity test
         try:
-            health_response = requests.get("http://localhost:9000/minio/health/live", timeout=5)
-            ready_response = requests.get("http://localhost:9000/minio/health/ready", timeout=5)
+            health_response = requests.get(f"http://localhost:{minio_port}/minio/health/live", timeout=5)
+            ready_response = requests.get(f"http://localhost:{minio_port}/minio/health/ready", timeout=5)
 
             result["checks"]["minio"] = {
                 "live": health_response.status_code == 200,

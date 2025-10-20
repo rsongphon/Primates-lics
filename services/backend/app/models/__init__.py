@@ -20,7 +20,7 @@ from .auth import (
 
 # Import domain models
 from .domain import (
-    Device, Experiment, Task, Participant, TaskExecution, DeviceData,
+    Device, Experiment, ExperimentData, Task, Participant, TaskExecution, DeviceData,
     experiment_devices, experiment_tasks,
     DeviceStatus, DeviceType, ExperimentStatus, TaskStatus, ParticipantStatus
 )
@@ -44,7 +44,7 @@ __all__ = [
     "user_roles", "role_permissions",
 
     # Domain models
-    "Device", "Experiment", "Task", "Participant", "TaskExecution", "DeviceData",
+    "Device", "Experiment", "ExperimentData", "Task", "Participant", "TaskExecution", "DeviceData",
     "experiment_devices", "experiment_tasks",
 
     # Enums

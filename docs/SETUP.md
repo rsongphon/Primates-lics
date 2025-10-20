@@ -1,41 +1,118 @@
-# LICS Local Development Setup Guide
+# LICS Development Setup Guide
 
-This comprehensive guide will help you set up the LICS (Lab Instrument Control System) development environment on your local machine.
+This guide will help you set up the LICS (Lab Instrument Control System) development environment.
 
-## Quick Start
+## ⚠️ Important: Docker-First Development
+
+**LICS is designed to run entirely in Docker containers.** All services (frontend, backend, databases, etc.) run inside containers with hot-reloading enabled. This means:
+
+✅ **You only need Docker installed** - no Node.js, Python, PostgreSQL, or other dependencies locally
+✅ **Consistent environment** across all developers and platforms
+✅ **No version conflicts** or dependency hell
+✅ **Instant setup** with `make dev`
+
+## 🚀 Quick Start (Recommended)
 
 For the impatient developer:
 
 ```bash
-# 1. Clone the repository
+# 1. Prerequisites: Install Docker only
+# Visit https://docs.docker.com/get-docker/
+
+# 2. Clone the repository
 git clone https://github.com/rsongphon/Primates-lics.git
 cd Primates-lics
 
-# 2. Run automated setup for your OS
-make setup-dev-env
-
-# 3. Generate SSL certificates
-make setup-ssl
-
-# 4. Copy environment configuration
+# 3. Copy environment configuration
 cp .env.example .env
 
-# 5. Install project dependencies
-make install
-
-# 6. Start development environment
+# 4. Start the complete development environment
 make dev
 ```
 
-That's it! Your development environment should be running at:
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:8000
+That's it! Your containerized development environment is now running at:
+- Frontend: http://localhost:3000 (with hot-reload)
+- Backend API: http://localhost:8000/docs (with auto-reload)
 - WebSocket: ws://localhost:8001
+- PostgreSQL: localhost:5433
+- Redis: localhost:6380
+- MQTT: localhost:1884
 - Grafana: http://localhost:3001
 
 ---
 
-## Detailed Setup Instructions
+## Development Workflow
+
+### Working with Docker Containers
+
+All development happens inside Docker containers:
+
+```bash
+# View logs from all services
+docker-compose -f docker-compose.dev.yml logs -f
+
+# View logs from specific service
+docker-compose -f docker-compose.dev.yml logs -f backend-dev
+
+# Execute commands inside containers
+docker-compose -f docker-compose.dev.yml exec backend-dev pytest
+docker-compose -f docker-compose.dev.yml exec frontend-dev npm test
+
+# Restart a specific service
+docker-compose -f docker-compose.dev.yml restart backend-dev
+
+# Stop all services
+docker-compose -f docker-compose.dev.yml down
+
+# Stop and remove volumes (clean slate)
+docker-compose -f docker-compose.dev.yml down -v
+```
+
+### Running Tests
+
+```bash
+# Run tests inside containers
+docker-compose -f docker-compose.dev.yml exec backend-dev pytest
+docker-compose -f docker-compose.dev.yml exec backend-dev pytest --cov=app
+
+# Frontend tests
+docker-compose -f docker-compose.dev.yml exec frontend-dev npm test
+docker-compose -f docker-compose.dev.yml exec frontend-dev npm run lint
+```
+
+### Database Operations
+
+```bash
+# Run migrations inside backend container
+docker-compose -f docker-compose.dev.yml exec backend-dev alembic upgrade head
+docker-compose -f docker-compose.dev.yml exec backend-dev alembic revision --autogenerate -m "description"
+
+# Connect to PostgreSQL directly
+docker-compose -f docker-compose.dev.yml exec postgres-dev psql -U lics -d lics_dev
+```
+
+### Installing New Dependencies
+
+```bash
+# Backend (Python)
+# 1. Add package to services/backend/requirements.txt
+# 2. Rebuild container
+docker-compose -f docker-compose.dev.yml up --build backend-dev
+
+# Frontend (Node.js)
+# 1. Add package to services/frontend/package.json
+# 2. Rebuild container
+docker-compose -f docker-compose.dev.yml up --build frontend-dev
+```
+
+---
+
+## Alternative: Local Development (Not Recommended)
+
+<details>
+<summary><b>⚠️ Click to expand local development instructions (requires manual installation of many dependencies)</b></summary>
+
+**Note**: This approach requires installing Node.js, Python, PostgreSQL, Redis, and other dependencies locally. Docker development is strongly recommended instead.
 
 ### Prerequisites
 
@@ -622,4 +699,10 @@ SIMULATE_HARDWARE=true           # Edge agent simulation
 
 ---
 
+</details>
+
+## Getting Help
+
 **Need help?** Check our [troubleshooting guide](TROUBLESHOOTING.md) or [open an issue](https://github.com/rsongphon/Primates-lics/issues).
+
+For containerized development, see the comprehensive [Containerized Development Guide](../CONTAINERIZED_DEVELOPMENT.md).

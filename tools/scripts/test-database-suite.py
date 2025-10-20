@@ -42,6 +42,7 @@ try:
     import asyncpg
     import redis.asyncio as redis
     import influxdb_client
+    from influxdb_client import InfluxDBClient, Point
     from influxdb_client.client.write_api import SYNCHRONOUS
     import numpy as np
     import psutil
@@ -49,6 +50,14 @@ except ImportError as e:
     print(f"Missing required dependency: {e}")
     print("Install with: pip install asyncpg redis[hiredis] influxdb-client numpy psutil")
     sys.exit(1)
+
+# Import centralized test configuration
+try:
+    from test_config import get_test_config
+    TEST_CONFIG = get_test_config()
+except ImportError:
+    print("Warning: test_config.py not found. Using default ports.")
+    TEST_CONFIG = None
 
 # Configure logging
 logging.basicConfig(
@@ -77,34 +86,43 @@ class DatabaseTestSuite:
         self.results = {}
         self.start_time = time.time()
 
-        # Test configuration
-        self.config = {
-            'postgresql': {
-                'host': 'localhost',
-                'port': 5432,
-                'user': 'lics',
-                'password': 'lics123',
-                'database': 'lics'
-            },
-            'pgbouncer': {
-                'host': 'localhost',
-                'port': 6432,
-                'user': 'lics',
-                'password': 'lics123',
-                'database': 'lics'
-            },
-            'redis': {
-                'host': 'localhost',
-                'port': 6379,
-                'db': 0
-            },
-            'influxdb': {
-                'url': 'http://localhost:8086',
-                'token': 'lics-admin-token-change-in-production',
-                'org': 'lics',
-                'bucket': 'telemetry'
+        # Test configuration - use TEST_CONFIG if available
+        if TEST_CONFIG:
+            self.config = {
+                'postgresql': TEST_CONFIG['postgresql'],
+                'pgbouncer': TEST_CONFIG['pgbouncer'],
+                'redis': TEST_CONFIG['redis'],
+                'influxdb': TEST_CONFIG['influxdb']
             }
-        }
+        else:
+            # Fallback to development ports
+            self.config = {
+                'postgresql': {
+                    'host': 'localhost',
+                    'port': 5433,
+                    'user': 'lics',
+                    'password': 'lics123',
+                    'database': 'lics_dev'
+                },
+                'pgbouncer': {
+                    'host': 'localhost',
+                    'port': 6433,
+                    'user': 'lics',
+                    'password': 'lics123',
+                    'database': 'lics_dev'
+                },
+                'redis': {
+                    'host': 'localhost',
+                    'port': 6380,
+                    'db': 0
+                },
+                'influxdb': {
+                    'url': 'http://localhost:8087',
+                    'token': 'lics-dev-admin-token',
+                    'org': 'lics-dev',
+                    'bucket': 'telemetry-dev'
+                }
+            }
 
     def generate_test_data(self, size: int = 1000) -> List[Dict[str, Any]]:
         """Generate test data for database operations."""
@@ -634,7 +652,6 @@ class DatabaseTestSuite:
                 write_api = client.write_api(write_options=SYNCHRONOUS)
 
                 # Generate test data points
-                from influxdb_client import Point
                 test_points = []
                 base_time = datetime.now()
 

@@ -1,0 +1,86 @@
+# LICS Grafana Datasources Configuration - Development Environment
+# Provisioning configuration for Grafana datasources in development
+
+apiVersion: 1
+
+datasources:
+  # Prometheus - Primary metrics datasource
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus-dev:9090
+    isDefault: true
+    editable: true
+    jsonData:
+      httpMethod: POST
+      manageAlerts: true
+      prometheusType: Prometheus
+      prometheusVersion: 2.40.0
+      exemplarTraceIdDestinations:
+        - name: trace_id
+          datasourceUid: jaeger-uid
+    secureJsonData: {}
+
+  # PostgreSQL - Database metrics and logs
+  - name: PostgreSQL
+    type: postgres
+    access: proxy
+    url: postgres-dev:5432
+    database: lics_dev
+    user: lics
+    editable: true
+    jsonData:
+      postgresVersion: 1500
+      timescaledb: true
+      sslmode: disable
+    secureJsonData:
+      password: "lics123"
+
+  # InfluxDB - Time series data
+  - name: InfluxDB
+    type: influxdb
+    uid: influxdb-uid
+    access: proxy
+    url: http://influxdb-dev:8086
+    database: lics_telemetry
+    user: admin
+    editable: true
+    jsonData:
+      version: 2.0
+      organization: lics-dev
+      defaultBucket: telemetry-dev
+      tlsSkipVerify: true
+      httpMode: POST
+    secureJsonData:
+      token: "lics-dev-admin-token"
+
+  # Loki - Log aggregation
+  - name: Loki
+    type: loki
+    uid: loki-uid
+    access: proxy
+    url: http://loki-dev:3100
+    editable: true
+    jsonData:
+      maxLines: 1000
+      derivedFields:
+        - datasourceUid: jaeger-uid
+          matcherRegex: "trace_id=(\\w+)"
+          name: TraceID
+          url: "$${__value.raw}"
+
+  # Jaeger - Distributed tracing
+  - name: Jaeger
+    type: jaeger
+    uid: jaeger-uid
+    access: proxy
+    url: http://jaeger:16686
+    editable: true
+    jsonData:
+      tracesToLogs:
+        datasourceUid: loki-uid
+        tags: ['job', 'instance', 'pod', 'namespace']
+        mappedTags: [{ key: 'service.name', value: 'service' }]
+        mapTagNamesEnabled: false
+        spanStartTimeShift: 1h
+        spanEndTimeShift: 1h

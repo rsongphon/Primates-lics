@@ -7,7 +7,8 @@ set -e
 
 # Script configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOG_FILE="${SCRIPT_DIR}/minio-init.log"
+# Use /tmp for logs in Docker container (read-only /scripts volume mount)
+LOG_FILE="/tmp/minio-init.log"
 
 # MinIO configuration
 MINIO_ENDPOINT="${MINIO_ENDPOINT:-http://localhost:9000}"
@@ -204,8 +205,8 @@ create_lics_buckets() {
 setup_lifecycle_policies() {
     log "Setting up bucket lifecycle policies..."
 
-    # Temporary files - delete after 7 days
-    cat > "${SCRIPT_DIR}/temp-lifecycle.json" << EOF
+    # Temporary files - delete after 7 days (use /tmp for Docker)
+    cat > "/tmp/temp-lifecycle.json" << EOF
 {
     "Rules": [
         {
@@ -236,9 +237,9 @@ setup_notifications() {
 
     # Example: Notify when new videos are uploaded
     # This would typically integrate with a webhook or message queue
-    # For now, we'll create the configuration template
+    # For now, we'll create the configuration template (use /tmp for Docker)
 
-    cat > "${SCRIPT_DIR}/notification-config.json" << EOF
+    cat > "/tmp/notification-config.json" << EOF
 {
     "webhookConfigs": [
         {
@@ -340,7 +341,8 @@ validate_setup() {
 generate_report() {
     log "Generating bucket usage report..."
 
-    local report_file="${SCRIPT_DIR}/bucket-report.txt"
+    # Use /tmp for Docker container (read-only /scripts volume)
+    local report_file="/tmp/bucket-report.txt"
 
     cat > "$report_file" << EOF
 LICS MinIO Bucket Report
@@ -382,7 +384,7 @@ EOF
 # Clean up temporary files
 cleanup() {
     log "Cleaning up temporary files..."
-    rm -f "${SCRIPT_DIR}/temp-lifecycle.json"
+    rm -f "/tmp/temp-lifecycle.json" "/tmp/notification-config.json"
     log "Cleanup completed"
 }
 

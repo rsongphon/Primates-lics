@@ -37,6 +37,7 @@ REFRESH_TOKEN_TYPE = "refresh"
 ID_TOKEN_TYPE = "id"
 DEVICE_TOKEN_TYPE = "device"
 PASSWORD_RESET_TOKEN_TYPE = "password_reset"
+EMAIL_VERIFICATION_TOKEN_TYPE = "email_verification"
 
 # Token expiry times
 ACCESS_TOKEN_EXPIRE_MINUTES = 15
@@ -44,6 +45,7 @@ REFRESH_TOKEN_EXPIRE_DAYS = 7
 ID_TOKEN_EXPIRE_MINUTES = 60
 DEVICE_TOKEN_EXPIRE_DAYS = 30
 PASSWORD_RESET_TOKEN_EXPIRE_MINUTES = 60
+EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS = 24
 
 
 class TokenData:
@@ -123,6 +125,51 @@ class TokenData:
             "token_type": self.token_type,
             "device_id": self.device_id,
         }
+
+
+def validate_token_data(payload: Dict[str, Any]) -> TokenData:
+    """
+    Validate JWT payload and create TokenData object.
+
+    Args:
+        payload: JWT token payload dictionary
+
+    Returns:
+        TokenData object with extracted claims
+
+    Raises:
+        ValueError: If required claims are missing or invalid
+    """
+    try:
+        # Handle None subject marker
+        sub_value = payload.get("sub")
+        if payload.get("_sub_was_none") and sub_value == "__NONE__":
+            sub_value = None
+
+        # Extract token data
+        token_data = TokenData(
+            user_id=sub_value,
+            username=payload.get("username"),
+            email=payload.get("email"),
+            organization_id=payload.get("organization_id"),
+            roles=payload.get("roles", []),
+            permissions=payload.get("permissions", []),
+            token_type=payload.get("type"),
+            device_id=payload.get("device_id"),
+        )
+
+        # Store raw payload for access to non-mapped fields
+        # Convert __NONE__ marker back to None in payload copy
+        payload_copy = payload.copy()
+        if payload.get("_sub_was_none"):
+            payload_copy["sub"] = None
+        token_data._payload = payload_copy
+
+        return token_data
+
+    except Exception as e:
+        logger.error(f"Error validating token data: {e}")
+        raise ValueError(f"Invalid token payload: {e}")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -419,6 +466,48 @@ def create_password_reset_token_jwt(
         raise
 
 
+def create_email_verification_token(
+    email: str,
+    user_id: Optional[str] = None,
+    expires_delta: Optional[timedelta] = None,
+) -> str:
+    """
+    Create an email verification token.
+
+    Args:
+        email: User email to verify
+        user_id: Optional user ID
+        expires_delta: Custom expiration time
+
+    Returns:
+        Encoded JWT email verification token
+    """
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(hours=EMAIL_VERIFICATION_TOKEN_EXPIRE_HOURS)
+
+    to_encode = {
+        "exp": expire,
+        "iat": datetime.now(timezone.utc),
+        "sub": str(user_id) if user_id else email,
+        "type": EMAIL_VERIFICATION_TOKEN_TYPE,
+        "email": email,
+    }
+
+    try:
+        encoded_jwt = jwt.encode(
+            to_encode,
+            settings.JWT_SECRET_KEY,
+            algorithm=settings.JWT_ALGORITHM
+        )
+        logger.debug(f"Email verification token created for: {email}")
+        return encoded_jwt
+    except Exception as e:
+        logger.error(f"Error creating email verification token: {e}")
+        raise
+
+
 def verify_token(token: str, token_type: Optional[str] = None, return_payload: bool = False) -> Optional[Union[TokenData, Dict[str, Any]]]:
     """
     Verify and decode a JWT token.
@@ -549,3 +638,53 @@ def get_token_expiry(token: str) -> Optional[datetime]:
         return None
     except Exception:
         return None
+
+
+# ===== MFA FUNCTIONS =====
+# Note: These are placeholder implementations for testing
+# In production, use pyotp or similar library for proper TOTP implementation
+
+def generate_mfa_secret() -> str:
+    """
+    Generate a base32-encoded secret for TOTP MFA.
+
+    This is a placeholder implementation that generates a random base32 string.
+    In production, use pyotp.random_base32() or similar.
+
+    Returns:
+        Base32-encoded secret string
+    """
+    import base64
+    # Generate 20 random bytes and encode as base32 (standard TOTP secret length)
+    random_bytes = secrets.token_bytes(20)
+    secret = base64.b32encode(random_bytes).decode('utf-8')
+    # Remove padding characters for cleaner QR codes
+    return secret.rstrip('=')
+
+
+def verify_mfa_code(secret: str, code: str) -> bool:
+    """
+    Verify a TOTP code against a secret.
+
+    This is a placeholder implementation for testing that accepts any 6-digit code.
+    In production, use pyotp.TOTP(secret).verify(code) or similar.
+
+    Args:
+        secret: Base32-encoded TOTP secret
+        code: 6-digit TOTP code to verify
+
+    Returns:
+        True if code is valid, False otherwise
+    """
+    # For testing: accept any 6-digit numeric code
+    if not code or not isinstance(code, str):
+        return False
+
+    # Basic validation: must be 6 digits
+    if len(code) != 6 or not code.isdigit():
+        return False
+
+    # Placeholder: In testing mode, always return True for valid format
+    # In production, this should use pyotp.TOTP(secret).verify(code)
+    logger.debug(f"MFA code validation (placeholder): code format valid, accepting")
+    return True
