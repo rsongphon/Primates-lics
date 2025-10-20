@@ -11,7 +11,9 @@ from typing import AsyncGenerator, Optional
 
 from fastapi import Depends, HTTPException, Query, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.config import settings
 from app.core.database import get_db_session, db_manager
@@ -678,79 +680,20 @@ async def check_health_dependency() -> bool:
 
 async def _convert_user_to_profile(user: "User", session: AsyncSession) -> "UserProfile":
     """
-    Convert User model to UserProfile schema with roles and permissions.
+    Convert User model to UserProfile schema using DTO converter.
+
+    This is a wrapper around UserConverter for backward compatibility.
+    All actual conversion logic is now in the DTO layer.
 
     Args:
-        user: User model instance
-        session: Database session
+        user: User ORM object
+        session: Active database session
 
     Returns:
-        UserProfile schema with populated roles and permissions
+        UserProfile Pydantic model
     """
-    # Import here to avoid circular imports
-    from app.schemas.auth import UserProfile, RoleInfo, PermissionInfo
-
-    # Convert roles to RoleInfo
-    role_infos = []
-    for role in user.roles:
-        # Convert permissions to PermissionInfo
-        permission_infos = []
-        for permission in role.permissions:
-            permission_info = PermissionInfo(
-                id=permission.id,
-                name=permission.name,
-                display_name=permission.display_name,
-                description=permission.description,
-                resource=permission.resource,
-                action=permission.action,
-                is_system_permission=permission.is_system_permission,
-                created_at=permission.created_at,
-                updated_at=permission.updated_at
-            )
-            permission_infos.append(permission_info)
-
-        role_info = RoleInfo(
-            id=role.id,
-            name=role.name,
-            display_name=role.display_name,
-            description=role.description,
-            is_system_role=role.is_system_role,
-            is_default=role.is_default,
-            parent_role_id=role.parent_role_id,
-            created_at=role.created_at,
-            updated_at=role.updated_at,
-            permissions=permission_infos
-        )
-        role_infos.append(role_info)
-
-    # Collect all permissions from all roles
-    all_permissions = set()
-    for role in user.roles:
-        for permission in role.permissions:
-            all_permissions.add(permission.name)
-
-    # Create UserProfile
-    user_profile = UserProfile(
-        id=user.id,
-        email=user.email,
-        username=user.username,
-        first_name=user.first_name,
-        last_name=user.last_name,
-        is_active=user.is_active,
-        is_verified=user.is_verified,
-        is_superuser=user.is_superuser,
-        organization_id=user.organization_id,
-        timezone=user.timezone,
-        language=user.language,
-        last_login_at=user.last_login_at,
-        mfa_enabled=user.mfa_enabled,
-        created_at=user.created_at,
-        updated_at=user.updated_at,
-        roles=role_infos,
-        permissions=all_permissions
-    )
-
-    return user_profile
+    from app.dto.converters import UserConverter
+    return await UserConverter.to_user_profile(user, session)
 
 
 def get_client_ip(request: Request) -> str:

@@ -1135,76 +1135,70 @@ class RoleService(BaseService[Role, RoleRepository]):
         self,
         role_data: RoleCreateRequest,
         current_user_id: Optional[uuid.UUID] = None
-    ) -> Dict[str, Any]:
+    ) -> "RoleInfo":
         """
-        Create new role with permissions.
+        Create new role with permissions using DTO pattern.
 
         Args:
             role_data: Role creation data
-            current_user_id: ID of user creating the role
+            current_user_id: ID of user creating the role (for audit)
 
         Returns:
-            Created role
+            RoleInfo DTO (not ORM object)
 
         Raises:
             ConflictError: If role name already exists
-            NotFoundError: If permissions not found
+            NotFoundError: If any permission IDs don't exist
+            ValidationError: If data validation fails
         """
         async with db_manager.session_scope() as session:
             role_repo = self.get_repository(session)
             perm_repo = self.get_permission_repository(session)
 
-            # Check if role name already exists
+            # Validate: Check if role name already exists
             existing_role = await role_repo.get_by_name(role_data.name)
             if existing_role:
-                raise ConflictError("Role name already exists")
+                raise ConflictError(f"Role with name '{role_data.name}' already exists")
 
-            # Get permissions
+            # Validate: Get permissions by IDs
             permissions = []
             if role_data.permission_ids:
                 permissions = await perm_repo.get_by_ids(role_data.permission_ids)
                 if len(permissions) != len(role_data.permission_ids):
-                    missing_ids = set(role_data.permission_ids) - {p.id for p in permissions}
-                    raise NotFoundError("Permission", f"Permissions not found: {missing_ids}")
+                    found_ids = {p.id for p in permissions}
+                    missing_ids = set(role_data.permission_ids) - found_ids
+                    raise NotFoundError(
+                        "Permission",
+                        f"Permissions not found: {missing_ids}"
+                    )
 
-            # Create role
+            # Create role entity
             role = await role_repo.create(
                 name=role_data.name,
                 display_name=role_data.display_name,
                 description=role_data.description,
                 parent_role_id=role_data.parent_role_id,
-                is_system_role=False,
-                is_default=False
+                is_system_role=False,  # User-created roles are never system roles
+                is_default=False  # User-created roles are never default
             )
 
-            # Assign permissions
+            # Assign permissions to role
             role.permissions = permissions
 
             # Commit the transaction
             await session.commit()
 
-            # Refresh to load all scalar attributes (don't load permissions relationship)
-            await session.refresh(role)
+            # Convert to DTO using converter
+            # This ensures all data is loaded within session scope
+            from app.dto.converters import RoleConverter
+            role_info = await RoleConverter.to_role_info(
+                role,
+                session,
+                include_permissions=True
+            )
 
-            # Extract all data while session is still active to avoid lazy loading issues
-            # Return as dict to prevent any SQLAlchemy lazy loading after session closes
-            role_dict = {
-                "id": role.id,
-                "name": role.name,
-                "display_name": role.display_name,
-                "description": role.description,
-                "is_system_role": role.is_system_role,
-                "is_default": role.is_default,
-                "parent_role_id": role.parent_role_id,
-                "created_at": role.created_at,
-                "updated_at": role.updated_at,
-                "permissions": []  # Empty list for newly created roles
-            }
-
-            # Expunge the role from session before returning to prevent any tracking
-            session.expunge(role)
-
-            return role_dict
+            # Return DTO (not ORM object)
+            return role_info
 
     async def assign_permissions(
         self,

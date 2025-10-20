@@ -247,14 +247,12 @@ async def create_role(
     Returns created role with permissions.
     """
     try:
-        # Service now returns a dict to avoid SQLAlchemy lazy loading issues
-        role_dict = await role_service.create_role(
+        # Service now returns RoleInfo DTO directly (Phase 2 - DTO Layer)
+        # No need for dict conversion - service handles ORM → DTO conversion within session scope
+        role_info = await role_service.create_role(
             role_data=role_data,
             current_user_id=current_user.id
         )
-
-        # Convert dict to RoleInfo schema
-        role_info = RoleInfo(**role_dict)
 
         return create_response(role_info)
 

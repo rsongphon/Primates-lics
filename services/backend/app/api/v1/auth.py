@@ -126,64 +126,9 @@ async def get_current_user(
             logger.warning(f"get_current_user: User {user_id} is not active")
             return None
 
-        # Convert roles to RoleInfo with permissions
-        from app.schemas.auth import PermissionInfo, RoleInfo
-
-        role_infos = []
-        all_permissions = set()
-
-        for role in user.roles:
-            # Collect permission infos for this role
-            permission_infos = []
-            for permission in role.permissions:
-                permission_info = PermissionInfo(
-                    id=permission.id,
-                    name=permission.name,
-                    display_name=permission.display_name,
-                    description=permission.description,
-                    resource=permission.resource,
-                    action=permission.action,
-                    is_system_permission=permission.is_system_permission,
-                    created_at=permission.created_at,
-                    updated_at=permission.updated_at
-                )
-                permission_infos.append(permission_info)
-                all_permissions.add(permission.name)  # Add to user's total permissions
-
-            role_info = RoleInfo(
-                id=role.id,
-                name=role.name,
-                display_name=role.display_name,
-                description=role.description,
-                is_system_role=role.is_system_role,
-                is_default=role.is_default,
-                parent_role_id=role.parent_role_id,
-                created_at=role.created_at,
-                updated_at=role.updated_at,
-                permissions=permission_infos
-            )
-            role_infos.append(role_info)
-
-        # Create UserProfile with populated roles and permissions
-        user_profile = UserProfile(
-            id=user.id,
-            email=user.email,
-            username=user.username,
-            first_name=user.first_name,
-            last_name=user.last_name,
-            is_active=user.is_active,
-            is_verified=user.is_verified,
-            is_superuser=user.is_superuser,
-            organization_id=user.organization_id,
-            timezone=user.timezone,
-            language=user.language,
-            last_login_at=user.last_login_at,
-            mfa_enabled=user.mfa_enabled,
-            created_at=user.created_at,
-            updated_at=user.updated_at,
-            roles=role_infos,
-            permissions=all_permissions
-        )
+        # Convert User ORM to UserProfile DTO using converter
+        from app.dto.converters import UserConverter
+        user_profile = await UserConverter.to_user_profile(user, session)
 
         logger.info(f"get_current_user: Successfully authenticated user {user.email}")
         return user_profile

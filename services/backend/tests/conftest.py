@@ -198,18 +198,21 @@ async def test_roles(db_session: AsyncSession, test_permissions: list[Permission
     """Create test roles with permissions."""
     admin_role = Role(
         name="Admin",
+        display_name="Administrator",
         description="Administrator role",
         permissions=test_permissions  # All permissions
     )
 
     user_role = Role(
         name="User",
+        display_name="Regular User",
         description="Regular user role",
         permissions=[p for p in test_permissions if p.name in ["users:read", "experiments:read"]]
     )
 
     researcher_role = Role(
         name="Researcher",
+        display_name="Researcher",
         description="Researcher role",
         permissions=[p for p in test_permissions if p.name.startswith(("users:", "experiments:"))]
     )
@@ -243,7 +246,6 @@ async def test_user(
         organization_id=test_organization.id,
         is_active=True,
         is_verified=True,
-        email_verified=True,
         roles=[role for role in test_roles if role.name == "User"]
     )
 
@@ -269,7 +271,6 @@ async def test_admin_user(
         organization_id=test_organization.id,
         is_active=True,
         is_verified=True,
-        email_verified=True,
         is_superuser=True,
         roles=[role for role in test_roles if role.name == "Admin"]
     )
@@ -296,7 +297,6 @@ async def test_researcher_user(
         organization_id=test_organization.id,
         is_active=True,
         is_verified=True,
-        email_verified=True,
         roles=[role for role in test_roles if role.name == "Researcher"]
     )
 
@@ -310,10 +310,12 @@ async def test_researcher_user(
 def test_user_tokens(test_user: User) -> dict:
     """Create test tokens for user."""
     access_token = create_access_token(
-        data={"sub": str(test_user.id), "email": test_user.email}
+        subject=str(test_user.id),
+        additional_claims={"email": test_user.email}
     )
     refresh_token = create_refresh_token(
-        data={"sub": str(test_user.id), "email": test_user.email}
+        subject=str(test_user.id),
+        additional_claims={"email": test_user.email}
     )
 
     return {
@@ -327,10 +329,12 @@ def test_user_tokens(test_user: User) -> dict:
 def test_admin_tokens(test_admin_user: User) -> dict:
     """Create test tokens for admin user."""
     access_token = create_access_token(
-        data={"sub": str(test_admin_user.id), "email": test_admin_user.email}
+        subject=str(test_admin_user.id),
+        additional_claims={"email": test_admin_user.email}
     )
     refresh_token = create_refresh_token(
-        data={"sub": str(test_admin_user.id), "email": test_admin_user.email}
+        subject=str(test_admin_user.id),
+        additional_claims={"email": test_admin_user.email}
     )
 
     return {
