@@ -156,6 +156,72 @@ class Phase2TestRunner:
     # HELPER METHODS
     # =========================================================================
 
+    def _extract_response_data(self, response_data: Any) -> Any:
+        """
+        Robust response data extraction that handles different API response formats.
+
+        Supports:
+        1. BaseResponse wrapper: {"data": {...}, "meta": {...}, "timestamp": "..."}
+        2. PaginatedResponse: {"items": [...], "total": 100, "page": 1, ...}
+        3. ErrorResponse: {"error": {...}, "timestamp": "..."}
+        4. Raw data: {"id": "...", ...} or [...]
+        """
+        if not isinstance(response_data, dict):
+            # Handle raw lists or other data types
+            return response_data
+
+        # Handle ErrorResponse format
+        if "error" in response_data:
+            self.log_debug(f"Detected ErrorResponse format: {list(response_data.keys())}")
+            return response_data  # Return the full error response for validation
+
+        # Handle BaseResponse wrapper format
+        if "data" in response_data and "timestamp" in response_data:
+            self.log_debug(f"Detected BaseResponse wrapper format")
+            return response_data["data"]
+
+        # Handle PaginatedResponse format
+        if "items" in response_data and "total" in response_data:
+            self.log_debug(f"Detected PaginatedResponse format")
+            return response_data["items"] if isinstance(response_data["items"], list) else response_data
+
+        # Handle legacy format that might have "data" key without full BaseResponse structure
+        if "data" in response_data:
+            self.log_debug(f"Detected legacy data format")
+            return response_data["data"]
+
+        # Handle raw data (already the expected format)
+        self.log_debug(f"Detected raw data format: {list(response_data.keys())}")
+        return response_data
+
+    def _validate_response_structure(self, response_data: Any, expected_type: str = "object") -> bool:
+        """
+        Validate that the response data matches expected structure.
+
+        Args:
+            response_data: The extracted response data
+            expected_type: "object", "array", "string", "number", or "any"
+
+        Returns:
+            True if structure matches expectation, False otherwise
+        """
+        if expected_type == "any":
+            return True
+
+        if expected_type == "object" and isinstance(response_data, dict):
+            return True
+
+        if expected_type == "array" and isinstance(response_data, list):
+            return True
+
+        if expected_type == "string" and isinstance(response_data, str):
+            return True
+
+        if expected_type == "number" and isinstance(response_data, (int, float)):
+            return True
+
+        return False
+
     async def _ensure_authenticated(self) -> bool:
         """Ensure we have a valid access token"""
         if self.access_token:
@@ -212,8 +278,10 @@ class Phase2TestRunner:
                         self.log_debug(f"✓ Test user created: {user_data['username']}")
                         # Parse user ID from nested response structure
                         user_id = None
-                        if data and "data" in data:
-                            user_id = data["data"].get("user", {}).get("id")
+                        if data:
+                            response_data = self._extract_response_data(data)
+                            if isinstance(response_data, dict):
+                                user_id = response_data.get("id") or response_data.get("user", {}).get("id")
                         return {**user_data, "id": user_id}
                     else:
                         self.log(f"Failed to create test user: HTTP {resp.status}", "ERROR")
@@ -1425,8 +1493,12 @@ class Phase2TestRunner:
                 ) as resp:
                     if resp.status in [200, 201]:
                         data = await resp.json()
-                        has_id = "id" in data
-                        has_permissions = "permissions" in data
+                        # Extract response data using robust format detection
+                        response_data = self._extract_response_data(data)
+                        has_id = isinstance(response_data, dict) and "id" in response_data
+                        # Check permissions only if permission_ids were provided in request
+                        permissions_provided = len(role_data.get("permission_ids", [])) > 0
+                        has_permissions = not permissions_provided or "permissions" in response_data
                         steps.append(TestStep(
                             description="Role creation",
                             passed=has_id and has_permissions,
@@ -1708,7 +1780,14 @@ class Phase2TestRunner:
                 ) as resp:
                     if resp.status == 200:
                         data = await resp.json()
-                        is_list = isinstance(data, list) or isinstance(data.get("sessions"), list)
+                        response_data = self._extract_response_data(data)
+                        # Robust session list detection
+                        if isinstance(response_data, dict):
+                            is_list = isinstance(response_data.get("sessions"), list)
+                        elif isinstance(response_data, list):
+                            is_list = True
+                        else:
+                            is_list = False
                         steps.append(TestStep(
                             description="Get active sessions",
                             passed=is_list,
@@ -2233,7 +2312,14 @@ class Phase2TestRunner:
                     ) as resp:
                         if resp.status == 200:
                             data = await resp.json()
-                            orgs = data if isinstance(data, list) else data.get("organizations", [])
+                            response_data = self._extract_response_data(data)
+                            # Handle both list format and dict with organizations key
+                            if isinstance(response_data, list):
+                                orgs = response_data
+                            elif isinstance(response_data, dict):
+                                orgs = response_data.get("organizations", [])
+                            else:
+                                orgs = []
                             found = any(o.get("id") == org_id for o in orgs)
                             steps.append(TestStep(
                                 description="List organizations",

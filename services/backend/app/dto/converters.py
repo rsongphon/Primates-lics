@@ -23,8 +23,8 @@ from sqlalchemy.orm import selectinload
 
 from app.models.auth import User, Role, Permission
 from app.schemas.auth import (
-    UserProfile, UserInfo, UserDetail,
-    RoleInfo, RoleDetail,
+    UserProfile,
+    RoleInfo,
     PermissionInfo
 )
 
@@ -99,7 +99,7 @@ class RoleConverter:
         Returns:
             RoleInfo DTO with all data loaded
         """
-        # Ensure role is attached to session
+        # Ensure role is attached to session and eager load permissions
         if role not in session:
             # Re-query if detached
             stmt = select(Role).where(Role.id == role.id)
@@ -107,13 +107,17 @@ class RoleConverter:
                 stmt = stmt.options(selectinload(Role.permissions))
             result = await session.execute(stmt)
             role = result.scalar_one()
-        elif include_permissions:
-            # Ensure permissions are loaded
-            await session.refresh(role, ["permissions"])
+        elif include_permissions and not hasattr(role, '_permissions_loaded'):
+            # Only refresh if permissions haven't been loaded yet
+            # Use selectinload instead of refresh to avoid MissingGreenlet issues
+            stmt = select(Role).where(Role.id == role.id).options(selectinload(Role.permissions))
+            result = await session.execute(stmt)
+            role = result.scalar_one()
 
         # Convert permissions to DTOs if requested
         permission_infos = []
-        if include_permissions:
+        if include_permissions and hasattr(role, 'permissions'):
+            # Only convert if permissions exist and are loaded
             permission_infos = [
                 PermissionConverter.to_permission_info(perm)
                 for perm in role.permissions
@@ -132,44 +136,46 @@ class RoleConverter:
             permissions=permission_infos
         )
 
-    @staticmethod
-    async def to_role_detail(
-        role: Role,
-        session: AsyncSession
-    ) -> RoleDetail:
-        """
-        Convert ORM Role to detailed RoleDetail DTO.
-
-        Includes additional information like user count, etc.
-
-        Args:
-            role: Role ORM object
-            session: Active database session
-
-        Returns:
-            RoleDetail Pydantic model with extended information
-        """
-        # Get role with all relationships
-        stmt = (
-            select(Role)
-            .where(Role.id == role.id)
-            .options(
-                selectinload(Role.permissions),
-                selectinload(Role.users)
-            )
-        )
-        result = await session.execute(stmt)
-        role_full = result.scalar_one()
-
-        # Convert to RoleInfo first
-        role_info = await RoleConverter.to_role_info(role_full, session)
-
-        # Add extra details
-        return RoleDetail(
-            **role_info.dict(),
-            user_count=len(role_full.users),
-            # Add other detail fields as needed
-        )
+    # Note: RoleDetail schema doesn't exist in current auth schemas
+    # This method can be implemented when RoleDetail schema is added
+    # @staticmethod
+    # async def to_role_detail(
+    #     role: Role,
+    #     session: AsyncSession
+    # ) -> RoleDetail:
+    #     """
+    #     Convert ORM Role to detailed RoleDetail DTO.
+    #
+    #     Includes additional information like user count, etc.
+    #
+    #     Args:
+    #         role: Role ORM object
+    #         session: Active database session
+    #
+    #     Returns:
+    #         RoleDetail Pydantic model with extended information
+    #     """
+    #     # Get role with all relationships
+    #     stmt = (
+    #         select(Role)
+    #         .where(Role.id == role.id)
+    #         .options(
+    #             selectinload(Role.permissions),
+    #             selectinload(Role.users)
+    #         )
+    #     )
+    #     result = await session.execute(stmt)
+    #     role_full = result.scalar_one()
+    #
+    #     # Convert to RoleInfo first
+    #     role_info = await RoleConverter.to_role_info(role_full, session)
+    #
+    #     # Add extra details
+    #     return RoleDetail(
+    #         **role_info.dict(),
+    #         user_count=len(role_full.users),
+    #         # Add other detail fields as needed
+    #     )
 
 
 class UserConverter:
@@ -237,29 +243,8 @@ class UserConverter:
             permissions=all_permissions
         )
 
-    @staticmethod
-    def to_user_info(user: User) -> UserInfo:
-        """
-        Convert ORM User to minimal UserInfo DTO.
-
-        Only includes basic user information without relationships.
-        Safe to use with detached objects.
-
-        Args:
-            user: User ORM object (can be detached)
-
-        Returns:
-            UserInfo Pydantic model with basic user data
-        """
-        return UserInfo(
-            id=user.id,
-            email=user.email,
-            username=user.username,
-            first_name=user.first_name,
-            last_name=user.last_name,
-            is_active=user.is_active,
-            is_verified=user.is_verified
-        )
+    # Note: UserInfo schema doesn't exist in current auth schemas
+    # This method can be implemented when UserInfo schema is added
 
 
 class OrganizationConverter:

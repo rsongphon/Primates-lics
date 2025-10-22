@@ -11,7 +11,7 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db_session
+from app.core.dependencies import get_database_session
 from app.core.logging import get_logger
 from app.schemas.auth import (
     # Request schemas
@@ -84,7 +84,7 @@ async def list_roles(
     is_system_role: Optional[bool] = Query(None, description="Filter by system role status"),
     is_default: Optional[bool] = Query(None, description="Filter by default role status"),
     current_user: UserProfile = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_database_session)
 ) -> RoleListResponse:
     """
     Get paginated list of roles with optional filtering.
@@ -164,7 +164,7 @@ async def list_roles(
 async def get_role(
     role_id: uuid.UUID,
     current_user: UserProfile = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_database_session)
 ) -> BaseResponse[RoleInfo]:
     """
     Get role by ID including associated permissions.
@@ -232,7 +232,8 @@ async def get_role(
 )
 async def create_role(
     role_data: RoleCreateRequest,
-    current_user: UserProfile = Depends(get_current_admin_user)
+    current_user: UserProfile = Depends(get_current_admin_user),
+    session: AsyncSession = Depends(get_database_session)
 ) -> BaseResponse[RoleInfo]:
     """
     Create new role with permissions (admin only).
@@ -247,9 +248,10 @@ async def create_role(
     Returns created role with permissions.
     """
     try:
-        # Service now returns RoleInfo DTO directly (Phase 2 - DTO Layer)
-        # No need for dict conversion - service handles ORM → DTO conversion within session scope
+        # Phase 3: Pass session from middleware to service
+        # Service uses the request-scoped session (no internal session creation)
         role_info = await role_service.create_role(
+            session=session,
             role_data=role_data,
             current_user_id=current_user.id
         )
@@ -290,7 +292,7 @@ async def update_role(
     role_id: uuid.UUID,
     role_data: RoleUpdateRequest,
     current_user: UserProfile = Depends(get_current_admin_user),
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_database_session)
 ) -> BaseResponse[RoleInfo]:
     """
     Update role information (admin only).
@@ -369,7 +371,7 @@ async def update_role(
 async def delete_role(
     role_id: uuid.UUID,
     current_user: UserProfile = Depends(get_current_admin_user),
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_database_session)
 ) -> None:
     """
     Delete role (admin only).
@@ -421,7 +423,7 @@ async def assign_role_permissions(
     role_id: uuid.UUID,
     permission_ids: List[uuid.UUID],
     current_user: UserProfile = Depends(get_current_admin_user),
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_database_session)
 ) -> BaseResponse[RoleInfo]:
     """
     Assign permissions to role (admin only).
@@ -501,7 +503,7 @@ async def list_permissions(
     action: Optional[str] = Query(None, description="Filter by action"),
     is_system_permission: Optional[bool] = Query(None, description="Filter by system permission status"),
     current_user: UserProfile = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_database_session)
 ) -> PermissionListResponse:
     """
     Get paginated list of permissions with optional filtering.
@@ -583,7 +585,7 @@ async def list_permissions(
 async def get_permission(
     permission_id: uuid.UUID,
     current_user: UserProfile = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_database_session)
 ) -> BaseResponse[PermissionInfo]:
     """
     Get permission by ID.
@@ -640,7 +642,7 @@ async def create_permission(
     action: str,
     description: Optional[str] = None,
     current_user: UserProfile = Depends(get_current_admin_user),
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_database_session)
 ) -> BaseResponse[PermissionInfo]:
     """
     Create new permission (admin only).
@@ -709,7 +711,7 @@ async def list_users(
     limit: int = Query(100, ge=1, le=1000, description="Maximum number of users to return"),
     search: Optional[str] = Query(None, description="Search users by email or username"),
     current_user: UserProfile = Depends(get_current_admin_user),
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_database_session)
 ):
     """
     Get paginated list of all users (admin only).
@@ -814,7 +816,7 @@ async def assign_user_roles(
     user_id: uuid.UUID,
     role_ids: List[uuid.UUID],
     current_user: UserProfile = Depends(get_current_admin_user),
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_database_session)
 ) -> BaseResponse[UserProfile]:
     """
     Assign roles to user (admin only).
@@ -879,7 +881,7 @@ async def assign_user_roles(
 async def get_user_permissions(
     user_id: uuid.UUID,
     current_user: UserProfile = Depends(get_current_admin_user),
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_database_session)
 ) -> BaseResponse[List[str]]:
     """
     Get all permissions for a user (admin only).

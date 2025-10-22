@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db_session
+from app.core.dependencies import get_database_session
 from app.core.logging import get_logger
 from app.schemas.auth import (
     # Request schemas
@@ -75,7 +75,7 @@ def get_user_agent(request: Request) -> str:
 
 async def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_database_session)
 ) -> Optional[UserProfile]:
     """
     Get current authenticated user from JWT token.
@@ -172,7 +172,7 @@ async def get_current_active_user(
 async def login(
     login_data: LoginRequest,
     request: Request,
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_database_session)
 ) -> LoginResponseWrapper:
     """
     Authenticate user and create session.
@@ -257,7 +257,7 @@ async def login(
 )
 async def refresh_token(
     refresh_data: RefreshTokenRequest,
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_database_session)
 ) -> TokenPair:
     """
     Refresh access token using valid refresh token.
@@ -293,7 +293,7 @@ async def logout(
     current_user: UserProfile = Depends(get_current_active_user),
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
     logout_data: Optional[LogoutRequest] = None,
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_database_session)
 ) -> Dict[str, str]:
     """
     Logout user and invalidate sessions.
@@ -342,7 +342,7 @@ async def logout(
 )
 async def register_user(
     registration_data: UserRegistrationRequest,
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_database_session)
 ) -> UserRegistrationResponseWrapper:
     """
     Register new user account.
@@ -417,7 +417,7 @@ async def register_user(
 )
 async def verify_email(
     verification_data: EmailVerificationRequest,
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_database_session)
 ) -> UserProfileResponse:
     """
     Verify user email address using verification token.
@@ -472,7 +472,7 @@ async def verify_email(
 )
 async def resend_verification_email(
     resend_data: ResendVerificationRequest,
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_database_session)
 ) -> Dict[str, str]:
     """
     Resend email verification link to user.
@@ -512,7 +512,7 @@ async def resend_verification_email(
 )
 async def forgot_password(
     reset_data: PasswordResetRequest,
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_database_session)
 ) -> Dict[str, str]:
     """
     Request password reset for user account.
@@ -544,7 +544,7 @@ async def forgot_password(
 )
 async def reset_password(
     reset_data: PasswordResetConfirm,
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_database_session)
 ) -> Dict[str, str]:
     """
     Reset user password using reset token.
@@ -594,7 +594,7 @@ async def reset_password(
 async def change_password(
     password_data: PasswordChangeRequest,
     current_user: UserProfile = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_database_session)
 ) -> Dict[str, str]:
     """
     Change user password (authenticated users only).
@@ -670,7 +670,7 @@ async def get_current_user_profile(
 async def update_user_profile(
     profile_data: UserUpdateRequest,
     current_user: UserProfile = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_database_session)
 ) -> UserProfile:
     """
     Update current user's profile information.
@@ -734,7 +734,7 @@ async def update_user_profile(
 )
 async def get_user_sessions(
     current_user: UserProfile = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_database_session)
 ) -> Dict[str, List[UserSessionInfo]]:
     """
     Get current user's active sessions.
@@ -780,7 +780,7 @@ async def get_user_sessions(
 async def terminate_sessions(
     terminate_data: SessionTerminateRequest,
     current_user: UserProfile = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_database_session)
 ) -> None:
     """
     Terminate specific user sessions.
@@ -828,7 +828,7 @@ async def terminate_sessions(
 async def setup_mfa(
     current_user: UserProfile = Depends(get_current_active_user),
     mfa_data: Optional[MFASetupRequest] = None,
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_database_session)
 ) -> MFASetupResponse:
     """
     Setup multi-factor authentication.
@@ -875,7 +875,7 @@ async def setup_mfa(
 async def confirm_mfa(
     mfa_data: MFAConfirmRequest,
     current_user: UserProfile = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_database_session)
 ) -> Dict[str, str]:
     """
     Confirm MFA setup with verification code.
@@ -914,7 +914,7 @@ async def confirm_mfa(
 async def disable_mfa(
     mfa_data: MFADisableRequest,
     current_user: UserProfile = Depends(get_current_active_user),
-    session: AsyncSession = Depends(get_db_session)
+    session: AsyncSession = Depends(get_database_session)
 ) -> Dict[str, str]:
     """
     Disable multi-factor authentication.

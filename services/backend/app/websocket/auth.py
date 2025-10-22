@@ -15,7 +15,7 @@ from app.core.logging import get_logger
 from app.core.security import TokenData, validate_token_data
 from app.models.auth import User
 from app.services.auth import UserRepository
-from app.core.database import get_db_session
+from app.core.dependencies import get_database_session
 
 logger = get_logger(__name__)
 

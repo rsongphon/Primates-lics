@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.core.config import settings
-from app.core.database import get_db_session
+from app.core.dependencies import get_database_session
 from app.core.logging import get_logger
 from app.core.security import get_password_hash
 from app.models.auth import User, Role, Permission

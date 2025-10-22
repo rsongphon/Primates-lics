@@ -485,21 +485,6 @@ async def service_health_check(
     return JSONResponse(content=result, status_code=status_code)
 
 
-@router.get("/metrics")
-async def health_metrics(
-    current_user = Depends(require_any_permission(["system:monitor", "system:admin"]))
-):
-    """Health metrics in Prometheus format."""
-
-    # This would be implemented to return Prometheus metrics
-    # For now, return a simple response
-    return {
-        "message": "Health metrics endpoint - implement Prometheus format",
-        "endpoint": "/health/metrics",
-        "format": "prometheus"
-    }
-
-
 @router.get("/metrics", include_in_schema=False)
 async def prometheus_metrics():
     """

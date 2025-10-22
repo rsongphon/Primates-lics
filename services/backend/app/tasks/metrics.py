@@ -260,5 +260,261 @@ def register_worker_info(worker_name: str, worker_version: str, concurrency: int
         logger.error(f"Error registering worker info: {e}")
 
 
+# ===== INFRASTRUCTURE METRICS =====
+
+# Session management metrics
+active_sessions = Gauge(
+    'lics_active_sessions_total',
+    'Number of currently active user sessions',
+    ['organization_id', 'user_type']
+)
+
+session_duration_seconds = Histogram(
+    'lics_session_duration_seconds',
+    'Session duration in seconds',
+    ['organization_id'],
+    buckets=[60, 300, 900, 1800, 3600, 7200, 14400, 28800]  # 1min to 8hrs
+)
+
+session_created_total = Counter(
+    'lics_session_created_total',
+    'Total number of sessions created',
+    ['organization_id', 'user_type', 'auth_method']
+)
+
+session_expired_total = Counter(
+    'lics_session_expired_total',
+    'Total number of sessions expired',
+    ['organization_id', 'reason']
+)
+
+# Authentication metrics
+login_attempts_total = Counter(
+    'lics_login_attempts_total',
+    'Total number of login attempts',
+    ['organization_id', 'result', 'auth_method']
+)
+
+authentication_duration_seconds = Histogram(
+    'lics_authentication_duration_seconds',
+    'Time taken to authenticate users',
+    ['organization_id', 'auth_method', 'result'],
+    buckets=[0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0]
+)
+
+account_lockout_events_total = Counter(
+    'lics_account_lockout_events_total',
+    'Total number of account lockout events',
+    ['organization_id']
+)
+
+password_reset_requests_total = Counter(
+    'lics_password_reset_requests_total',
+    'Total number of password reset requests',
+    ['organization_id']
+)
+
+# Database connection pool metrics
+db_pool_active_connections = Gauge(
+    'lics_db_pool_active_connections',
+    'Number of active database connections',
+    ['pool_name']
+)
+
+db_pool_idle_connections = Gauge(
+    'lics_db_pool_idle_connections',
+    'Number of idle database connections',
+    ['pool_name']
+)
+
+db_pool_total_connections = Gauge(
+    'lics_db_pool_total_connections',
+    'Total number of database connections',
+    ['pool_name']
+)
+
+db_pool_overflow_connections = Gauge(
+    'lics_db_pool_overflow_connections',
+    'Number of overflow database connections',
+    ['pool_name']
+)
+
+# API performance metrics
+api_request_duration_seconds = Histogram(
+    'lics_api_request_duration_seconds',
+    'API request duration in seconds',
+    ['method', 'endpoint', 'status_code', 'organization_id'],
+    buckets=[0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0]
+)
+
+api_request_total = Counter(
+    'lics_api_requests_total',
+    'Total number of API requests',
+    ['method', 'endpoint', 'status_code', 'organization_id']
+)
+
+# WebSocket metrics
+websocket_connections_active = Gauge(
+    'lics_websocket_connections_active',
+    'Number of active WebSocket connections',
+    ['organization_id', 'room_type']
+)
+
+websocket_messages_total = Counter(
+    'lics_websocket_messages_total',
+    'Total number of WebSocket messages',
+    ['organization_id', 'room_type', 'message_type', 'direction']
+)
+
+# System resource metrics
+system_memory_usage_bytes = Gauge(
+    'lics_system_memory_usage_bytes',
+    'System memory usage in bytes'
+)
+
+system_cpu_usage_percent = Gauge(
+    'lics_system_cpu_usage_percent',
+    'System CPU usage percentage'
+)
+
+import asyncio
+from functools import wraps
+
+def track_session_metrics(organization_id: str, user_type: str = "standard"):
+    """
+    Decorator to track session metrics.
+
+    Usage:
+    @track_session_metrics(organization_id="org123", user_type="premium")
+    async def create_session(...):
+        ...
+    """
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            start_time = time.time()
+
+            try:
+                result = await func(*args, **kwargs)
+
+                # Track session creation
+                session_created_total.labels(
+                    organization_id=organization_id,
+                    user_type=user_type,
+                    auth_method="jwt"
+                ).inc()
+
+                # Increment active sessions
+                active_sessions.labels(
+                    organization_id=organization_id,
+                    user_type=user_type
+                ).inc()
+
+                return result
+
+            except Exception as e:
+                login_attempts_total.labels(
+                    organization_id=organization_id,
+                    result="error",
+                    auth_method="jwt"
+                ).inc()
+                raise
+
+        return wrapper
+    return decorator
+
+def track_authentication_metrics(organization_id: str, auth_method: str = "jwt"):
+    """
+    Decorator to track authentication metrics.
+    """
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            start_time = time.time()
+            result = None
+
+            try:
+                result = await func(*args, **kwargs)
+                duration = time.time() - start_time
+
+                # Track successful authentication
+                login_attempts_total.labels(
+                    organization_id=organization_id,
+                    result="success",
+                    auth_method=auth_method
+                ).inc()
+
+                authentication_duration_seconds.labels(
+                    organization_id=organization_id,
+                    auth_method=auth_method,
+                    result="success"
+                ).observe(duration)
+
+                return result
+
+            except Exception as e:
+                duration = time.time() - start_time
+
+                # Track failed authentication
+                login_attempts_total.labels(
+                    organization_id=organization_id,
+                    result="failure",
+                    auth_method=auth_method
+                ).inc()
+
+                authentication_duration_seconds.labels(
+                    organization_id=organization_id,
+                    auth_method=auth_method,
+                    result="failure"
+                ).observe(duration)
+
+                raise
+
+        return wrapper
+    return decorator
+
+async def update_database_pool_metrics(pool_name: str = "default"):
+    """
+    Update database connection pool metrics.
+    Should be called periodically to refresh pool statistics.
+    """
+    try:
+        from app.core.database import db_manager
+
+        if hasattr(db_manager, 'engine') and db_manager.engine:
+            pool = db_manager.engine.pool
+
+            if hasattr(pool, 'size'):
+                db_pool_active_connections.labels(pool_name=pool_name).set(pool.checkedout)
+                db_pool_idle_connections.labels(pool_name=pool_name).set(pool.size() - pool.checkedout)
+                db_pool_total_connections.labels(pool_name=pool_name).set(pool.size)
+
+                if hasattr(pool, 'overflow'):
+                    db_pool_overflow_connections.labels(pool_name=pool_name).set(pool.overflow)
+
+    except Exception as e:
+        logger.error(f"Error updating database pool metrics: {e}")
+
+async def update_system_metrics():
+    """
+    Update system resource metrics.
+    Should be called periodically to refresh system statistics.
+    """
+    try:
+        import psutil
+
+        # Memory usage
+        memory = psutil.virtual_memory()
+        system_memory_usage_bytes.set(memory.used)
+
+        # CPU usage
+        cpu_percent = psutil.cpu_percent(interval=1)
+        system_cpu_usage_percent.set(cpu_percent)
+
+    except ImportError:
+        logger.warning("psutil not available for system metrics")
+    except Exception as e:
+        logger.error(f"Error updating system metrics: {e}")
+
 # Initialize metrics on import
-logger.info("Celery Prometheus metrics initialized")
+logger.info("LICS Infrastructure metrics initialized")

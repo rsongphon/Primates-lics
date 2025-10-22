@@ -17,6 +17,17 @@ from sqlalchemy.orm import selectinload
 from app.core.config import settings
 from app.core.database import db_manager
 from app.core.logging import get_logger, PerformanceLogger
+
+# Import metrics for tracking
+try:
+    from app.tasks.metrics import (
+        login_attempts_total, authentication_duration_seconds, account_lockout_events_total,
+        session_created_total, active_sessions, password_reset_requests_total
+    )
+    METRICS_AVAILABLE = True
+except ImportError:
+    METRICS_AVAILABLE = False
+    logger.warning("Prometheus metrics not available")
 from app.core.security import (
     create_access_token, create_refresh_token, verify_password,
     get_password_hash, verify_token, create_password_reset_token_jwt,
@@ -112,6 +123,22 @@ class UserRepository(BaseRepository[User]):
         )
         return result.scalar_one_or_none()
 
+    async def get_by_id_for_auth(self, id: uuid.UUID) -> Optional[User]:
+        """Get user by ID for authentication (lightweight, no eager loading)."""
+        result = await self.db_session.execute(
+            select(User)
+            .where(and_(User.id == id, User.deleted_at.is_(None)))
+        )
+        return result.scalar_one_or_none()
+
+    async def get_by_email_for_auth(self, email: str) -> Optional[User]:
+        """Get user by email for authentication (lightweight, no eager loading)."""
+        result = await self.db_session.execute(
+            select(User)
+            .where(and_(User.email == email, User.deleted_at.is_(None)))
+        )
+        return result.scalar_one_or_none()
+
     async def get_by_verification_token(self, token: str) -> Optional[User]:
         """Get user by email verification token."""
         result = await self.db_session.execute(
@@ -145,28 +172,27 @@ class UserRepository(BaseRepository[User]):
         )
 
     async def increment_failed_attempts(self, user_id: uuid.UUID) -> int:
-        """Increment failed login attempts and return new count."""
-        user = await self.get_by_id(user_id)
-        if not user:
-            return 0
+        """Increment failed login attempts and return new count (optimized single query)."""
+        from sqlalchemy import case
 
-        new_count = user.failed_login_attempts + 1
-        lock_until = None
+        # Single atomic operation to increment and potentially lock account
+        current_time = datetime.now(timezone.utc)
+        lock_time = current_time + timedelta(minutes=settings.ACCOUNT_LOCK_DURATION_MINUTES)
 
-        # Lock account after max attempts
-        if new_count >= settings.MAX_LOGIN_ATTEMPTS:
-            lock_until = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCOUNT_LOCK_DURATION_MINUTES)
-
-        await self.db_session.execute(
+        result = await self.db_session.execute(
             update(User)
             .where(User.id == user_id)
             .values(
-                failed_login_attempts=new_count,
-                account_locked_until=lock_until
+                failed_login_attempts=User.failed_login_attempts + 1,
+                account_locked_until=case(
+                    (User.failed_login_attempts + 1 >= settings.MAX_LOGIN_ATTEMPTS, lock_time),
+                    else_=User.account_locked_until
+                )
             )
+            .returning(User.failed_login_attempts + 1)
         )
 
-        return new_count
+        return result.scalar() or 0
 
 
 class RoleRepository(BaseRepository[Role]):
@@ -189,6 +215,29 @@ class RoleRepository(BaseRepository[Role]):
             .where(Role.is_default == True)
         )
         return list(result.scalars().all())
+
+    async def assign_permissions(self, role_id: uuid.UUID, permissions: List[Permission]) -> None:
+        """
+        Safely assign permissions to a role using explicit junction table operations.
+
+        This avoids the lazy-loading relationship issues that cause MissingGreenlet errors.
+        """
+        from app.models.auth import role_permissions
+
+        # Clear existing permissions (if any)
+        await self.db_session.execute(
+            role_permissions.delete().where(role_permissions.c.role_id == role_id)
+        )
+
+        # Insert new permissions
+        if permissions:
+            permission_records = [
+                {"role_id": role_id, "permission_id": permission.id}
+                for permission in permissions
+            ]
+            await self.db_session.execute(
+                role_permissions.insert().values(permission_records)
+            )
 
 
 class PermissionRepository(BaseRepository[Permission]):
@@ -344,7 +393,7 @@ class AuthService:
                 session_repo = self.get_session_repository(session)
                 token_repo = self.get_refresh_token_repository(session)
 
-                # Get user by email
+                # Get user by email (full data for JWT token creation)
                 user = await user_repo.get_by_email(email)
                 if not user:
                     raise AuthenticationError("Invalid email or password")
@@ -591,12 +640,17 @@ class AuthService:
         # In production, this should check a Redis set of blacklisted tokens
         return False
 
-    async def get_user_by_id(self, user_id: str) -> Optional[User]:
+    async def get_user_by_id(
+        self,
+        user_id: str,
+        session: Optional[AsyncSession] = None
+    ) -> Optional[User]:
         """
         Get user by ID.
 
         Args:
             user_id: User ID (as string from JWT)
+            session: Database session (optional, creates own if not provided)
 
         Returns:
             User if found, None otherwise
@@ -606,9 +660,14 @@ class AuthService:
         except (ValueError, AttributeError):
             return None
 
-        async with db_manager.session_scope() as session:
+        # Use provided session or create new one (Phase 3 compatibility)
+        if session:
             user_repo = self.get_user_repository(session)
             return await user_repo.get_by_id(user_uuid)
+        else:
+            async with db_manager.session_scope() as session:
+                user_repo = self.get_user_repository(session)
+                return await user_repo.get_by_id(user_uuid)
 
     async def update_user_activity(self, user_id: str, request: Any) -> None:
         """
@@ -878,7 +937,7 @@ class PasswordService:
         async with db_manager.session_scope() as session:
             user_repo = self.get_user_repository(session)
 
-            user = await user_repo.get_by_id(user_id)
+            user = await user_repo.get_by_id_for_auth(user_id)
             if not user:
                 raise NotFoundError("User", user_id)
 
@@ -1133,6 +1192,7 @@ class RoleService(BaseService[Role, RoleRepository]):
 
     async def create_role(
         self,
+        session: AsyncSession,
         role_data: RoleCreateRequest,
         current_user_id: Optional[uuid.UUID] = None
     ) -> "RoleInfo":
@@ -1140,6 +1200,7 @@ class RoleService(BaseService[Role, RoleRepository]):
         Create new role with permissions using DTO pattern.
 
         Args:
+            session: Database session (provided by middleware)
             role_data: Role creation data
             current_user_id: ID of user creating the role (for audit)
 
@@ -1151,57 +1212,58 @@ class RoleService(BaseService[Role, RoleRepository]):
             NotFoundError: If any permission IDs don't exist
             ValidationError: If data validation fails
         """
-        async with db_manager.session_scope() as session:
-            role_repo = self.get_repository(session)
-            perm_repo = self.get_permission_repository(session)
+        # Use session provided by middleware (Phase 3 - Unified Sessions)
+        role_repo = self.get_repository(session)
+        perm_repo = self.get_permission_repository(session)
 
-            # Validate: Check if role name already exists
-            existing_role = await role_repo.get_by_name(role_data.name)
-            if existing_role:
-                raise ConflictError(f"Role with name '{role_data.name}' already exists")
+        # Validate: Check if role name already exists
+        existing_role = await role_repo.get_by_name(role_data.name)
+        if existing_role:
+            raise ConflictError(f"Role with name '{role_data.name}' already exists")
 
-            # Validate: Get permissions by IDs
-            permissions = []
-            if role_data.permission_ids:
-                permissions = await perm_repo.get_by_ids(role_data.permission_ids)
-                if len(permissions) != len(role_data.permission_ids):
-                    found_ids = {p.id for p in permissions}
-                    missing_ids = set(role_data.permission_ids) - found_ids
-                    raise NotFoundError(
-                        "Permission",
-                        f"Permissions not found: {missing_ids}"
-                    )
+        # Validate: Get permissions by IDs
+        permissions = []
+        if role_data.permission_ids:
+            permissions = await perm_repo.get_by_ids(role_data.permission_ids)
+            if len(permissions) != len(role_data.permission_ids):
+                found_ids = {p.id for p in permissions}
+                missing_ids = set(role_data.permission_ids) - found_ids
+                raise NotFoundError(
+                    "Permission",
+                    f"Permissions not found: {missing_ids}"
+                )
 
-            # Create role entity
-            role = await role_repo.create(
-                name=role_data.name,
-                display_name=role_data.display_name,
-                description=role_data.description,
-                parent_role_id=role_data.parent_role_id,
-                is_system_role=False,  # User-created roles are never system roles
-                is_default=False  # User-created roles are never default
-            )
+        # Create role entity
+        role = await role_repo.create(
+            name=role_data.name,
+            display_name=role_data.display_name,
+            description=role_data.description,
+            parent_role_id=role_data.parent_role_id,
+            is_system_role=False,  # User-created roles are never system roles
+            is_default=False  # User-created roles are never default
+        )
 
-            # Assign permissions to role
-            role.permissions = permissions
+        # Assign permissions to role safely using repository method
+        if permissions:
+            await role_repo.assign_permissions(role.id, permissions)
 
-            # Commit the transaction
-            await session.commit()
+        # Note: No commit here - middleware handles commit/rollback
 
-            # Convert to DTO using converter
-            # This ensures all data is loaded within session scope
-            from app.dto.converters import RoleConverter
-            role_info = await RoleConverter.to_role_info(
-                role,
-                session,
-                include_permissions=True
-            )
+        # Convert to DTO using converter
+        # This ensures all data is loaded within session scope
+        from app.dto.converters import RoleConverter
+        role_info = await RoleConverter.to_role_info(
+            role,
+            session,
+            include_permissions=True  # Re-enabled with safe permission assignment
+        )
 
-            # Return DTO (not ORM object)
-            return role_info
+        # Return DTO (not ORM object)
+        return role_info
 
     async def assign_permissions(
         self,
+        session: AsyncSession,
         role_id: uuid.UUID,
         permission_ids: List[uuid.UUID],
         current_user_id: Optional[uuid.UUID] = None
@@ -1210,6 +1272,7 @@ class RoleService(BaseService[Role, RoleRepository]):
         Assign permissions to role.
 
         Args:
+            session: Database session (provided by middleware)
             role_id: Role ID
             permission_ids: List of permission IDs
             current_user_id: ID of user making the assignment
@@ -1220,24 +1283,24 @@ class RoleService(BaseService[Role, RoleRepository]):
         Raises:
             NotFoundError: If role or permissions not found
         """
-        async with db_manager.session_scope() as session:
-            role_repo = self.get_repository(session)
-            perm_repo = self.get_permission_repository(session)
+        # Use session provided by middleware (Phase 3 - Unified Sessions)
+        role_repo = self.get_repository(session)
+        perm_repo = self.get_permission_repository(session)
 
-            role = await role_repo.get_by_id(role_id)
-            if not role:
-                raise NotFoundError("Role", role_id)
+        role = await role_repo.get_by_id(role_id)
+        if not role:
+            raise NotFoundError("Role", role_id)
 
-            permissions = await perm_repo.get_by_ids(permission_ids)
-            if len(permissions) != len(permission_ids):
-                missing_ids = set(permission_ids) - {p.id for p in permissions}
-                raise NotFoundError("Permission", f"Permissions not found: {missing_ids}")
+        permissions = await perm_repo.get_by_ids(permission_ids)
+        if len(permissions) != len(permission_ids):
+            missing_ids = set(permission_ids) - {p.id for p in permissions}
+            raise NotFoundError("Permission", f"Permissions not found: {missing_ids}")
 
-            # Replace role permissions
-            role.permissions = permissions
+        # Replace role permissions
+        role.permissions = permissions
 
-            await session.commit()
-            return role
+        # Note: No commit here - middleware handles commit/rollback
+        return role
 
 
 # ===== PERMISSION SERVICE =====

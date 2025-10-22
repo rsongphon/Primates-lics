@@ -148,8 +148,9 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                     request
                 )
 
-            # Load user from database
-            user = await self.auth_service.get_user_by_id(user_id)
+            # Load user from database using request session (Phase 3)
+            session = getattr(request.state, "db_session", None)
+            user = await self.auth_service.get_user_by_id(user_id, session=session)
             if not user:
                 return self._create_auth_error_response(
                     "User not found",

@@ -28,6 +28,7 @@ from app.core.logging import (
     configure_uvicorn_logging
 )
 from app.middleware.auth import AuthenticationMiddleware
+from app.middleware.database import DatabaseSessionMiddleware
 from app.middleware.rate_limiting import RateLimitingMiddleware
 from app.middleware.security import SecurityHeadersMiddleware
 
@@ -135,15 +136,27 @@ app = FastAPI(
 
 # ===== MIDDLEWARE CONFIGURATION =====
 # Note: Middleware is applied in reverse order (last added = first executed)
+# Order matters! Add in reverse order of execution.
+#
+# Execution order (request → response):
+# 1. DatabaseSessionMiddleware (create session)
+# 2. Authentication middleware (uses session)
+# 3. Rate limiting middleware
+# 4. Security headers middleware
+# 5. Endpoint (uses session)
 
-# Security headers middleware (applied first)
+# Security headers middleware (runs last)
 app.add_middleware(SecurityHeadersMiddleware)
 
 # Rate limiting middleware
 app.add_middleware(RateLimitingMiddleware)
 
-# Authentication middleware
+# Authentication middleware (needs session from DatabaseSessionMiddleware)
 app.add_middleware(AuthenticationMiddleware)
+
+# Database session middleware (MUST run first to create session)
+# Added last so it executes first due to reverse order
+app.add_middleware(DatabaseSessionMiddleware)
 
 # CORS middleware
 if settings.BACKEND_CORS_ORIGINS:
@@ -434,6 +447,34 @@ async def liveness_check():
     Liveness probe for Kubernetes.
     """
     return {"status": "alive"}
+
+
+@app.get("/metrics", include_in_schema=False)
+async def prometheus_metrics():
+    """
+    Expose Prometheus metrics endpoint.
+
+    This endpoint is public (no authentication) so Prometheus can scrape it.
+    Include_in_schema=False to hide from API docs.
+    """
+    try:
+        from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+        from fastapi.responses import Response
+
+        # Generate Prometheus metrics output
+        metrics_output = generate_latest()
+
+        return Response(
+            content=metrics_output,
+            media_type=CONTENT_TYPE_LATEST,
+            headers={"Cache-Control": "no-cache"}
+        )
+
+    except ImportError:
+        return JSONResponse(
+            content={"error": "Prometheus metrics not available - prometheus_client not installed"},
+            status_code=503
+        )
 
 
 # ===== APPLICATION STARTUP MESSAGE =====

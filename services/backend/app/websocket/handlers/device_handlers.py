@@ -15,7 +15,7 @@ from app.websocket.session import session_manager
 from app.websocket.auth import can_access_device
 from app.core.logging import get_logger
 from app.services.domain import DeviceService
-from app.core.database import get_db_session
+from app.core.dependencies import get_database_session
 
 logger = get_logger(__name__)
 

@@ -22,13 +22,13 @@ from app.core.logging import get_logger
 
 logger = get_logger(__name__)
 
-# Password hashing context using Argon2id (recommended by OWASP)
+# Password hashing context using Argon2id (optimized for performance)
 pwd_context = CryptContext(
     schemes=["argon2"],
     deprecated="auto",
-    argon2__memory_cost=65536,  # 64 MB
-    argon2__time_cost=3,        # 3 iterations
-    argon2__parallelism=1,      # Single thread
+    argon2__memory_cost=32768,  # 32 MB - Reduced from 64MB for better performance
+    argon2__time_cost=2,        # 2 iterations - Reduced from 3 for better performance
+    argon2__parallelism=2,      # 2 threads - Better CPU utilization
 )
 
 # Token types

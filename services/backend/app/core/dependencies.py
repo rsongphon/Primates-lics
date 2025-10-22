@@ -27,20 +27,37 @@ security = HTTPBearer(auto_error=False)
 
 # ===== DATABASE DEPENDENCIES =====
 
-async def get_database_session() -> AsyncGenerator[AsyncSession, None]:
+async def get_database_session(request: Request) -> AsyncSession:
     """
-    FastAPI dependency to get database session with proper cleanup.
+    FastAPI dependency to get request-scoped database session.
 
-    This is the primary way to inject database sessions into FastAPI endpoints.
+    Returns the single session created by DatabaseSessionMiddleware.
+    This ensures only one session exists per request (Unit of Work pattern).
+
+    Args:
+        request: FastAPI request object
+
+    Returns:
+        Request-scoped database session
+
+    Raises:
+        RuntimeError: If DatabaseSessionMiddleware is not installed
 
     Usage:
         @app.get("/users/")
-        async def get_users(db: AsyncSession = Depends(get_database_session)):
-            # Use the session
+        async def get_users(
+            session: AsyncSession = Depends(get_database_session)
+        ):
+            # Use session created by middleware
             pass
     """
-    async with db_manager.session_scope() as session:
-        yield session
+    session = getattr(request.state, "db_session", None)
+    if session is None:
+        raise RuntimeError(
+            "No database session found in request state. "
+            "Ensure DatabaseSessionMiddleware is properly installed in main.py"
+        )
+    return session
 
 
 async def get_read_only_session() -> AsyncGenerator[AsyncSession, None]:
