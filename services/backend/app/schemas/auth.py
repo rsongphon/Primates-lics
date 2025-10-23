@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Set
 
-from pydantic import BaseModel, ConfigDict, Field, EmailStr, field_validator, ValidationInfo
+from pydantic import BaseModel, ConfigDict, Field, EmailStr, field_validator, model_validator, ValidationInfo
 
 from .base import (
     BaseSchema, BaseCreateSchema, BaseUpdateSchema, BaseFilterSchema,
@@ -936,9 +936,54 @@ class OrganizationUpdateSchema(BaseUpdateSchema):
     )
 
 
-class OrganizationSchema(OrganizationEntityFullSchema):
+class OrganizationSchema(BaseEntityFullSchema):
     """Schema for organization response (includes all fields)."""
-    pass
+
+    name: str = Field(..., description="Organization name")
+    description: Optional[str] = Field(None, description="Organization description")
+    is_active: bool = Field(..., description="Organization is active")
+    settings: Optional[Dict[str, Any]] = Field(None, description="Organization settings")
+
+    # Add organization_id field that mirrors id for compatibility
+    organization_id: uuid.UUID = Field(
+        default=None,
+        description="Organization ID (same as id field)",
+        examples=["550e8400-e29b-41d4-a716-446655440000"]
+    )
+
+    @model_validator(mode='before')
+    @classmethod
+    def populate_organization_id(cls, data):
+        """Populate organization_id from id field for compatibility."""
+        if isinstance(data, dict):
+            if 'id' in data and 'organization_id' not in data:
+                data['organization_id'] = data['id']
+        elif hasattr(data, 'id') and not hasattr(data, 'organization_id'):
+            # For ORM objects, set organization_id equal to id
+            data.organization_id = data.id
+        return data
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "organization_id": "550e8400-e29b-41d4-a716-446655440000",
+                "name": "Acme Research Lab",
+                "description": "Leading research facility for behavioral studies",
+                "is_active": True,
+                "settings": {
+                    "default_experiment_duration": 3600,
+                    "max_devices": 50
+                },
+                "created_at": "2024-01-15T10:30:00Z",
+                "updated_at": "2024-01-15T10:30:00Z",
+                "created_by": "123e4567-e89b-12d3-a456-426614174000",
+                "updated_by": "123e4567-e89b-12d3-a456-426614174000",
+                "deleted_at": None,
+                "version": 1
+            }
+        },
+        populate_by_name=True
+    )
 
 
 # Type aliases for organization responses

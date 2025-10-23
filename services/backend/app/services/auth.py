@@ -1465,12 +1465,12 @@ class OrganizationService(BaseService):
         """
         if session:
             repo = self.get_repository(session)
-            items = await repo.get_list(skip=skip, limit=limit, filters=filters)
+            items = await repo.get_by_filter(filters=filters, skip=skip, limit=limit)
             total = await repo.count(filters=filters)
             return items, total
         else:
             async with db_manager.session_scope() as db_session:
                 repo = self.get_repository(db_session)
-                items = await repo.get_list(skip=skip, limit=limit, filters=filters)
+                items = await repo.get_by_filter(filters=filters, skip=skip, limit=limit)
                 total = await repo.count(filters=filters)
                 return items, total
