@@ -6,6 +6,7 @@ Follows Documentation.md Section 5.4 WebSocket architecture.
 """
 
 import socketio
+import time
 from fastapi import FastAPI
 from typing import Optional
 
@@ -62,7 +63,7 @@ async def connect(sid: str, environ: dict, auth: Optional[dict] = None):
 
     # Store connection metadata
     await sio.save_session(sid, {
-        "connected_at": socketio.time(),
+        "connected_at": time.time(),
         "user_agent": headers,
         "query": query_string,
         "authenticated": False,
@@ -105,7 +106,7 @@ async def ping(sid: str):
     Args:
         sid: Socket session ID
     """
-    await sio.emit("pong", {"timestamp": socketio.time()}, room=sid)
+    await sio.emit("pong", {"timestamp": time.time()}, room=sid)
 
 
 @sio.event
