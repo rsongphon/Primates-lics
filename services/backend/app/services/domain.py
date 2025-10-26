@@ -8,7 +8,7 @@ business rules, validation, and orchestration logic.
 
 import uuid
 from datetime import datetime, timezone, timedelta
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,6 +26,7 @@ from app.models.domain import (
     Participant, ParticipantStatus,
     TaskExecution, DeviceData
 )
+from app.core.database import db_manager
 from app.core.logging import get_logger, PerformanceLogger
 
 logger = get_logger(__name__)
@@ -65,14 +66,14 @@ class DeviceService(BaseService[Device, DeviceRepository]):
         # Check for existing device
         repository = self.get_repository(session)
 
-        # Validate MAC address uniqueness
-        if 'mac_address' in device_data:
+        # Validate MAC address uniqueness (only if mac_address is provided and not None)
+        if device_data.get('mac_address'):
             existing_device = await repository.get_by_mac_address(device_data['mac_address'])
             if existing_device:
                 raise ConflictError(f"Device with MAC address {device_data['mac_address']} already exists")
 
-        # Validate serial number uniqueness
-        if 'serial_number' in device_data:
+        # Validate serial number uniqueness (only if serial_number is provided and not None)
+        if device_data.get('serial_number'):
             existing_device = await repository.get_by_serial_number(device_data['serial_number'])
             if existing_device:
                 raise ConflictError(f"Device with serial number {device_data['serial_number']} already exists")
@@ -212,6 +213,37 @@ class DeviceService(BaseService[Device, DeviceRepository]):
             )
         }
 
+    async def get_list_with_filters(
+        self,
+        filters: Dict[str, Any],
+        skip: int = 0,
+        limit: int = 20,
+        session: Optional[AsyncSession] = None
+    ) -> Tuple[List[Device], int]:
+        """
+        Get paginated list of devices with filters.
+
+        Args:
+            filters: Dictionary of filter criteria
+            skip: Number of records to skip
+            limit: Maximum number of records to return
+            session: Optional database session
+
+        Returns:
+            Tuple of (list of devices, total count)
+        """
+        if session:
+            repo = self.get_repository(session)
+            items = await repo.get_by_filter(filters=filters, skip=skip, limit=limit)
+            total = await repo.count(filters=filters)
+            return items, total
+        else:
+            async with db_manager.session_scope() as db_session:
+                repo = self.get_repository(db_session)
+                items = await repo.get_by_filter(filters=filters, skip=skip, limit=limit)
+                total = await repo.count(filters=filters)
+                return items, total
+
     async def _validate_create_data(self, data: Dict[str, Any]) -> None:
         """Validate device creation data."""
         required_fields = ['name', 'organization_id', 'device_type']
@@ -226,6 +258,36 @@ class DeviceService(BaseService[Device, DeviceRepository]):
             except ValueError:
                 raise ValidationError(f"Invalid device type: {data['device_type']}", field='device_type')
 
+    async def count_by_organization(
+        self,
+        organization_id: uuid.UUID,
+        *,
+        filters: Optional[Dict[str, Any]] = None,
+        session: Optional[AsyncSession] = None
+    ) -> int:
+        """
+        Count devices for an organization with optional filters.
+
+        Args:
+            organization_id: Organization identifier
+            filters: Optional additional filters
+            session: Optional database session
+
+        Returns:
+            Number of devices
+        """
+        base_filters = {"organization_id": organization_id}
+        if filters:
+            base_filters.update(filters)
+
+        if session:
+            repo = self.get_repository(session)
+            return await repo.count(filters=base_filters)
+        else:
+            async with db_manager.session_scope() as db_session:
+                repo = self.get_repository(db_session)
+                return await repo.count(filters=base_filters)
+
 
 # ===== EXPERIMENT SERVICE =====
 
@@ -234,6 +296,37 @@ class ExperimentService(BaseService[Experiment, ExperimentRepository]):
 
     def __init__(self):
         super().__init__(ExperimentRepository, Experiment)
+
+    async def get_list_with_filters(
+        self,
+        filters: Dict[str, Any],
+        skip: int = 0,
+        limit: int = 20,
+        session: Optional[AsyncSession] = None
+    ) -> Tuple[List[Experiment], int]:
+        """
+        Get paginated list of experiments with filters.
+
+        Args:
+            filters: Dictionary of filter criteria
+            skip: Number of records to skip
+            limit: Maximum number of records to return
+            session: Optional database session
+
+        Returns:
+            Tuple of (list of experiments, total count)
+        """
+        if session:
+            repo = self.get_repository(session)
+            items = await repo.get_by_filter(filters=filters, skip=skip, limit=limit)
+            total = await repo.count(filters=filters)
+            return items, total
+        else:
+            async with db_manager.session_scope() as db_session:
+                repo = self.get_repository(db_session)
+                items = await repo.get_by_filter(filters=filters, skip=skip, limit=limit)
+                total = await repo.count(filters=filters)
+                return items, total
 
     async def create_experiment(
         self,
@@ -323,6 +416,148 @@ class ExperimentService(BaseService[Experiment, ExperimentRepository]):
 
         return await self.update(experiment_id, update_data, current_user_id=current_user_id, session=session)
 
+    async def ready_experiment(
+        self,
+        experiment_id: uuid.UUID,
+        *,
+        current_user_id: Optional[uuid.UUID] = None,
+        session: Optional[AsyncSession] = None
+    ) -> Experiment:
+        """
+        Ready an experiment (transition from draft to ready).
+
+        Args:
+            experiment_id: Experiment identifier
+            current_user_id: ID of the user readying the experiment
+            session: Optional database session
+
+        Returns:
+            Updated experiment
+
+        Raises:
+            ConflictError: If experiment cannot be readied
+        """
+        experiment = await self.get_by_id(experiment_id, current_user_id=current_user_id, session=session)
+
+        # Validate experiment can be readied
+        if experiment.status != ExperimentStatus.DRAFT:
+            raise ConflictError(f"Experiment must be in DRAFT status to ready, current status: {experiment.status}")
+
+        # Update experiment status
+        update_data = {
+            'status': ExperimentStatus.READY
+        }
+
+        return await self.update(experiment_id, update_data, current_user_id=current_user_id, session=session)
+
+    async def pause_experiment(
+        self,
+        experiment_id: uuid.UUID,
+        *,
+        current_user_id: Optional[uuid.UUID] = None,
+        session: Optional[AsyncSession] = None
+    ) -> Experiment:
+        """
+        Pause a running experiment.
+
+        Args:
+            experiment_id: Experiment identifier
+            current_user_id: ID of the user pausing the experiment
+            session: Optional database session
+
+        Returns:
+            Updated experiment
+
+        Raises:
+            ConflictError: If experiment cannot be paused
+        """
+        experiment = await self.get_by_id(experiment_id, current_user_id=current_user_id, session=session)
+
+        # Validate experiment can be paused
+        if experiment.status != ExperimentStatus.RUNNING:
+            raise ConflictError(f"Only running experiments can be paused, current status: {experiment.status}")
+
+        # Update experiment status
+        update_data = {
+            'status': ExperimentStatus.PAUSED
+        }
+
+        return await self.update(experiment_id, update_data, current_user_id=current_user_id, session=session)
+
+    async def resume_experiment(
+        self,
+        experiment_id: uuid.UUID,
+        *,
+        current_user_id: Optional[uuid.UUID] = None,
+        session: Optional[AsyncSession] = None
+    ) -> Experiment:
+        """
+        Resume a paused experiment.
+
+        Args:
+            experiment_id: Experiment identifier
+            current_user_id: ID of the user resuming the experiment
+            session: Optional database session
+
+        Returns:
+            Updated experiment
+
+        Raises:
+            ConflictError: If experiment cannot be resumed
+        """
+        experiment = await self.get_by_id(experiment_id, current_user_id=current_user_id, session=session)
+
+        # Validate experiment can be resumed
+        if experiment.status != ExperimentStatus.PAUSED:
+            raise ConflictError(f"Only paused experiments can be resumed, current status: {experiment.status}")
+
+        # Update experiment status
+        update_data = {
+            'status': ExperimentStatus.RUNNING
+        }
+
+        return await self.update(experiment_id, update_data, current_user_id=current_user_id, session=session)
+
+    async def cancel_experiment(
+        self,
+        experiment_id: uuid.UUID,
+        reason: Optional[str] = None,
+        *,
+        current_user_id: Optional[uuid.UUID] = None,
+        session: Optional[AsyncSession] = None
+    ) -> Experiment:
+        """
+        Cancel an experiment from any state (except completed).
+
+        Args:
+            experiment_id: Experiment identifier
+            reason: Optional cancellation reason
+            current_user_id: ID of the user canceling the experiment
+            session: Optional database session
+
+        Returns:
+            Updated experiment
+
+        Raises:
+            ConflictError: If experiment cannot be canceled
+        """
+        experiment = await self.get_by_id(experiment_id, current_user_id=current_user_id, session=session)
+
+        # Validate experiment can be canceled (any state except completed)
+        if experiment.status == ExperimentStatus.COMPLETED:
+            raise ConflictError("Completed experiments cannot be canceled")
+
+        # Update experiment status
+        update_data = {
+            'status': ExperimentStatus.CANCELLED,
+            'actual_end_at': datetime.now(timezone.utc)
+        }
+
+        if reason:
+            update_data['cancellation_reason'] = reason
+
+        return await self.update(experiment_id, update_data, current_user_id=current_user_id, session=session)
+
     async def complete_experiment(
         self,
         experiment_id: uuid.UUID,
@@ -403,13 +638,46 @@ class ExperimentService(BaseService[Experiment, ExperimentRepository]):
         if 'scheduled_start_at' in data and 'scheduled_end_at' in data:
             start_time = data['scheduled_start_at']
             end_time = data['scheduled_end_at']
-            if isinstance(start_time, str):
-                start_time = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
-            if isinstance(end_time, str):
-                end_time = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
 
-            if start_time >= end_time:
-                raise ValidationError("Scheduled end time must be after start time")
+            # Only validate if both values are not None
+            if start_time is not None and end_time is not None:
+                if isinstance(start_time, str):
+                    start_time = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+                if isinstance(end_time, str):
+                    end_time = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
+
+                if start_time >= end_time:
+                    raise ValidationError("Scheduled end time must be after start time")
+
+    async def count_by_organization(
+        self,
+        organization_id: uuid.UUID,
+        *,
+        filters: Optional[Dict[str, Any]] = None,
+        session: Optional[AsyncSession] = None
+    ) -> int:
+        """
+        Count experiments for an organization with optional filters.
+
+        Args:
+            organization_id: Organization identifier
+            filters: Optional additional filters
+            session: Optional database session
+
+        Returns:
+            Number of experiments
+        """
+        base_filters = {"organization_id": organization_id}
+        if filters:
+            base_filters.update(filters)
+
+        if session:
+            repo = self.get_repository(session)
+            return await repo.count(filters=base_filters)
+        else:
+            async with db_manager.session_scope() as db_session:
+                repo = self.get_repository(db_session)
+                return await repo.count(filters=base_filters)
 
 
 # ===== TASK SERVICE =====
@@ -419,6 +687,37 @@ class TaskService(BaseService[Task, TaskRepository]):
 
     def __init__(self):
         super().__init__(TaskRepository, Task)
+
+    async def get_list_with_filters(
+        self,
+        filters: Dict[str, Any],
+        skip: int = 0,
+        limit: int = 20,
+        session: Optional[AsyncSession] = None
+    ) -> Tuple[List[Task], int]:
+        """
+        Get paginated list of tasks with filters.
+
+        Args:
+            filters: Dictionary of filter criteria
+            skip: Number of records to skip
+            limit: Maximum number of records to return
+            session: Optional database session
+
+        Returns:
+            Tuple of (list of tasks, total count)
+        """
+        if session:
+            repo = self.get_repository(session)
+            items = await repo.get_by_filter(filters=filters, skip=skip, limit=limit)
+            total = await repo.count(filters=filters)
+            return items, total
+        else:
+            async with db_manager.session_scope() as db_session:
+                repo = self.get_repository(db_session)
+                items = await repo.get_by_filter(filters=filters, skip=skip, limit=limit)
+                total = await repo.count(filters=filters)
+                return items, total
 
     async def create_task_from_template(
         self,
@@ -563,14 +862,169 @@ class TaskService(BaseService[Task, TaskRepository]):
 
     async def _validate_create_data(self, data: Dict[str, Any]) -> None:
         """Validate task creation data."""
-        required_fields = ['name', 'organization_id', 'task_definition']
+        required_fields = ['name', 'organization_id']
         for field in required_fields:
             if field not in data:
                 raise ValidationError(f"Field '{field}' is required", field=field)
 
+        # Check for task definition (can be either 'definition' or 'task_definition')
+        task_def = data.get('task_definition') or data.get('definition')
+        if not task_def:
+            raise ValidationError("Field 'task_definition' is required", field='task_definition')
+
         # Validate task definition if provided
+        await self.validate_task_definition(task_def)
+
+        # Ensure the data has the correct field name for model creation
+        # The Task model expects 'definition', so ensure it exists
+        if 'task_definition' in data and 'definition' not in data:
+            data['definition'] = data['task_definition']
+        # Remove task_definition to avoid passing it to the model constructor
         if 'task_definition' in data:
-            await self.validate_task_definition(data['task_definition'])
+            del data['task_definition']
+
+    async def publish_task(
+        self,
+        task_id: uuid.UUID,
+        *,
+        current_user_id: Optional[uuid.UUID] = None,
+        session: Optional[AsyncSession] = None
+    ) -> Task:
+        """
+        Publish a task to make it available to other organizations.
+
+        Args:
+            task_id: Task identifier
+            current_user_id: ID of the user publishing the task
+            session: Optional database session
+
+        Returns:
+            Updated task with published status
+
+        Raises:
+            NotFoundError: If task not found
+            ConflictError: If task cannot be published
+        """
+        task = await self.get_by_id(task_id, current_user_id=current_user_id, session=session)
+
+        # Validate task can be published
+        if task.is_published:
+            raise ConflictError("Task is already published")
+
+        # Update task to published status
+        update_data = {
+            'is_published': True,
+            'is_template': True  # Published tasks become templates
+        }
+
+        if session:
+            repo = self.get_repository(session)
+            updated_task = await repo.update(task_id, **update_data)
+            await session.commit()
+        else:
+            async with db_manager.session_scope() as db_session:
+                repo = self.get_repository(db_session)
+                updated_task = await repo.update(task_id, **update_data)
+                await db_session.commit()
+
+        logger.info(f"Task {task_id} published by user {current_user_id}")
+        return updated_task
+
+    async def clone_task(
+        self,
+        task_id: uuid.UUID,
+        new_name: Optional[str] = None,
+        new_organization_id: Optional[uuid.UUID] = None,
+        *,
+        current_user_id: Optional[uuid.UUID] = None,
+        session: Optional[AsyncSession] = None
+    ) -> Task:
+        """
+        Clone a task to create a copy.
+
+        Args:
+            task_id: Source task identifier
+            new_name: Optional name for the cloned task
+            new_organization_id: Organization ID for the cloned task
+            current_user_id: ID of the user cloning the task
+            session: Optional database session
+
+        Returns:
+            New cloned task
+
+        Raises:
+            NotFoundError: If source task not found
+            ValidationError: If task cannot be cloned
+        """
+        source_task = await self.get_by_id(task_id, session=session)
+
+        # Validate source task can be cloned
+        if not source_task.is_published and not source_task.is_template:
+            raise ValidationError("Only published tasks or templates can be cloned")
+
+        # Prepare cloned task data
+        cloned_data = {
+            'name': new_name or f"{source_task.name} (Clone)",
+            'description': source_task.description,
+            'definition': source_task.definition,
+            'category': source_task.category,
+            'version': '1.0.0',  # Reset version for cloned task
+            'author_id': current_user_id,
+            'is_template': False,  # Cloned tasks are not templates by default
+            'is_public': False,
+            'is_published': False,  # Cloned tasks are not published by default
+            'parameters_schema': source_task.parameters_schema,
+            'default_parameters': source_task.default_parameters,
+            'required_capabilities': source_task.required_capabilities,
+            'supported_device_types': source_task.supported_device_types,
+            'estimated_duration_minutes': source_task.estimated_duration_minutes,
+            'max_execution_time_minutes': source_task.max_execution_time_minutes,
+            'organization_id': new_organization_id or current_user_id
+        }
+
+        # Create cloned task
+        if session:
+            repo = self.get_repository(session)
+            cloned_task = await repo.create(**cloned_data)
+            await session.commit()
+        else:
+            async with db_manager.session_scope() as db_session:
+                repo = self.get_repository(db_session)
+                cloned_task = await repo.create(**cloned_data)
+                await db_session.commit()
+
+        logger.info(f"Task {task_id} cloned as {cloned_task.id} by user {current_user_id}")
+        return cloned_task
+
+    async def count_by_organization(
+        self,
+        organization_id: uuid.UUID,
+        *,
+        filters: Optional[Dict[str, Any]] = None,
+        session: Optional[AsyncSession] = None
+    ) -> int:
+        """
+        Count tasks for an organization with optional filters.
+
+        Args:
+            organization_id: Organization identifier
+            filters: Optional additional filters
+            session: Optional database session
+
+        Returns:
+            Number of tasks
+        """
+        base_filters = {"organization_id": organization_id}
+        if filters:
+            base_filters.update(filters)
+
+        if session:
+            repo = self.get_repository(session)
+            return await repo.count(filters=base_filters)
+        else:
+            async with db_manager.session_scope() as db_session:
+                repo = self.get_repository(db_session)
+                return await repo.count(filters=base_filters)
 
 
 # ===== PARTICIPANT SERVICE =====
@@ -580,6 +1034,37 @@ class ParticipantService(BaseService[Participant, ParticipantRepository]):
 
     def __init__(self):
         super().__init__(ParticipantRepository, Participant)
+
+    async def get_list_with_filters(
+        self,
+        filters: Dict[str, Any],
+        skip: int = 0,
+        limit: int = 20,
+        session: Optional[AsyncSession] = None
+    ) -> Tuple[List[Participant], int]:
+        """
+        Get paginated list of participants with filters.
+
+        Args:
+            filters: Dictionary of filter criteria
+            skip: Number of records to skip
+            limit: Maximum number of records to return
+            session: Optional database session
+
+        Returns:
+            Tuple of (list of participants, total count)
+        """
+        if session:
+            repo = self.get_repository(session)
+            items = await repo.get_by_filter(filters=filters, skip=skip, limit=limit)
+            total = await repo.count(filters=filters)
+            return items, total
+        else:
+            async with db_manager.session_scope() as db_session:
+                repo = self.get_repository(db_session)
+                items = await repo.get_by_filter(filters=filters, skip=skip, limit=limit)
+                total = await repo.count(filters=filters)
+                return items, total
 
     async def enroll_participant(
         self,
@@ -604,15 +1089,15 @@ class ParticipantService(BaseService[Participant, ParticipantRepository]):
         Raises:
             ConflictError: If participant already exists
         """
-        # Check for existing participant with same identifier
+        # Check for existing participant with same participant_id
         repository = self.get_repository(session)
         existing_participant = await repository.get_by_identifier(
-            experiment_id, participant_data['identifier']
+            experiment_id, participant_data['participant_id']
         )
 
         if existing_participant:
             raise ConflictError(
-                f"Participant with identifier '{participant_data['identifier']}' already exists in this experiment"
+                f"Participant with participant_id '{participant_data['participant_id']}' already exists in this experiment"
             )
 
         # Set enrollment data
@@ -698,10 +1183,15 @@ class ParticipantService(BaseService[Participant, ParticipantRepository]):
 
     async def _validate_create_data(self, data: Dict[str, Any]) -> None:
         """Validate participant creation data."""
-        required_fields = ['identifier', 'species']
+        required_fields = ['participant_id', 'species']
         for field in required_fields:
             if field not in data:
                 raise ValidationError(f"Field '{field}' is required", field=field)
+
+        # If experiment_id is provided, validate it exists
+        if 'experiment_id' in data and data['experiment_id'] is not None:
+            # This is a basic validation - the repository will handle the existence check
+            pass  # We could add experiment existence validation here if needed
 
 
 # ===== TASK EXECUTION SERVICE =====
@@ -740,15 +1230,22 @@ class TaskExecutionService(BaseService[TaskExecution, TaskExecutionRepository]):
         """
         import secrets
 
+        # Get task to obtain organization_id
+        task_service = TaskService()
+        task = await task_service.get_by_id(task_id, session=session)
+        if not task:
+            raise NotFoundError(f"Task {task_id} not found")
+
         execution_data = {
             'execution_id': secrets.token_hex(16),
             'task_id': task_id,
             'device_id': device_id,
             'experiment_id': experiment_id,
             'participant_id': participant_id,
+            'organization_id': task.organization_id,
             'status': TaskStatus.RUNNING,
             'started_at': datetime.now(timezone.utc),
-            'execution_parameters': execution_parameters or {}
+            'parameters': execution_parameters or {}
         }
 
         return await self.create(execution_data, current_user_id=current_user_id, session=session)
@@ -822,6 +1319,62 @@ class TaskExecutionService(BaseService[TaskExecution, TaskExecutionRepository]):
         repository = self.get_repository(session)
         return await repository.get_execution_statistics(experiment_id, start_date, end_date)
 
+    async def get_list_with_filters(
+        self,
+        filters: Dict[str, Any],
+        skip: int = 0,
+        limit: int = 20,
+        session: Optional[AsyncSession] = None
+    ) -> Tuple[List[TaskExecution], int]:
+        """
+        Get paginated list of task executions with filters.
+
+        Args:
+            filters: Dictionary of filter criteria
+            skip: Number of records to skip
+            limit: Maximum number of records to return
+            session: Optional database session
+
+        Returns:
+            Tuple of (list of task executions, total count)
+        """
+        if session:
+            repo = self.get_repository(session)
+            items = await repo.get_by_filter(filters=filters, skip=skip, limit=limit)
+            total = await repo.count(filters=filters)
+            return items, total
+        else:
+            async with db_manager.session_scope() as db_session:
+                repo = self.get_repository(db_session)
+                items = await repo.get_by_filter(filters=filters, skip=skip, limit=limit)
+                total = await repo.count(filters=filters)
+                return items, total
+
+    async def get_execution_history(
+        self,
+        task_id: uuid.UUID,
+        *,
+        session: Optional[AsyncSession] = None
+    ) -> List[TaskExecution]:
+        """
+        Get execution history for a specific task.
+
+        Args:
+            task_id: Task identifier
+            session: Optional database session
+
+        Returns:
+            List of task executions
+        """
+        filters = {"task_id": task_id}
+        if session:
+            repo = self.get_repository(session)
+            return await repo.get_by_filter(filters=filters, order_by="started_at", order_desc=True)
+        else:
+            async with db_manager.session_scope() as db_session:
+                repo = self.get_repository(db_session)
+                return await repo.get_by_filter(filters=filters, order_by="started_at", order_desc=True)
+
 
 # ===== DEVICE DATA SERVICE =====
 
@@ -849,9 +1402,16 @@ class DeviceDataService(BaseService[DeviceData, DeviceDataRepository]):
         Returns:
             List of created data records
         """
+        # Get device to inherit organization_id
+        device_service = DeviceService()
+        device = await device_service.get_by_id(device_id, session=session)
+        if not device:
+            raise ValueError(f"Device {device_id} not found")
+
         # Prepare data points with common fields
         for data_point in data_points:
             data_point['device_id'] = device_id
+            data_point['organization_id'] = device.organization_id
             if 'timestamp' not in data_point:
                 data_point['timestamp'] = datetime.now(timezone.utc)
 
