@@ -24,6 +24,8 @@ from app.core.dependencies import (
     get_current_user, require_permission, require_any_permission,
     get_current_user_optional
 )
+from app.core.circuit_breaker import cb_manager, ServiceType, are_all_circuits_healthy
+from app.core.service_dependencies import service_registry
 
 router = APIRouter()
 
@@ -337,6 +339,44 @@ class HealthChecker:
             }
         }
 
+    async def check_celery(self) -> Dict[str, Any]:
+        """Check Celery worker health."""
+        result = {
+            "name": "Celery",
+            "status": "unknown",
+            "response_time_ms": 0,
+            "details": {},
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+        try:
+            from app.tasks.celery_app import celery_app
+            start_time = time.time()
+
+            # Check if we can get worker stats
+            inspector = celery_app.control.inspect()
+            stats = inspector.stats()
+
+            if stats:
+                result["status"] = "healthy"
+                result["details"]["workers_active"] = len(stats)
+                result["details"]["workers"] = list(stats.keys())
+                result["response_time_ms"] = int((time.time() - start_time) * 1000)
+                result["details"]["workers_active"] = True
+            else:
+                result["status"] = "unhealthy"
+                result["details"]["error"] = "No workers responding"
+                result["details"]["workers_active"] = False
+
+        except Exception as e:
+            result["status"] = "unhealthy"
+            result["details"]["error"] = str(e)
+            result["details"]["workers_active"] = False
+
+        return result
+
+
+
 
 # Initialize health checker
 health_checker = HealthChecker()
@@ -344,12 +384,47 @@ health_checker = HealthChecker()
 
 @router.get("")
 async def health_check():
-    """Basic health check endpoint."""
-    return {
-        "status": "healthy",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-        "service": "LICS Backend"
-    }
+    """
+    Basic health check endpoint for Kong API Gateway.
+
+    This endpoint is used by Kong's health checks to determine if the backend
+    service is healthy and ready to receive traffic.
+
+    Returns:
+        - 200: Service is healthy
+        - 503: Service is unhealthy
+    """
+    try:
+        # Quick database connectivity check (lightweight)
+        db_url = settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
+        conn = await asyncpg.connect(db_url, timeout=5)
+        await conn.fetchval("SELECT 1")
+        await conn.close()
+
+        return JSONResponse(
+            content={
+                "status": "healthy",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "service": "LICS Backend",
+                "checks": {
+                    "database": "ok"
+                }
+            },
+            status_code=200
+        )
+    except Exception as e:
+        return JSONResponse(
+            content={
+                "status": "unhealthy",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "service": "LICS Backend",
+                "error": str(e),
+                "checks": {
+                    "database": "failed"
+                }
+            },
+            status_code=503
+        )
 
 
 @router.get("/ready")
@@ -386,13 +461,24 @@ async def redis_health_check():
     return JSONResponse(content=result, status_code=status_code)
 
 
+@router.get("/celery")
+async def celery_health_check():
+    """Public Celery health check endpoint."""
+    result = await health_checker.check_celery()
+    status_code = 200 if result["status"] == "healthy" else 503
+    return JSONResponse(content=result, status_code=status_code)
+
+
 @router.get("/comprehensive")
 async def comprehensive_health_check(
     include_details: bool = Query(True, description="Include detailed health information"),
-    services: Optional[str] = Query(None, description="Comma-separated list of services to check"),
-    current_user = Depends(require_any_permission(["system:monitor", "system:admin"]))
+    services: Optional[str] = Query(None, description="Comma-separated list of services to check")
 ):
-    """Comprehensive health check for all services."""
+    """
+    Comprehensive health check for all services.
+
+    This is a public endpoint for monitoring purposes.
+    """
 
     start_time = time.time()
 
@@ -442,16 +528,31 @@ async def comprehensive_health_check(
             if result["status"] != "healthy":
                 overall_status = "degraded" if overall_status == "healthy" else "unhealthy"
 
+    # Get circuit breaker status
+    circuit_breaker_status = {
+        "all_healthy": are_all_circuits_healthy(),
+        "breakers": {} if not include_details else {
+            st.value: cb_manager.get_breaker_state(st)
+            for st in ServiceType
+        }
+    }
+
+    # Get dependency health summary
+    dependency_summary = service_registry.get_system_health_summary()
+
     response = {
         "status": overall_status,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "response_time_ms": int((time.time() - start_time) * 1000),
         "system": system_info,
         "services": services_status if include_details else None,
+        "circuit_breakers": circuit_breaker_status,
+        "dependencies": dependency_summary,
         "summary": {
             "total_services": len(services_status),
             "healthy_services": len([s for s in services_status if s.get("status") == "healthy"]),
-            "unhealthy_services": len([s for s in services_status if s.get("status") != "healthy"])
+            "unhealthy_services": len([s for s in services_status if s.get("status") != "healthy"]),
+            "circuit_breakers_healthy": are_all_circuits_healthy()
         }
     }
 
@@ -485,29 +586,3 @@ async def service_health_check(
     return JSONResponse(content=result, status_code=status_code)
 
 
-@router.get("/metrics", include_in_schema=False)
-async def prometheus_metrics():
-    """
-    Expose Prometheus metrics endpoint.
-
-    This endpoint is typically public (no authentication) so Prometheus can scrape it.
-    Include_in_schema=False to hide from API docs.
-    """
-    try:
-        from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
-        from fastapi.responses import Response
-
-        # Generate Prometheus metrics output
-        metrics_output = generate_latest()
-
-        return Response(
-            content=metrics_output,
-            media_type=CONTENT_TYPE_LATEST,
-            headers={"Cache-Control": "no-cache"}
-        )
-
-    except ImportError:
-        return JSONResponse(
-            content={"error": "Prometheus metrics not available - prometheus_client not installed"},
-            status_code=503
-        )

@@ -56,7 +56,9 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         "/api/v1/health/ready",
         "/api/v1/health/live",
         "/api/v1/health/database",
-        "/api/v1/health/redis"
+        "/api/v1/health/redis",
+        "/api/v1/health/celery",
+        "/api/v1/health/comprehensive"
     }
 
     # Routes that support optional authentication (enhanced features if authenticated)
@@ -175,12 +177,24 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                 )
 
             # Check if email is verified (for certain operations)
+            # Bypass email verification requirement in development and testing environments
             if not user.is_verified and self._requires_verified_email(path):
-                return self._create_auth_error_response(
-                    "Email verification required",
-                    "EMAIL_NOT_VERIFIED",
-                    request
-                )
+                # Bypass for development and testing environments
+                if settings.ENVIRONMENT.lower() in ["development", "testing"]:
+                    logger.warning(
+                        f"Bypassing email verification for user {user.id} in development/testing environment",
+                        extra={
+                            "user_id": str(user.id),
+                            "path": path,
+                            "environment": settings.ENVIRONMENT.lower()
+                        }
+                    )
+                else:
+                    return self._create_auth_error_response(
+                        "Email verification required",
+                        "EMAIL_NOT_VERIFIED",
+                        request
+                    )
 
             # Store user in request state
             request.state.user = user

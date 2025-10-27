@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
     name="app.tasks.maintenance.cleanup_expired_sessions",
     bind=True
 )
-def cleanup_expired_sessions(self) -> Dict[str, Any]:
+def cleanup_expired_sessions(self, hours_to_keep: int = 24) -> Dict[str, Any]:
     """
     Remove expired user sessions and refresh tokens.
 
@@ -101,7 +101,7 @@ def cleanup_expired_sessions(self) -> Dict[str, Any]:
     name="app.tasks.maintenance.refresh_cache_warmup",
     bind=True
 )
-def refresh_cache_warmup(self) -> Dict[str, Any]:
+def refresh_cache_warmup(self, cache_type: str = "all") -> Dict[str, Any]:
     """
     Preload frequently accessed data into cache.
 
@@ -180,7 +180,7 @@ def refresh_cache_warmup(self) -> Dict[str, Any]:
     bind=True,
     time_limit=1800  # 30 minutes
 )
-def backup_database_incremental(self) -> Dict[str, Any]:
+def backup_database_incremental(self, backup_type: str = "incremental") -> Dict[str, Any]:
     """
     Perform incremental database backup.
 

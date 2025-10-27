@@ -203,8 +203,8 @@ class BaseTask(Task):
             extra={
                 "task_id": task_id,
                 "task_name": self.name,
-                "args": args,
-                "kwargs": kwargs,
+                "task_args": args,
+                "task_kwargs": kwargs,
                 "exception": str(exc),
                 "traceback": str(einfo)
             }

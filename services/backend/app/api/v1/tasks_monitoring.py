@@ -22,7 +22,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/tasks", tags=["Task Monitoring"])
+router = APIRouter(tags=["Task Monitoring"])
 
 
 # Pydantic Schemas

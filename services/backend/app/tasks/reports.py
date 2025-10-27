@@ -187,7 +187,8 @@ def generate_participant_progress_report(
     self,
     primate_id: str,
     start_date: Optional[str] = None,
-    end_date: Optional[str] = None
+    end_date: Optional[str] = None,
+    format: str = "pdf"
 ) -> Dict[str, Any]:
     """
     Generate participant progress report across multiple experiments.
@@ -378,7 +379,8 @@ def generate_organization_summary(
 )
 def export_data_to_storage(
     self,
-    experiment_id: str,
+    export_type: str,
+    filters: Optional[Dict[str, Any]] = None,
     storage_type: str = "minio",
     format: str = "csv"
 ) -> Dict[str, Any]:
