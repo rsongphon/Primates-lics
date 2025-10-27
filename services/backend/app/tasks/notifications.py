@@ -14,8 +14,44 @@ import smtplib
 
 from app.tasks.celery_app import celery_app
 from app.core.config import settings
+from app.core.circuit_breaker import with_circuit_breaker, ServiceType
 
 logger = logging.getLogger(__name__)
+
+
+@with_circuit_breaker(ServiceType.EXTERNAL_API, fallback_value=None)
+def _send_http_request(webhook_url: str, payload: Dict[str, Any], headers: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+    """
+    Internal function to send HTTP request with circuit breaker protection.
+
+    Args:
+        webhook_url: Target webhook URL
+        payload: JSON payload to send
+        headers: Optional HTTP headers
+
+    Returns:
+        Response data or None if circuit breaker is open
+    """
+    default_headers = {
+        "Content-Type": "application/json",
+        "User-Agent": "LICS-Webhook/1.0"
+    }
+
+    if headers:
+        default_headers.update(headers)
+
+    with httpx.Client(timeout=30.0) as client:
+        response = client.post(
+            webhook_url,
+            json=payload,
+            headers=default_headers
+        )
+        response.raise_for_status()
+
+        return {
+            "status_code": response.status_code,
+            "response": response.text[:500]  # Truncate response
+        }
 
 
 @celery_app.task(
@@ -112,27 +148,18 @@ def send_webhook_notification(
         Delivery status and response data
     """
     try:
-        default_headers = {
-            "Content-Type": "application/json",
-            "User-Agent": "LICS-Webhook/1.0"
-        }
+        # Use circuit breaker protected HTTP request
+        result = _send_http_request(webhook_url, payload, headers)
 
-        if headers:
-            default_headers.update(headers)
-
-        with httpx.Client(timeout=30.0) as client:
-            response = client.post(
-                webhook_url,
-                json=payload,
-                headers=default_headers
-            )
-            response.raise_for_status()
+        if result is None:
+            # Circuit breaker is open, treat as failure
+            raise Exception("Circuit breaker is open for webhook delivery")
 
         logger.info(
             f"Webhook delivered successfully",
             extra={
                 "url": webhook_url,
-                "status_code": response.status_code,
+                "status_code": result["status_code"],
                 "task_id": self.request.id
             }
         )
@@ -140,12 +167,12 @@ def send_webhook_notification(
         return {
             "status": "delivered",
             "url": webhook_url,
-            "status_code": response.status_code,
-            "response": response.text[:500],  # Truncate response
+            "status_code": result["status_code"],
+            "response": result["response"],
             "task_id": self.request.id
         }
 
-    except httpx.HTTPError as e:
+    except Exception as e:
         logger.error(f"Webhook delivery failed: {e}")
         # Retry with exponential backoff
         raise self.retry(exc=e, countdown=60 * (2 ** self.request.retries))

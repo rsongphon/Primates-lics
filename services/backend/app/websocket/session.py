@@ -12,6 +12,7 @@ from redis import asyncio as aioredis
 
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.core.circuit_breaker import with_circuit_breaker, ServiceType, cb_manager
 
 logger = get_logger(__name__)
 
@@ -31,6 +32,7 @@ class SessionManager:
         self._user_connections_prefix = "ws:user_connections:"
         self._presence_prefix = "ws:presence:"
 
+    @with_circuit_breaker(ServiceType.REDIS, fallback_value=None)
     async def get_redis(self) -> aioredis.Redis:
         """
         Get or create Redis connection.
@@ -54,6 +56,7 @@ class SessionManager:
 
     # ===== Session Management =====
 
+    @with_circuit_breaker(ServiceType.REDIS, fallback_value=False)
     async def save_session(self, sid: str, session_data: Dict[str, Any]) -> bool:
         """
         Save session data for a connection.
@@ -82,6 +85,7 @@ class SessionManager:
             logger.error(f"Error saving session for {sid}: {e}")
             return False
 
+    @with_circuit_breaker(ServiceType.REDIS, fallback_value=None)
     async def get_session(self, sid: str) -> Optional[Dict[str, Any]]:
         """
         Retrieve session data for a connection.
@@ -106,6 +110,7 @@ class SessionManager:
             logger.error(f"Error getting session for {sid}: {e}")
             return None
 
+    @with_circuit_breaker(ServiceType.REDIS, fallback_value=False)
     async def update_session(self, sid: str, updates: Dict[str, Any]) -> bool:
         """
         Update session data for a connection.
@@ -133,6 +138,7 @@ class SessionManager:
             logger.error(f"Error updating session for {sid}: {e}")
             return False
 
+    @with_circuit_breaker(ServiceType.REDIS, fallback_value=False)
     async def delete_session(self, sid: str) -> bool:
         """
         Delete session data for a connection.
@@ -157,6 +163,7 @@ class SessionManager:
 
     # ===== Connection Tracking =====
 
+    @with_circuit_breaker(ServiceType.REDIS, fallback_value=False)
     async def track_connection(self, sid: str, user_id: str, connection_info: Dict[str, Any]) -> bool:
         """
         Track a WebSocket connection for a user.
@@ -194,6 +201,7 @@ class SessionManager:
             logger.error(f"Error tracking connection {sid}: {e}")
             return False
 
+    @with_circuit_breaker(ServiceType.REDIS, fallback_value=False)
     async def untrack_connection(self, sid: str, user_id: Optional[str] = None) -> bool:
         """
         Remove tracking for a disconnected WebSocket connection.
@@ -232,6 +240,7 @@ class SessionManager:
             logger.error(f"Error untracking connection {sid}: {e}")
             return False
 
+    @with_circuit_breaker(ServiceType.REDIS, fallback_value=set())
     async def get_user_connections(self, user_id: str) -> Set[str]:
         """
         Get all active connections for a user.
@@ -253,6 +262,7 @@ class SessionManager:
             logger.error(f"Error getting connections for user {user_id}: {e}")
             return set()
 
+    @with_circuit_breaker(ServiceType.REDIS, fallback_value=None)
     async def get_connection_info(self, sid: str) -> Optional[Dict[str, Any]]:
         """
         Get connection information for a socket.
@@ -279,6 +289,7 @@ class SessionManager:
 
     # ===== Presence Tracking =====
 
+    @with_circuit_breaker(ServiceType.REDIS, fallback_value=False)
     async def set_user_presence(
         self,
         user_id: str,
@@ -317,6 +328,7 @@ class SessionManager:
             logger.error(f"Error setting presence for user {user_id}: {e}")
             return False
 
+    @with_circuit_breaker(ServiceType.REDIS, fallback_value=None)
     async def get_user_presence(self, user_id: str) -> Optional[Dict[str, Any]]:
         """
         Get user presence status.
@@ -341,6 +353,7 @@ class SessionManager:
             logger.error(f"Error getting presence for user {user_id}: {e}")
             return {"status": "offline"}
 
+    @with_circuit_breaker(ServiceType.REDIS, fallback_value={})
     async def get_online_users(self, user_ids: List[str]) -> Dict[str, Dict[str, Any]]:
         """
         Get presence status for multiple users.
@@ -375,6 +388,7 @@ class SessionManager:
             logger.error(f"Error getting online users: {e}")
             return {}
 
+    @with_circuit_breaker(ServiceType.REDIS, fallback_value=False)
     async def clear_user_presence(self, user_id: str) -> bool:
         """
         Clear user presence (set to offline).

@@ -472,3 +472,14 @@ def are_all_circuits_healthy() -> bool:
         state.get("state") == "closed"
         for state in cb_manager.get_all_breaker_states().values()
     )
+
+
+# ===== PRE-CONFIGURED CIRCUIT BREAKER DECORATORS =====
+
+# Service-specific circuit breaker decorators for easy use
+postgresql_breaker = with_circuit_breaker(ServiceType.POSTGRESQL)
+redis_breaker = with_circuit_breaker(ServiceType.REDIS)
+influxdb_breaker = with_circuit_breaker(ServiceType.INFLUXDB)
+mqtt_breaker = with_circuit_breaker(ServiceType.MQTT)
+minio_breaker = with_circuit_breaker(ServiceType.MINIO)
+external_api_breaker = with_circuit_breaker(ServiceType.EXTERNAL_API)

@@ -4,6 +4,7 @@ Domain Repositories
 Specialized repository classes for core domain entities including devices,
 experiments, tasks, and participants. Each repository extends BaseRepository
 with domain-specific query methods and business logic support.
+All operations are protected by circuit breakers for resilience.
 """
 
 import uuid
@@ -22,6 +23,11 @@ from app.models.domain import (
     experiment_devices, experiment_tasks
 )
 from app.core.logging import get_logger, PerformanceLogger
+from app.core.circuit_breaker import (
+    postgresql_breaker, ServiceType,
+    circuit_breaker_manager
+)
+from app.core.fallback_strategies import fallback_strategies
 
 logger = get_logger(__name__)
 perf_logger = PerformanceLogger(logger)
@@ -32,17 +38,20 @@ perf_logger = PerformanceLogger(logger)
 class DeviceRepository(BaseRepository[Device]):
     """Repository for device management operations."""
 
-    def __init__(self, db_session: AsyncSession):
-        super().__init__(Device, db_session)
+    def __init__(self, model, db_session: AsyncSession):
+        super().__init__(model, db_session)
 
+    @postgresql_breaker
     async def get_by_mac_address(self, mac_address: str) -> Optional[Device]:
         """Get device by MAC address."""
         return await self.get_one_by_filter({"mac_address": mac_address})
 
+    @postgresql_breaker
     async def get_by_serial_number(self, serial_number: str) -> Optional[Device]:
         """Get device by serial number."""
         return await self.get_one_by_filter({"serial_number": serial_number})
 
+    @postgresql_breaker
     async def get_by_organization(
         self,
         organization_id: uuid.UUID,
@@ -60,6 +69,7 @@ class DeviceRepository(BaseRepository[Device]):
 
         return await self.get_by_filter(filters, skip=skip, limit=limit, order_by="name")
 
+    @postgresql_breaker
     async def get_online_devices(self, organization_id: uuid.UUID) -> List[Device]:
         """Get all online devices for an organization."""
         return await self.get_by_filter({
@@ -67,6 +77,7 @@ class DeviceRepository(BaseRepository[Device]):
             "status": DeviceStatus.ONLINE
         })
 
+    @postgresql_breaker
     async def get_devices_by_location(
         self,
         organization_id: uuid.UUID,
@@ -80,11 +91,13 @@ class DeviceRepository(BaseRepository[Device]):
             "location": {"ilike": location}
         }, skip=skip, limit=limit)
 
+    @postgresql_breaker
     async def update_heartbeat(self, device_id: uuid.UUID) -> bool:
         """Update device heartbeat timestamp."""
         result = await self.update(device_id, last_heartbeat_at=datetime.now(timezone.utc))
         return result is not None
 
+  @postgresql_breaker
     async def update_device_status(
         self,
         device_id: uuid.UUID,
@@ -105,6 +118,7 @@ class DeviceRepository(BaseRepository[Device]):
 
         return await self.update(device_id, **update_data)
 
+    @postgresql_breaker
     async def get_stale_devices(
         self,
         organization_id: uuid.UUID,
@@ -125,6 +139,7 @@ class DeviceRepository(BaseRepository[Device]):
             )
             return list(result.scalars().all())
 
+    @postgresql_breaker
     async def count_by_status(self, organization_id: uuid.UUID) -> Dict[str, int]:
         """Get count of devices grouped by status."""
         with perf_logger.log_execution_time("count_devices_by_status"):
@@ -146,9 +161,10 @@ class DeviceRepository(BaseRepository[Device]):
 class ExperimentRepository(BaseRepository[Experiment]):
     """Repository for experiment management operations."""
 
-    def __init__(self, db_session: AsyncSession):
-        super().__init__(Experiment, db_session)
+    def __init__(self, model, db_session: AsyncSession):
+        super().__init__(model, db_session)
 
+    @postgresql_breaker
     async def get_by_organization(
         self,
         organization_id: uuid.UUID,
@@ -169,6 +185,7 @@ class ExperimentRepository(BaseRepository[Experiment]):
             order_desc=True
         )
 
+    @postgresql_breaker
     async def get_with_devices(self, experiment_id: uuid.UUID) -> Optional[Experiment]:
         """Get experiment with associated devices loaded."""
         with perf_logger.log_execution_time("get_experiment_with_devices"):
@@ -179,6 +196,7 @@ class ExperimentRepository(BaseRepository[Experiment]):
             )
             return result.scalar_one_or_none()
 
+    @postgresql_breaker
     async def get_with_tasks(self, experiment_id: uuid.UUID) -> Optional[Experiment]:
         """Get experiment with associated tasks loaded."""
         with perf_logger.log_execution_time("get_experiment_with_tasks"):
@@ -189,6 +207,7 @@ class ExperimentRepository(BaseRepository[Experiment]):
             )
             return result.scalar_one_or_none()
 
+    @postgresql_breaker
     async def get_active_experiments(self, organization_id: uuid.UUID) -> List[Experiment]:
         """Get all active (running or ready) experiments."""
         return await self.get_by_filter({
@@ -318,9 +337,10 @@ class ExperimentRepository(BaseRepository[Experiment]):
 class TaskRepository(BaseRepository[Task]):
     """Repository for task management operations."""
 
-    def __init__(self, db_session: AsyncSession):
-        super().__init__(Task, db_session)
+    def __init__(self, model, db_session: AsyncSession):
+        super().__init__(model, db_session)
 
+    @postgresql_breaker
     async def get_by_organization(
         self,
         organization_id: uuid.UUID,
@@ -341,6 +361,7 @@ class TaskRepository(BaseRepository[Task]):
             order_desc=True
         )
 
+    @postgresql_breaker
     async def get_templates(self, organization_id: uuid.UUID) -> List[Task]:
         """Get all task templates for an organization."""
         return await self.get_by_filter({
@@ -348,6 +369,7 @@ class TaskRepository(BaseRepository[Task]):
             "is_template": True
         }, order_by="name")
 
+    @postgresql_breaker
     async def get_by_category(
         self,
         organization_id: uuid.UUID,
@@ -361,6 +383,7 @@ class TaskRepository(BaseRepository[Task]):
             "category": category
         }, skip=skip, limit=limit, order_by="name")
 
+    @postgresql_breaker
     async def search_tasks(
         self,
         organization_id: uuid.UUID,
@@ -385,6 +408,7 @@ class TaskRepository(BaseRepository[Task]):
             )
             return list(result.scalars().all())
 
+    @postgresql_breaker
     async def get_popular_tasks(
         self,
         organization_id: uuid.UUID,
@@ -407,9 +431,10 @@ class TaskRepository(BaseRepository[Task]):
 class ParticipantRepository(BaseRepository[Participant]):
     """Repository for participant management operations."""
 
-    def __init__(self, db_session: AsyncSession):
-        super().__init__(Participant, db_session)
+    def __init__(self, model, db_session: AsyncSession):
+        super().__init__(model, db_session)
 
+    @postgresql_breaker
     async def get_by_experiment(
         self,
         experiment_id: uuid.UUID,
@@ -430,6 +455,7 @@ class ParticipantRepository(BaseRepository[Participant]):
             order_desc=True
         )
 
+    @postgresql_breaker
     async def get_by_identifier(
         self,
         experiment_id: uuid.UUID,
@@ -441,6 +467,7 @@ class ParticipantRepository(BaseRepository[Participant]):
             "identifier": identifier
         })
 
+    @postgresql_breaker
     async def get_active_participants(self, experiment_id: uuid.UUID) -> List[Participant]:
         """Get all active participants in an experiment."""
         return await self.get_by_filter({
@@ -448,6 +475,7 @@ class ParticipantRepository(BaseRepository[Participant]):
             "status": ParticipantStatus.ACTIVE
         })
 
+    @postgresql_breaker
     async def get_by_species(
         self,
         experiment_id: uuid.UUID,
@@ -461,6 +489,7 @@ class ParticipantRepository(BaseRepository[Participant]):
             "species": {"ilike": species}
         }, skip=skip, limit=limit)
 
+    @postgresql_breaker
     async def count_by_status(self, experiment_id: uuid.UUID) -> Dict[str, int]:
         """Get count of participants grouped by status."""
         with perf_logger.log_execution_time("count_participants_by_status"):
@@ -482,9 +511,10 @@ class ParticipantRepository(BaseRepository[Participant]):
 class TaskExecutionRepository(BaseRepository[TaskExecution]):
     """Repository for task execution tracking operations."""
 
-    def __init__(self, db_session: AsyncSession):
-        super().__init__(TaskExecution, db_session)
+    def __init__(self, model, db_session: AsyncSession):
+        super().__init__(model, db_session)
 
+    @postgresql_breaker
     async def get_by_experiment(
         self,
         experiment_id: uuid.UUID,
@@ -505,6 +535,7 @@ class TaskExecutionRepository(BaseRepository[TaskExecution]):
             order_desc=True
         )
 
+    @postgresql_breaker
     async def get_by_device(
         self,
         device_id: uuid.UUID,
@@ -525,6 +556,7 @@ class TaskExecutionRepository(BaseRepository[TaskExecution]):
             order_desc=True
         )
 
+    @postgresql_breaker
     async def get_running_executions(
         self,
         organization_id: uuid.UUID
@@ -535,10 +567,12 @@ class TaskExecutionRepository(BaseRepository[TaskExecution]):
             "status": TaskStatus.RUNNING
         }, order_by="started_at")
 
+    @postgresql_breaker
     async def get_by_execution_id(self, execution_id: str) -> Optional[TaskExecution]:
         """Get task execution by execution ID."""
         return await self.get_one_by_filter({"execution_id": execution_id})
 
+    @postgresql_breaker
     async def update_execution_status(
         self,
         execution_id: str,
@@ -565,6 +599,7 @@ class TaskExecutionRepository(BaseRepository[TaskExecution]):
 
         return await self.update(execution.id, **update_data)
 
+    @postgresql_breaker
     async def get_execution_statistics(
         self,
         experiment_id: uuid.UUID,
@@ -619,9 +654,10 @@ class TaskExecutionRepository(BaseRepository[TaskExecution]):
 class DeviceDataRepository(BaseRepository[DeviceData]):
     """Repository for device telemetry data operations."""
 
-    def __init__(self, db_session: AsyncSession):
-        super().__init__(DeviceData, db_session)
+    def __init__(self, model, db_session: AsyncSession):
+        super().__init__(model, db_session)
 
+    @postgresql_breaker
     async def get_by_device_and_timerange(
         self,
         device_id: uuid.UUID,
@@ -647,6 +683,7 @@ class DeviceDataRepository(BaseRepository[DeviceData]):
             order_desc=True
         )
 
+    @postgresql_breaker
     async def get_latest_by_device(
         self,
         device_id: uuid.UUID,
@@ -665,6 +702,7 @@ class DeviceDataRepository(BaseRepository[DeviceData]):
             order_desc=True
         )
 
+    @postgresql_breaker
     async def get_aggregated_data(
         self,
         device_id: uuid.UUID,
@@ -708,6 +746,7 @@ class DeviceDataRepository(BaseRepository[DeviceData]):
                 for row in result.all()
             ]
 
+    @postgresql_breaker
     async def cleanup_old_data(
         self,
         retention_days: int = 30,
