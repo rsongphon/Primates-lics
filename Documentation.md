@@ -35,13 +35,18 @@ The Lab Instrument Control System (LICS) represents a paradigm shift in laborato
 ### 1.2 Core Architecture Principles
 
 #### Microservices Architecture
-The system follows a microservices pattern with clear separation of concerns:
-- **API Gateway (Kong/Traefik)**: Central entry point managing routing, rate limiting, and authentication
-- **FastAPI Core Backend**: RESTful API services handling business logic
-- **WebSocket Server**: Real-time bidirectional communication service
-- **Task Engine (Celery)**: Asynchronous task processing for heavy workloads
-- **Auth Service (OAuth2)**: Centralized authentication and authorization
-- **Streaming Service**: WebRTC/HLS video streaming management
+The system follows a microservices pattern with clear service boundaries:
+- **API Gateway (Kong)**: Central entry point providing:
+  - Request routing with path-based and header-based rules
+  - Rate limiting: 100 req/s per user, 1000 req/s per organization
+  - JWT validation with 15-minute access tokens, 7-day refresh tokens
+  - Request/response transformation and protocol translation
+- **FastAPI Core Services**: Stateless REST APIs with:
+  - OpenAPI 3.0 specification
+  - Async request handling with 95th percentile < 200ms target
+  - Database connection pooling (min: 5, max: 20 per service)
+  - Structured logging with correlation IDs
+
 
 #### Event-Driven Architecture
 The system implements event sourcing and CQRS patterns:
@@ -59,8 +64,8 @@ Edge devices operate semi-autonomously:
 
 ### 1.3 Key Differentiators
 
-#### No-Code Task Builder
-A revolutionary visual programming interface allowing researchers to create complex experimental protocols without coding knowledge. The builder generates JSON-based task definitions that are interpreted by edge devices.
+#### Scratch-Based Task Builder
+A revolutionary visual programming interface using Scratch 3.0 that allows researchers to create complex experimental protocols without coding knowledge. The builder generates executable tasks that run on edge devices with embedded Scratch VM runtime.
 
 #### Plug-and-Play Hardware Integration
 Automatic discovery and configuration of sensors and actuators through a standardized registration protocol. Devices self-report capabilities and receive configuration automatically.
@@ -201,8 +206,18 @@ WebSocket Server ↔ Client Applications
 │  - Local Networks                                       │
 │  - IoT Gateways                                        │
 └──────────────────────────────────────────────────────────┘
-```
 
+```
+### 2.4 Service Dependency Matrix
+
+| Service | Dependencies | Failure Impact | Recovery Strategy |
+|---------|-------------|----------------|-------------------|
+| API Gateway | None | Total system outage | Multi-instance HA with health checks |
+| Auth Service | PostgreSQL, Redis | No new sessions | Cache valid tokens, read-only mode |
+| Core Backend | PostgreSQL, Redis, Auth | No CRUD operations | Circuit breaker, cached responses |
+| WebSocket Server | Redis, Auth | No real-time updates | Fallback to polling |
+| Task Engine | Redis, PostgreSQL | No async processing | Dead letter queue, retry mechanism |
+| Edge Agent | MQTT, Local SQLite | No cloud sync | Local operation mode, queue sync |
 ---
 
 ## 3. Architecture Deep Dive
@@ -238,22 +253,21 @@ The system runs on a managed Kubernetes cluster (EKS/GKE/AKS) with the following
 ### 3.2 Application Layer Architecture
 
 #### API Gateway Pattern
-The Kong/Traefik API Gateway serves as the single entry point:
-
-**Request Flow**:
-1. TLS termination at ingress
-2. JWT validation and rate limiting
-3. Request routing based on path/headers
-4. Load balancing to backend services
-5. Response caching where appropriate
-6. Metrics and logging
-
-**Gateway Plugins**:
-- Rate limiting: Token bucket algorithm with Redis backend
-- Authentication: JWT validation with public key caching
-- CORS: Dynamic origin validation
-- Request/Response transformation
-- Circuit breaker for fault tolerance
+Kong API Gateway provides:
+- **Route Configuration**:
+  - `/api/v1/*` → Core Backend (port 8000)
+  - `/ws/*` → WebSocket Server (port 8001) 
+  - `/auth/*` → Auth Service (port 8002)
+  - `/media/*` → Streaming Service (port 8003)
+- **Rate Limiting Rules**:
+  - Anonymous: 10 req/minute
+  - Authenticated: 100 req/minute
+  - Premium: 1000 req/minute
+- **Security Policies**:
+  - CORS with explicit origin whitelist
+  - Request size limit: 10MB (100MB for file uploads)
+  - SQL injection protection via request validation
+  - XSS protection headers
 
 #### Service Mesh Considerations
 For advanced deployments, Istio/Linkerd provides:
@@ -323,6 +337,33 @@ labs/{lab_id}/experiments/{exp_id}/data
 - QoS 1: Commands, configuration updates
 - QoS 2: Critical experiment data
 
+### 3.4 Message Broker Architecture
+
+#### MQTT Broker Cluster (EMQX/Mosquitto)
+**Cluster Topology**:
+- 3+ broker nodes for HA
+- Shared subscriptions for load balancing
+- Persistent sessions for reliability
+- Bridge connections to cloud MQTT services
+
+**Topic Hierarchy**:
+```
+labs/{lab_id}/devices/{device_id}/telemetry
+labs/{lab_id}/devices/{device_id}/commands
+labs/{lab_id}/devices/{device_id}/status
+labs/{lab_id}/experiments/{exp_id}/events
+labs/{lab_id}/experiments/{exp_id}/data
+```
+
+**QoS Levels**:
+- QoS 0: Status updates, non-critical telemetry
+- QoS 1: Commands, configuration updates
+- QoS 2: Critical experiment data
+
+#### Redis Streams for Event Sourcing
+**Stream Patterns**:
+Event sourcing for audit. Command pattern implementation. Saga orchestration. Event replay capability.
+
 ---
 
 ## 4. Frontend Implementation
@@ -337,7 +378,7 @@ frontend/
 │   │   ├── dashboard/
 │   │   ├── devices/
 │   │   ├── experiments/
-│   │   └── tasks/
+│   │   └── tasks/         # Task builder with Scratch
 │   ├── (public)/          # Public routes
 │   │   ├── login/
 │   │   └── register/
@@ -346,10 +387,11 @@ frontend/
 ├── components/
 │   ├── ui/                # Shadcn components
 │   ├── features/          # Feature-specific components
+│   ├── scratch/          # Scratch integration
 │   └── shared/            # Shared components
 ├── lib/
 │   ├── api/               # API client functions
-│   ├── hooks/             # Custom React hooks
+│   ├── scratch/         # Scratch VM integration
 │   ├── stores/            # Zustand stores
 │   └── utils/             # Utility functions
 └── public/                # Static assets
@@ -381,9 +423,6 @@ Maintains real-time device status, connection states, and telemetry data. Subscr
 **Experiment Store**:
 Tracks active experiments, their progress, and collected data. Manages complex state transitions during experiment lifecycle. Provides computed values for analytics dashboards.
 
-**Task Builder Store**:
-Manages the visual flow editor state including nodes, edges, and validation. Implements undo/redo functionality with command pattern. Exports task definitions in standardized JSON format.
-
 #### React Query Configuration
 **Query Client Setup**:
 - Stale time: 5 minutes for static data, 10 seconds for dynamic
@@ -398,8 +437,6 @@ Manages the visual flow editor state including nodes, edges, and validation. Imp
 - Parallel queries for dashboard data
 - Dependent queries for hierarchical data
 - Mutation queues for offline support
-
-### 4.3 Real-Time Features
 
 #### WebSocket Integration
 **Connection Management**:
@@ -418,30 +455,36 @@ STUN/TURN server configuration for NAT traversal. Adaptive bitrate based on netw
 **Stream Management**:
 Multiple stream support per device. Quality selection (SD/HD/FHD). Recording capabilities with cloud upload. Screenshot functionality for documentation.
 
-### 4.4 Task Builder Implementation
+## 4.4 Task Builder Implementation
 
-#### React Flow Configuration
-**Custom Node Types**:
-- Start/End nodes with validation
-- Action nodes for device control
-- Decision nodes with branching logic
-- Loop nodes with iteration control
-- Data collection nodes
-- Wait/Timer nodes
-- Parallel execution nodes
+#### Scratch-Based Visual Programming
+**Scratch Integration Architecture**:
+- Scratch 3.0 GUI for visual task creation
+- Custom Scratch extensions for lab hardware control
+- Scratch VM runtime for task execution
+- Real-time preview with simulated hardware responses
+- Export to standalone task packages for edge devices
 
-**Edge Validation**:
-Type-safe connections between nodes. Cycle detection for infinite loops. Path validation for reachability. Parameter type checking between nodes.
+**Custom Scratch Blocks for Lab Research**:
+- **Sensing Blocks**: RFID detection, touchscreen input, button press, proximity sensor
+- **Display Blocks**: Show stimulus, display image, animate sprite, change background
+- **Hardware Control**: Activate feeder, trigger LED, play sound through speaker
+- **Data Collection**: Record response, log timestamp, save trial data
+- **Experiment Flow**: Start trial, end trial, inter-trial interval, session control
+- **Validation Blocks**: Check response correctness, calculate success rate
 
-**Visual Enhancements**:
-Mini-map for large flows. Grid snapping for alignment. Grouping for logical sections. Theming for different node categories. Animated edges for flow visualization.
+**Sprite-Based Task Design**:
+Visual elements as sprites with behaviors. Background stages for different trial phases. Costume changes for stimulus variations. Sound integration for auditory tasks. Clone functionality for multiple stimuli.
 
-#### Task Definition Generation
-**JSON Schema**:
-Standardized schema with version control. Validation against schema before deployment. Migration strategies for schema updates. Backward compatibility guarantees.
+**Event-Driven Experiment Logic**:
+When RFID detected → Start experiment. When sprite clicked → Record response. When timer expires → Timeout trial. When trial ends → Calculate and save results. When session complete → Generate report.
 
-**Compilation Process**:
-Visual flow to JSON transformation. Optimization passes for efficiency. Validation for device compatibility. Test execution in sandbox environment.
+#### Task Compilation and Deployment
+**Scratch to Task Package Pipeline**:
+Scratch project (.sb3) → JSON intermediate representation → Device-specific optimization → WebAssembly compilation for edge execution → Package with Scratch VM runtime → Deploy to edge devices.
+
+**Runtime Execution**:
+Embedded Scratch VM on Raspberry Pi. Hardware abstraction layer for GPIO. Real-time event handling. Local data buffering. Automatic synchronization with backend.
 
 ---
 
@@ -538,8 +581,6 @@ Redis-backed session storage. Session migration across servers. Presence trackin
 **Message Queue Integration**:
 Redis Streams for message persistence. Kafka for high-throughput scenarios. Message ordering guarantees. At-least-once delivery semantics.
 
----
-
 ## 6. Database Design
 
 ### 6.1 PostgreSQL Schema Design
@@ -558,8 +599,9 @@ Comprehensive device registry with capabilities. Hardware configuration storage.
 **Experiments Table**:
 Complete experiment lifecycle tracking. Protocol versioning support. Participant/subject management. Result aggregation fields.
 
-**Tasks Table**:
-Visual flow definitions storage. Parameter schemas for validation. Version control with rollback. Template library support.
+**Task Table (Scratch Projects)**:
+Manages computational or experimental task definitions within an organization. Supports version control for iterative development. Stores both raw Scratch project files (.sb3) and compiled packages for edge device deployment. Includes customizable parameter configurations in JSON format. Tracks task ownership and creation timestamps for audit and collaboration purposes.
+
 
 #### Relationship Design
 **Many-to-Many Relationships**:
@@ -633,6 +675,29 @@ CPU, memory, disk, network metrics. Application-level metrics. Custom business m
 - Downsampled (1min): 30 days
 - Downsampled (1hr): 1 year
 - Downsampled (1day): Indefinite
+
+### 6.5 Database Performance Optimization
+
+#### Indexing Strategy
+```sql
+-- Frequently queried columns
+CREATE INDEX idx_experiments_status_date ON experiments(status, created_at DESC);
+CREATE INDEX idx_sessions_subject_date ON sessions(subject_id, start_time DESC);
+CREATE INDEX idx_trials_session_number ON trials(session_id, trial_number);
+
+-- Full-text search
+CREATE INDEX idx_experiments_search ON experiments USING gin(to_tsvector('english', name || ' ' || description));
+
+-- Partitioning for time-series data
+CREATE TABLE trial_events_2024_01 PARTITION OF trial_events
+FOR VALUES FROM ('2024-01-01') TO ('2024-02-01');
+```
+
+#### Connection Pooling
+- Application: PgBouncer with transaction pooling
+- Pool size: 20 connections per service
+- Idle timeout: 30 seconds
+- Query timeout: 5 seconds (30 seconds for reports)
 
 ---
 
@@ -786,64 +851,172 @@ URL path versioning (/api/v1/). Backward compatibility commitment. Deprecation n
 
 ## 9. Task Builder System
 
-### 9.1 Visual Programming Interface
+### 9.1 Scratch-Based Visual Programming Interface
 
-#### Node System Design
-**Node Categories**:
-- Control Flow: Start, End, Branch, Loop
-- Actions: GPIO, Display, Sound, Wait
-- Data: Collect, Transform, Validate
-- Communication: Send, Receive, Broadcast
-- Logic: Compare, Calculate, Aggregate
+#### Scratch 3.0 Integration
+**Core Components**:
+- **Scratch GUI**: Web-based visual editor with drag-and-drop interface
+- **Block Palette**: Custom categories for lab instruments and experiments
+- **Stage Area**: Visual preview of task with interactive sprites
+- **Code Area**: Block-based programming workspace
+- **Backpack**: Reusable code snippets and sprite library
 
-**Node Properties**:
-Unique identifiers for tracking. Input/output port definitions. Parameter schemas for configuration. Validation rules for connections. Visual styling information.
+**Custom Extension Categories**:
+- **Primate Sensing**: RFID detection, presence sensing, motion tracking
+- **Stimulus Control**: Visual displays, audio playback, LED patterns
+- **Response Collection**: Touchscreen zones, button inputs, hold duration
+- **Hardware Control**: Feeders, doors, environmental controls
+- **Data Logging**: Trial recording, timestamp capture, result storage
+- **Experiment Flow**: Session management, trial sequencing, ITI control
 
-#### Connection Rules
-**Type System**:
-Strongly typed connections. Type inference for compatibility. Automatic type conversion where safe. Error highlighting for mismatches.
+#### Block Design System
+**Block Types for Research**:
+```scratch
+// Example blocks in pseudo-Scratch notation
+When [RFID tag detected v]
+Wait for [button press v] for (10) seconds
+If <response is correct> then
+  Activate [pellet feeder v] for (1) pellets
+  Log trial result [success v] with data (response_time)
+End
 
-**Flow Validation**:
-DAG enforcement (no cycles unless in loops). Reachability analysis from start. Dead code detection. Resource conflict detection.
+Repeat (100) trials
+  Show stimulus at random position
+  Start timer
+  Wait for response or timeout
+  Calculate success rate
+End
 
-### 9.2 Task Compilation
+Broadcast [session complete v] and wait
+Generate report with template [daily summary v]
+```
 
-#### Compilation Pipeline
-**Stages**:
-1. Syntax validation
-2. Semantic analysis  
-3. Optimization passes
-4. Device compatibility check
-5. Code generation
-6. Deployment package creation
+**Visual Feedback System**:
+Real-time sprite animation during block execution. Color-coded blocks by functionality. Connection hints showing compatible blocks. Error highlighting for invalid configurations.
 
-**Optimization Strategies**:
-Dead code elimination. Constant folding. Loop unrolling where beneficial. Parallel execution identification.
+### 9.2 Task Execution Engine
 
-#### Runtime Interpretation
-**Execution Engine**:
-Stack-based virtual machine. Instruction set for all operations. Memory management for variables. Exception handling mechanisms.
+#### Scratch VM Runtime
+**Execution Architecture**:
+- **Thread Management**: Concurrent execution of multiple scripts
+- **Event System**: Hardware events trigger Scratch hat blocks
+- **Variable Scoping**: Global variables for session data, local for trials
+- **Extension API**: Bridge between Scratch blocks and hardware drivers
 
-**Performance Monitoring**:
-Instruction counting for profiling. Memory usage tracking. Execution time measurement. Bottleneck identification.
+**Performance Optimization**:
+- Block compilation to JavaScript for faster execution
+- Caching of frequently used sequences
+- Lazy loading of extension features
+- Memory management for long-running sessions
 
-### 9.3 Template Library
+#### Hardware Extension Layer
+**Device Communication**:
+```javascript
+class PrimateLabExtension {
+  constructor(runtime) {
+    this.runtime = runtime;
+    this.mqttClient = new MQTTClient();
+    this.hardwareState = {};
+  }
 
-#### Template Management
-**Categories**:
-- Behavioral: Standard paradigms
-- Cognitive: Memory, learning tasks
-- Sensory: Visual, auditory tests
-- Custom: User-created templates
+  // Block implementation
+  activateFeeder(args) {
+    const feederID = args.FEEDER;
+    const quantity = args.QUANTITY;
+    return this.mqttClient.publish(`device/${feederID}/activate`, {
+      quantity: quantity,
+      timestamp: Date.now()
+    });
+  }
 
-**Sharing Mechanism**:
-Template marketplace concept. Version control for templates. Rating and review system. Forking and modification support.
+  whenRFIDDetected(args) {
+    return new Promise((resolve) => {
+      this.mqttClient.subscribe('rfid/detected', (message) => {
+        if (message.tag === args.EXPECTED_TAG) {
+          resolve();
+        }
+      });
+    });
+  }
+}
+```
+
+### 9.3 Template Library and Sharing
+
+#### Scratch Project Templates
+**Pre-built Task Categories**:
+- **Cognitive Tasks**: Working memory, attention, decision-making
+- **Motor Tasks**: Reaching, grasping, coordination
+- **Sensory Tasks**: Visual discrimination, auditory processing
+- **Training Protocols**: Shaping procedures, habituation
+
+**Template Structure**:
+```json
+{
+  "template_id": "button-hold-training-v2",
+  "name": "Button Hold Training",
+  "category": "motor",
+  "species": ["macaque", "marmoset"],
+  "sprites": [
+    {
+      "name": "TargetButton",
+      "costumes": ["small", "medium", "large"],
+      "scripts": "[Scratch blocks in JSON format]"
+    }
+  ],
+  "variables": {
+    "holdDuration": 200,
+    "successCriterion": 0.8,
+    "maxTrials": 100
+  },
+  "extensions": ["primatelab", "datalogger"],
+  "metadata": {
+    "author": "Lab Name",
+    "version": "2.0.0",
+    "description": "Progressive button hold training with adaptive difficulty"
+  }
+}
+```
+
+**Community Marketplace**:
+- Upload/download Scratch projects (.sb3 files)
+- Version control with diff visualization
+- Fork and modify existing templates
+- Rating and review system
+- Automatic compatibility checking
 
 ---
 
 ## 10. Security Implementation
 
-### 10.1 Authentication Security
+### 10.1 Authentication & Authorization Architecture
+
+#### OAuth2 + JWT Implementation
+- **Token Structure**:
+```json
+  {
+    "sub": "user_uuid",
+    "org": "organization_uuid",
+    "roles": ["researcher", "admin"],
+    "exp": 1234567890,
+    "iat": 1234567890,
+    "jti": "unique_token_id"
+  }
+```
+- **Token Lifecycle**:
+  - Access Token: 15 minutes (stateless JWT)
+  - Refresh Token: 7 days (stored in Redis)
+  - Session timeout: 4 hours of inactivity
+  
+#### RBAC Permission Matrix
+| Role | Experiments | Subjects | Devices | Reports | Admin |
+|------|------------|----------|---------|---------|-------|
+| Viewer | Read | Read | Read | Read | None |
+| Researcher | CRUD Own | CRUD | Read | CRUD Own | None |
+| Lab Manager | CRUD All | CRUD | CRUD | CRUD All | Read |
+| Admin | CRUD All | CRUD | CRUD | CRUD All | CRUD |
+
+### 10.2 Authentication Security
 
 #### Password Security
 **Storage**:
@@ -859,7 +1032,7 @@ Secure random generation. HttpOnly, Secure, SameSite cookies. CSRF protection to
 **Session Management**:
 Concurrent session limits. Geographic anomaly detection. Device fingerprinting. Automatic timeout policies.
 
-### 10.2 Authorization Implementation
+### 10.3 Authorization Implementation
 
 #### Access Control
 **RBAC Implementation**:
@@ -868,7 +1041,7 @@ Role-based permissions. Resource-based permissions. Attribute-based extensions. 
 **Policy Engine**:
 Declarative policy definitions. Policy evaluation caching. Audit logging for decisions. Performance optimization.
 
-### 10.3 Data Security
+### 10.4 Data Security
 
 #### Encryption
 **At Rest**:
@@ -884,7 +1057,7 @@ Data minimization principles. Pseudonymization where possible. Right to deletion
 **Compliance**:
 GDPR compliance measures. HIPAA considerations for medical research. Audit trail requirements. Data residency controls.
 
-### 10.4 Infrastructure Security
+### 10.5 Infrastructure Security
 
 #### Network Security
 **Firewall Rules**:
@@ -964,6 +1137,36 @@ Non-root users. Minimal base images. No sensitive data in images. Regular vulner
 **Image Storage**:
 Private registry (Harbor/GitLab). Image signing and verification. Vulnerability scanning. Garbage collection policies.
 
+### 11.4 Deployment Strategy
+
+#### Blue-Green Deployment Process
+1. **Preparation Phase**:
+   - Build and test new version in staging
+   - Run smoke tests and load tests
+   - Prepare rollback plan
+
+2. **Deployment Phase**:
+```yaml
+   deployment:
+     strategy: blue-green
+     health_check:
+       endpoint: /health
+       interval: 10s
+       timeout: 5s
+       success_threshold: 3
+     traffic_switch:
+       method: weighted  # 0% → 10% → 50% → 100%
+       duration: 30m
+     rollback:
+       automatic: true
+       error_threshold: 5%
+```
+
+3. **Validation Phase**:
+   - Monitor error rates and latencies
+   - Check business metrics
+   - Verify data consistency
+
 ---
 
 ## 12. Local Server Deployment
@@ -1031,7 +1234,7 @@ Private registry (Harbor/GitLab). Image signing and verification. Vulnerability 
                     └────────────────────┘
 ```
 
-### 12.3 Docker Compose Configuration
+## 12.3 Docker Compose Configuration
 
 #### Main docker-compose.yml
 ```yaml
@@ -1081,7 +1284,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile.local
     environment:
-      - DATABASE_URL=postgresql://lics:password@postgres:5432/lics
+      - DATABASE_URL=postgresql://lics:${POSTGRES_PASSWORD}@postgres:5432/lics
       - REDIS_URL=redis://redis:6379
       - INFLUXDB_URL=http://influxdb:8086
       - MQTT_BROKER=mosquitto
@@ -1109,7 +1312,7 @@ services:
     environment:
       - POSTGRES_DB=lics
       - POSTGRES_USER=lics
-      - POSTGRES_PASSWORD=password
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/home/postgres/pgdata
       - ./init-db:/docker-entrypoint-initdb.d
@@ -1135,7 +1338,7 @@ services:
     environment:
       - DOCKER_INFLUXDB_INIT_MODE=setup
       - DOCKER_INFLUXDB_INIT_USERNAME=admin
-      - DOCKER_INFLUXDB_INIT_PASSWORD=password123
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_PASSWORD}
       - DOCKER_INFLUXDB_INIT_ORG=lics
       - DOCKER_INFLUXDB_INIT_BUCKET=telemetry
     volumes:
@@ -1164,7 +1367,7 @@ services:
     command: server /data --console-address ":9001"
     environment:
       - MINIO_ROOT_USER=admin
-      - MINIO_ROOT_PASSWORD=password123
+      - MINIO_ROOT_PASSWORD=${MINIO_PASSWORD}
     volumes:
       - minio_data:/data
     ports:
@@ -1492,7 +1695,7 @@ mkcert -cert-file certs/local-cert.pem -key-file certs/local-key.pem localhost 1
       "args": ["main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"],
       "cwd": "${workspaceFolder}/backend",
       "env": {
-        "DATABASE_URL": "postgresql://lics:password@localhost:5432/lics",
+        "DATABASE_URL": "postgresql://lics:${POSTGRES_PASSWORD}@localhost:5432/lics",
         "REDIS_URL": "redis://localhost:6379"
       }
     },
@@ -1677,6 +1880,29 @@ async def health_check():
 
 ### 13.1 Metrics Collection
 
+### SLI/SLO Definitions
+
+#### Service Level Indicators (SLIs)
+| Metric | Definition | Measurement |
+|--------|-----------|-------------|
+| Availability | Successful requests / Total requests | HTTP 2xx,3xx / All requests |
+| Latency | Request processing time | 95th percentile response time |
+| Error Rate | Failed requests / Total requests | HTTP 5xx / All requests |
+| Throughput | Requests processed per second | Count per time window |
+
+#### Service Level Objectives (SLOs)
+| Service | Availability | Latency (p95) | Error Rate |
+|---------|-------------|---------------|------------|
+| API Gateway | 99.9% | < 50ms | < 0.1% |
+| Core Backend | 99.5% | < 200ms | < 0.5% |
+| WebSocket | 99.0% | < 100ms | < 1.0% |
+| Edge Sync | 95.0% | < 1000ms | < 5.0% |
+
+#### Alert Configuration
+- Page immediately: SLO violation > 5 minutes
+- Warn: Error budget consumption > 50%
+- Info: Anomaly detection triggers
+
 #### Application Metrics
 **Business Metrics**:
 - Active experiments
@@ -1808,6 +2034,44 @@ Batch device onboarding. Automatic provisioning. Group management. Template-base
 **Update Management**:
 Staged rollouts. Automatic rollback. Delta updates. Offline update support.
 
+### 15.4 Capacity Planning
+
+#### Resource Requirements per 1000 Active Devices
+| Component | CPU | Memory | Storage | Network |
+|-----------|-----|--------|---------|---------|
+| API Gateway | 2 cores | 4 GB | 10 GB | 100 Mbps |
+| Core Backend | 4 cores | 8 GB | 20 GB | 200 Mbps |
+| PostgreSQL | 8 cores | 32 GB | 500 GB SSD | 1 Gbps |
+| Redis | 4 cores | 16 GB | 100 GB | 500 Mbps |
+| MQTT Broker | 2 cores | 4 GB | 50 GB | 200 Mbps |
+
+#### Auto-scaling Policies
+```yaml
+horizontal_pod_autoscaler:
+  metrics:
+    - type: Resource
+      name: cpu
+      target: 70%
+    - type: Resource  
+      name: memory
+      target: 80%
+    - type: Custom
+      name: request_rate
+      target: 100/s
+  scale_up:
+    stabilization: 60s
+    policies:
+      - type: Percent
+        value: 100  # Double pods
+        period: 60s
+  scale_down:
+    stabilization: 300s
+    policies:
+      - type: Percent
+        value: 50  # Halve pods
+        period: 60s
+```
+
 ---
 
 ## 16. Testing Strategy
@@ -1867,797 +2131,104 @@ Playwright for browser automation. Device simulators for edge testing. Synthetic
 
 ## 17. Implementation Roadmap
 
-### 17.1 Phase 1: Foundation (Weeks 1-6)
-
-#### Week 1-2: Infrastructure Setup
-**Tasks**:
-- Initialize Git repositories with branching strategy
-- Set up development Kubernetes cluster
-- Configure CI/CD pipelines with GitHub Actions
-- Implement infrastructure as code with Terraform
-- Set up development databases and caching layers
-
-**Deliverables**:
-- Complete development environment
-- Basic CI/CD pipeline
-- Infrastructure automation scripts
-- Development guidelines documentation
-
-#### Week 3-4: Core Backend Development
-**Tasks**:
-- Implement FastAPI application structure with dependency injection
-- Create database models and migrations with SQLAlchemy/Alembic
-- Implement JWT authentication with refresh tokens
-- Build basic CRUD operations for core entities
-- Set up WebSocket server with Socket.IO
-- Implement MQTT broker integration
-
-**Deliverables**:
-- Working authentication system
-- Basic API endpoints
-- Real-time communication infrastructure
-- Database schema implementation
-
-#### Week 5-6: Frontend Foundation
-**Tasks**:
-- Set up Next.js project with TypeScript configuration
-- Implement authentication flow with protected routes
-- Create base UI components with Shadcn/ui
-- Set up state management with Zustand
-- Implement API client with React Query
-- Create responsive layouts and navigation
-
-**Deliverables**:
-- Functional authentication UI
-- Dashboard skeleton
-- Component library
-- State management architecture
-
-### 17.2 Phase 2: Device Integration (Weeks 7-12)
-
-#### Week 7-8: Edge Device Development
-**Tasks**:
-- Develop Python edge agent framework
-- Implement device registration protocol
-- Create GPIO abstraction layer
-- Build sensor/actuator interfaces
-- Implement local SQLite storage
-- Create synchronization mechanisms
-
-**Deliverables**:
-- Working edge agent
-- Hardware abstraction layer
-- Device registration system
-- Local data persistence
-
-#### Week 9-10: Communication Layer
-**Tasks**:
-- Implement MQTT client on edge devices
-- Create WebSocket client for real-time updates
-- Build message routing system
-- Implement telemetry data pipeline
-- Create command execution framework
-- Set up heartbeat monitoring
-
-**Deliverables**:
-- Bidirectional communication system
-- Telemetry collection pipeline
-- Command execution capability
-- Device monitoring system
-
-#### Week 11-12: Device Management UI
-**Tasks**:
-- Create device discovery interface
-- Build device configuration panels
-- Implement real-time status monitoring
-- Create GPIO mapping interface
-- Build sensor/actuator registration
-- Implement firmware update mechanism
-
-**Deliverables**:
-- Device management dashboard
-- Configuration interface
-- Real-time monitoring
-- Update deployment system
-
-### 17.3 Phase 3: Task Builder (Weeks 13-18)
-
-#### Week 13-14: Visual Editor Development
-**Tasks**:
-- Implement React Flow editor
-- Create custom node components
-- Build connection validation system
-- Implement drag-and-drop interface
-- Create property panels for nodes
-- Build visual debugging tools
-
-**Deliverables**:
-- Working visual editor
-- Node library
-- Validation system
-- Debugging interface
-
-#### Week 15-16: Task Compilation Engine
-**Tasks**:
-- Design task definition schema
-- Implement compilation pipeline
-- Create optimization passes
-- Build device compatibility checker
-- Implement execution engine
-- Create testing framework
-
-**Deliverables**:
-- Task compiler
-- Execution runtime
-- Compatibility checker
-- Testing tools
-
-#### Week 17-18: Template System
-**Tasks**:
-- Create template storage system
-- Build template marketplace UI
-- Implement sharing mechanisms
-- Create versioning system
-- Build search and discovery
-- Implement rating system
-
-**Deliverables**:
-- Template library
-- Marketplace interface
-- Sharing system
-- Discovery features
-
-### 17.4 Phase 4: Experiment Management (Weeks 19-24)
-
-#### Week 19-20: Experiment Engine
-**Tasks**:
-- Implement experiment lifecycle manager
-- Create scheduling system
-- Build participant management
-- Implement data collection pipeline
-- Create result aggregation
-- Build notification system
-
-**Deliverables**:
-- Experiment management system
-- Scheduling capability
-- Data collection infrastructure
-- Notification service
-
-#### Week 21-22: Analytics & Reporting
-**Tasks**:
-- Implement real-time analytics
-- Create data visualization components
-- Build report generation engine
-- Implement export capabilities
-- Create statistical analysis tools
-- Build custom report builder
-
-**Deliverables**:
-- Analytics dashboard
-- Report generation system
-- Export functionality
-- Statistical tools
-
-#### Week 23-24: Video Streaming
-**Tasks**:
-- Implement WebRTC signaling server
-- Create video capture on devices
-- Build streaming pipeline
-- Implement recording capabilities
-- Create playback interface
-- Build video analytics
-
-**Deliverables**:
-- Live video streaming
-- Recording system
-- Playback interface
-- Basic video analytics
-
-### 17.5 Phase 5: Advanced Features (Weeks 25-30)
-
-#### Week 25-26: Machine Learning Integration
-**Tasks**:
-- Implement ML model serving
-- Create behavior classification
-- Build anomaly detection
-- Implement predictive analytics
-- Create recommendation engine
-- Build automated insights
-
-**Deliverables**:
-- ML pipeline
-- Classification system
-- Anomaly detection
-- Insights generation
-
-#### Week 27-28: Performance Optimization
-**Tasks**:
-- Implement database query optimization
-- Create caching strategies
-- Build CDN integration
-- Optimize frontend bundles
-- Implement lazy loading
-- Create performance monitoring
-
-**Deliverables**:
-- Optimized database queries
-- Comprehensive caching
-- CDN configuration
-- Optimized frontend
-- Performance dashboards
-
-#### Week 29-30: Security Hardening
-**Tasks**:
-- Conduct security audit
-- Implement additional security measures
-- Create penetration testing
-- Build compliance features
-- Implement audit logging
-- Create security documentation
-
-**Deliverables**:
-- Security audit report
-- Hardened infrastructure
-- Compliance features
-- Complete audit trail
-
-### 17.6 Phase 6: Production Deployment (Weeks 31-36)
-
-#### Week 31-32: Production Infrastructure
-**Tasks**:
-- Set up production Kubernetes cluster
-- Configure production databases
-- Implement backup strategies
-- Create disaster recovery plan
-- Set up monitoring stack
-- Configure alerting rules
-
-**Deliverables**:
-- Production infrastructure
-- Backup systems
-- Monitoring solution
-- Disaster recovery plan
-
-#### Week 33-34: Migration & Testing
-**Tasks**:
-- Create data migration scripts
-- Perform load testing
-- Execute security testing
-- Conduct UAT sessions
-- Create rollback procedures
-- Document known issues
-
-**Deliverables**:
-- Migration tools
-- Test reports
-- UAT feedback
-- Rollback plans
-
-#### Week 35-36: Go-Live & Support
-**Tasks**:
-- Execute production deployment
-- Monitor system stability
-- Address critical issues
-- Create support procedures
-- Train support staff
-- Document lessons learned
-
-**Deliverables**:
-- Live production system
-- Support documentation
-- Training materials
-- Post-mortem report
-
----
-
-## 18. Operational Procedures
-
-### 18.1 Deployment Procedures
-
-#### Blue-Green Deployment
-**Process**:
-1. Deploy new version to green environment
-2. Run smoke tests on green
-3. Switch traffic to green
-4. Monitor for issues
-5. Keep blue as rollback option
-6. Decommission blue after stability
-
-**Rollback Strategy**:
-Immediate traffic switch to blue. Database migration rollback scripts. Cache invalidation procedures. User notification mechanisms.
-
-#### Canary Deployment
-**Progressive Rollout**:
-- 5% traffic for 1 hour
-- 25% traffic for 2 hours
-- 50% traffic for 4 hours
-- 100% traffic after validation
-
-**Monitoring During Rollout**:
-Error rate comparison. Performance metrics tracking. User feedback collection. Automatic rollback triggers.
-
-### 18.2 Maintenance Procedures
-
-#### Scheduled Maintenance
-**Planning**:
-Two-week advance notification. Maintenance window selection. Impact assessment. Rollback planning.
-
-**Execution**:
-Maintenance mode activation. User notification system. Progress tracking. Communication updates.
-
-#### Database Maintenance
-**Regular Tasks**:
-- Index rebuilding (weekly)
-- Statistics updates (daily)
-- Vacuum operations (weekly)
-- Backup verification (daily)
-- Archive old data (monthly)
-
-### 18.3 Incident Response
-
-#### Incident Classification
-**Severity Levels**:
-- P1: Complete system outage
-- P2: Major feature unavailable
-- P3: Minor feature degraded
-- P4: Cosmetic issues
-
-**Response Times**:
-- P1: 15 minutes
-- P2: 1 hour
-- P3: 4 hours
-- P4: Next business day
-
-#### Incident Management Process
-**Steps**:
-1. Detection and alerting
-2. Initial assessment
-3. Incident commander assignment
-4. Communication initiation
-5. Root cause investigation
-6. Resolution implementation
-7. Post-incident review
-
-### 18.4 Backup & Recovery
-
-#### Backup Strategy
-**Database Backups**:
-- Full backup: Daily
-- Incremental: Hourly
-- Transaction logs: Continuous
-- Retention: 30 days
-- Offsite storage: S3/GCS
-
-**File System Backups**:
-User uploads backup. Configuration files. Application logs. Video recordings.
-
-#### Recovery Procedures
-**Recovery Time Objectives**:
-- Database: < 1 hour
-- Application: < 30 minutes
-- Full system: < 4 hours
-
-**Recovery Point Objectives**:
-- Critical data: < 5 minutes
-- Standard data: < 1 hour
-- Archived data: < 24 hours
-
----
-
-## 19. Cost Optimization
-
-### 19.1 Infrastructure Costs
-
-#### Compute Optimization
-**Strategies**:
-- Spot instances for non-critical workloads
-- Reserved instances for baseline capacity
-- Auto-scaling for demand management
-- Right-sizing based on metrics
-- Scheduled scaling for predictable patterns
-
-#### Storage Optimization
-**Strategies**:
-- Lifecycle policies for object storage
-- Data compression for databases
-- Archive tier for old data
-- Deduplication where possible
-- Cleanup of orphaned resources
-
-### 19.2 Operational Costs
-
-#### License Management
-**Optimization**:
-- Open-source alternatives evaluation
-- Volume licensing negotiation
-- Usage-based licensing where appropriate
-- Regular license audit
-
-#### Development Costs
-**Efficiency Improvements**:
-- Automated testing to reduce QA time
-- Infrastructure as code for consistency
-- Reusable component libraries
-- Documentation to reduce onboarding
-
----
-
-## 20. Compliance & Regulations
-
-### 20.1 Data Protection
-
-#### GDPR Compliance
-**Requirements**:
-- Explicit consent mechanisms
-- Data portability implementation
-- Right to erasure support
-- Privacy by design principles
-- Data protection officer assignment
-
-#### HIPAA Considerations
-**If Applicable**:
-- Encryption requirements
-- Access controls
-- Audit logging
-- Business associate agreements
-- Risk assessments
-
-### 20.2 Research Ethics
-
-#### IRB Compliance
-**Features**:
-- Protocol version control
-- Consent form management
-- Adverse event reporting
-- Data retention policies
-- Audit trail maintenance
-
-#### Animal Research
-**Considerations**:
-- IACUC protocol integration
-- Welfare monitoring features
-- Environmental control logging
-- Health status tracking
-
----
-
-## 21. Future Enhancements
-
-### 21.1 Advanced Features Roadmap
-
-#### Artificial Intelligence Integration
-**Planned Capabilities**:
-- Automated experiment optimization
-- Intelligent scheduling
-- Predictive maintenance
-- Natural language task creation
-- Computer vision for behavior analysis
-
-#### Federation Support
-**Multi-Site Features**:
-- Cross-institution collaboration
-- Federated data analysis
-- Distributed experiment control
-- Resource sharing protocols
-
-### 21.2 Platform Extensions
-
-#### Mobile Applications
-**Native Apps**:
-- iOS/Android monitoring apps
-- Push notifications
-- Offline data access
-- Remote control capabilities
-
-#### Integration Ecosystem
-**Planned Integrations**:
-- Electronic Lab Notebooks (ELN)
-- Laboratory Information Management Systems (LIMS)
-- Statistical packages (R, Python, MATLAB)
-- Cloud AI services
-- IoT platforms
-
-### 21.3 Research Applications
-
-#### Domain Expansions
-**Potential Areas**:
-- Neuroscience research
-- Pharmaceutical testing
-- Agricultural research
-- Environmental monitoring
-- Educational laboratories
-
----
-
-## 22. Success Metrics & KPIs
-
-### 22.1 Technical KPIs
-
-#### Performance Metrics
-- System uptime: > 99.9%
-- API response time: < 200ms (p95)
-- Data collection reliability: > 99.99%
-- Device connection success: > 99%
-- Video stream quality: > 720p
-
-#### Scalability Metrics
-- Concurrent experiments: > 1000
-- Connected devices: > 10,000
-- Data ingestion rate: > 100k points/sec
-- Storage efficiency: < $0.10/GB/month
-
-### 22.2 Business KPIs
-
-#### Adoption Metrics
-- Active users growth rate
-- Device utilization rate
-- Experiment completion rate
-- Template reuse rate
-- User satisfaction score
-
-#### Efficiency Metrics
-- Time to first experiment
-- Setup time reduction
-- Manual intervention rate
-- Support ticket volume
-- Cost per experiment
-
-### 22.3 Quality Metrics
-
-#### Data Quality
-- Data completeness: > 99%
-- Data accuracy validation
-- Duplicate detection rate
-- Missing data handling
-
-#### User Experience
-- Page load times
-- Error rates
-- Task completion rates
-- User retention
-- Feature adoption
-
----
-
-## Conclusion
-
-This Lab Instrument Control System represents a comprehensive solution for modern laboratory automation and experiment management. The architecture prioritizes scalability, reliability, and user experience while maintaining the flexibility to adapt to various research domains.
-
-The modular design ensures that individual components can be updated or replaced without affecting the entire system, while the microservices architecture allows for independent scaling of different functionalities based on demand.
-
-The implementation roadmap provides a clear path from initial development to production deployment, with defined milestones and deliverables at each stage. The emphasis on automation, from device discovery to experiment execution, reduces the operational burden on researchers and allows them to focus on scientific discovery.
-
-By following this detailed documentation, development teams can implement a robust, scalable, and user-friendly laboratory automation platform that meets the evolving needs of modern research facilities.
-
----
-
-## Appendices
-
-### Appendix A: Technology Decision Matrix
-
-| Component | Technology | Alternatives Considered | Rationale |
-|-----------|------------|------------------------|-----------|
-| Backend Framework | FastAPI | Django, Flask, Express.js | Native async support, automatic API documentation, type safety |
-| Frontend Framework | Next.js 14 | React SPA, Vue.js, Angular | SSR/SSG capabilities, API routes, optimized performance |
-| Primary Database | PostgreSQL | MySQL, MongoDB, CockroachDB | ACID compliance, extensions ecosystem, TimescaleDB compatibility |
-| Time-Series DB | InfluxDB | TimescaleDB only, Prometheus | Purpose-built for metrics, efficient storage, good tooling |
-| Message Broker | MQTT + Redis | RabbitMQ, Kafka, NATS | Lightweight for IoT, reliable pub/sub, good client libraries |
-| Container Orchestration | Kubernetes | Docker Swarm, Nomad, ECS | Industry standard, ecosystem, cloud provider support |
-| Edge Runtime | Python | Node.js, Go, Rust | Hardware library support, ease of development, community |
-
-### Appendix B: Glossary of Terms
-
-- **LICS**: Lab Instrument Control System
-- **Edge Device**: Raspberry Pi-based experimental apparatus
-- **Task**: Experimental protocol defined visually
-- **Template**: Reusable task definition
-- **Telemetry**: Real-time data from sensors
-- **GPIO**: General Purpose Input/Output pins
-- **MQTT**: Message Queuing Telemetry Transport
-- **WebRTC**: Web Real-Time Communication
-- **IRB**: Institutional Review Board
-- **IACUC**: Institutional Animal Care and Use Committee
-- **SSR**: Server-Side Rendering
-- **SSG**: Static Site Generation
-- **CORS**: Cross-Origin Resource Sharing
-- **JWT**: JSON Web Token
-- **RBAC**: Role-Based Access Control
-- **TLS**: Transport Layer Security
-- **PII**: Personally Identifiable Information
-- **SLO**: Service Level Objective
-- **RTO**: Recovery Time Objective
-- **RPO**: Recovery Point Objective
-
-### Appendix C: Repository Structure
-
+### 17.1 Phase Overview
+
+#### Phase 1: Foundation (Weeks 1-2) ✅ COMPLETED
+- Development environment setup
+- CI/CD pipeline
+- Database and messaging infrastructure
+- Monitoring foundation
+
+#### Phase 2: Backend Development (Weeks 3-4) ✅ COMPLETED
+- FastAPI application
+- Authentication system
+- Core domain models
+- WebSocket implementation
+
+#### Phase 3: Frontend Development (Weeks 5-6) 🔄 IN PROGRESS
+- Next.js setup ✅
+- State management ✅
+- Authentication flow ✅
+- Core UI components (Current)
+
+#### Phase 4: Edge Device Agent (Weeks 7-8)
+- Agent architecture
+- Hardware integration
+- Local storage and sync
+- Video streaming
+
+#### Phase 5: Scratch-Based Task Builder (Weeks 9-10)
+- Scratch 3.0 integration
+- Custom laboratory extensions
+- Task compilation pipeline
+- Template marketplace
+
+#### Phase 6: Integration & Testing (Weeks 11-12)
+- System integration
+- Performance optimization
+- Security hardening
+- Documentation
+
+#### Phase 7: Production Deployment (Week 13)
+- Cloud infrastructure setup
+- Production deployment
+- Monitoring and alerting
+- Go-live
+
+#### Phase 8: Post-Launch Support (Weeks 14-16)
+- Bug fixes and stabilization
+- Feature enhancements
+- Performance tuning
+- User training
+
+### 17.2 Milestone Tracking
+
+#### Current Status
 ```
-lics/
-├── .github/
-│   ├── workflows/
-│   └── ISSUE_TEMPLATE/
-├── infrastructure/
-│   ├── terraform/
-│   ├── kubernetes/
-│   └── ansible/
-├── services/
-│   ├── frontend/
-│   ├── backend/
-│   ├── edge-agent/
-│   └── streaming/
-├── shared/
-│   ├── protos/
-│   ├── schemas/
-│   └── contracts/
-├── tools/
-│   ├── scripts/
-│   ├── migrations/
-│   └── testing/
-├── docs/
-│   ├── api/
-│   ├── architecture/
-│   └── user-guides/
-├── docker-compose.yml
-├── Makefile
-└── README.md
+Phase 1: ████████████████████ 100% Complete
+Phase 2: ████████████████████ 100% Complete
+Phase 3: ████████████░░░░░░░░ 60% In Progress
+Phase 4: ░░░░░░░░░░░░░░░░░░░░ 0% Pending
+Phase 5: ░░░░░░░░░░░░░░░░░░░░ 0% Pending
+Phase 6: ░░░░░░░░░░░░░░░░░░░░ 0% Pending
+Phase 7: ░░░░░░░░░░░░░░░░░░░░ 0% Pending
+Phase 8: ░░░░░░░░░░░░░░░░░░░░ 0% Pending
 ```
 
-### Appendix D: API Documentation Example
+### 17.3 Risk Register
 
-#### Device Registration Endpoint
-```http
-POST /api/v1/devices/register
-Content-Type: application/json
-Authorization: Bearer {device_token}
+#### Technical Risks
+| Risk | Impact | Probability | Mitigation |
+|------|--------|-------------|------------|
+| Hardware compatibility | High | Medium | Extensive HAL, testing matrix |
+| Performance bottlenecks | High | Low | Load testing, optimization |
+| Security vulnerabilities | High | Low | Security audits, scanning |
+| Integration complexity | Medium | Medium | Incremental integration |
 
-{
-  "device_id": "rpi-001",
-  "capabilities": {
-    "sensors": ["temperature", "humidity", "motion"],
-    "actuators": ["led", "buzzer", "servo"],
-    "gpio_pins": 40,
-    "camera": true,
-    "storage": "32GB"
-  },
-  "firmware_version": "1.2.3",
-  "location": {
-    "lab": "Lab A",
-    "cage": "C-101"
-  }
-}
+#### Operational Risks
+| Risk | Impact | Probability | Mitigation |
+|------|--------|-------------|------------|
+| Scope creep | High | Medium | Clear requirements, change control |
+| Resource availability | Medium | Low | Cross-training, documentation |
+| Timeline delays | Medium | Medium | Buffer time, parallel tasks |
+| Budget overrun | Low | Low | Regular monitoring, controls |
 
-Response:
-{
-  "data": {
-    "device_id": "rpi-001",
-    "registration_token": "...",
-    "mqtt_credentials": {
-      "username": "device-rpi-001",
-      "password": "...",
-      "broker": "mqtt.lics.example.com",
-      "port": 8883
-    },
-    "configuration": {
-      "telemetry_interval": 5000,
-      "heartbeat_interval": 30000,
-      "batch_size": 100
-    }
-  },
-  "meta": {
-    "timestamp": "2024-01-15T10:00:00Z",
-    "version": "1.0"
-  }
-}
-```
+### 17.4 Success Criteria
 
-### Appendix E: Task Definition Schema
+#### Technical Success
+- All functional requirements implemented
+- Performance targets met
+- Security requirements satisfied
+- Test coverage > 80%
+- Documentation complete
 
-```json
-{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "LICS Task Definition",
-  "version": "1.0.0",
-  "type": "object",
-  "properties": {
-    "metadata": {
-      "type": "object",
-      "properties": {
-        "name": {"type": "string"},
-        "version": {"type": "string"},
-        "author": {"type": "string"},
-        "description": {"type": "string"},
-        "tags": {"type": "array", "items": {"type": "string"}}
-      },
-      "required": ["name", "version"]
-    },
-    "nodes": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "id": {"type": "string"},
-          "type": {"enum": ["start", "end", "action", "decision", "loop", "wait", "data"]},
-          "parameters": {"type": "object"},
-          "position": {
-            "type": "object",
-            "properties": {
-              "x": {"type": "number"},
-              "y": {"type": "number"}
-            }
-          }
-        },
-        "required": ["id", "type"]
-      }
-    },
-    "edges": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "properties": {
-          "id": {"type": "string"},
-          "source": {"type": "string"},
-          "target": {"type": "string"},
-          "condition": {"type": "string"}
-        },
-        "required": ["id", "source", "target"]
-      }
-    },
-    "variables": {
-      "type": "object"
-    }
-  },
-  "required": ["metadata", "nodes", "edges"]
-}
-```
+#### Business Success
+- User adoption > 90%
+- System reliability > 99.9%
+- Support tickets < 5%
+- ROI achieved within 12 months
+- User satisfaction > 4.5/5
 
-### Appendix F: Troubleshooting Guide
-
-#### Common Issues and Solutions
-
-**Issue: Device not connecting to MQTT broker**
-- Check network connectivity
-- Verify MQTT credentials
-- Check firewall rules
-- Verify broker is running
-- Check TLS certificate validity
-
-**Issue: High database query latency**
-- Check query execution plans
-- Verify indexes are present
-- Check connection pool settings
-- Monitor database resource usage
-- Consider query optimization
-
-**Issue: WebSocket disconnections**
-- Check proxy timeout settings
-- Verify keep-alive configuration
-- Check network stability
-- Monitor server resource usage
-- Review client-side error logs
-
-**Issue: Task execution failures**
-- Validate task definition schema
-- Check device capabilities
-- Verify resource availability
-- Review execution logs
-- Test in sandbox environment
-
-### Appendix G: Contact and Support
-
-For implementation support, architecture discussions, or clarifications on this documentation, establish clear communication channels:
-
-- Technical discussions: GitHub Discussions
-- Bug reports: GitHub Issues  
-- Security concerns: Private security advisory
-- Documentation updates: Pull requests
-- Community forum: discourse.lics.io
-- Commercial support: support@lics.io
-
----
-
-*This documentation represents a complete blueprint for implementing the Lab Instrument Control System. Each section provides sufficient detail for developers to understand requirements, make implementation decisions, and build a production-ready system. The combination of cloud and local deployment options ensures flexibility for different organizational needs and scales.*
-
----
 
 ## 18. Primate Research Specialization
 
@@ -2677,66 +2248,189 @@ LICS is purpose-built for **non-human primate behavioral neuroscience research**
 - **Training Level Progression**: Graduated complexity from basic to advanced tasks
 
 **Database Schema**:
-```python
-class Primate(BaseModel):
-    """Non-human primate subjects"""
-    __tablename__ = "primates"
+#### Database Schema for Primates
+```sql
+-- Primate subjects table
+CREATE TABLE primates (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID REFERENCES organizations(id),
+    name VARCHAR(100) NOT NULL,
+    species VARCHAR(50) NOT NULL, -- 'macaque', 'marmoset', 'capuchin'
+    subspecies VARCHAR(100),
+    sex CHAR(1) CHECK (sex IN ('M', 'F')),
+    birth_date DATE,
+    weight_kg DECIMAL(5,2),
+    rfid_tag VARCHAR(50) UNIQUE,
+    training_level INTEGER DEFAULT 0, -- 0=naive, 1=basic, 2=intermediate, 3=advanced
+    housing_cage VARCHAR(50),
+    dietary_restrictions TEXT[],
+    medical_notes TEXT,
+    iacuc_protocol VARCHAR(50),
+    active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
 
-    # Core Identity
-    id: UUID (primary key)
-    organization_id: UUID (foreign key to organizations)
-    name: str (unique per organization)
-    species: Enum[macaque, marmoset, capuchin, rhesus, other]
-    rfid_tag: str (unique, indexed for fast lookup)
+-- Welfare checks table
+CREATE TABLE welfare_checks (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    primate_id UUID REFERENCES primates(id),
+    check_date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    weight_kg DECIMAL(5,2),
+    temperature_c DECIMAL(4,1),
+    appetite_score INTEGER CHECK (appetite_score BETWEEN 1 AND 5),
+    activity_score INTEGER CHECK (activity_score BETWEEN 1 AND 5),
+    stool_quality VARCHAR(20),
+    hydration_status VARCHAR(20),
+    notes TEXT,
+    veterinarian_id UUID REFERENCES users(id),
+    requires_followup BOOLEAN DEFAULT false
+);
 
-    # Demographics
-    birth_date: date
-    sex: Enum[M, F, U]
-    weight_kg: Decimal(5,2)
+-- Session limits and restrictions
+CREATE TABLE session_limits (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    primate_id UUID REFERENCES primates(id),
+    max_sessions_per_day INTEGER DEFAULT 2,
+    max_duration_minutes INTEGER DEFAULT 120,
+    min_rest_minutes INTEGER DEFAULT 60,
+    fluid_restriction_ml INTEGER,
+    food_restriction_g INTEGER,
+    effective_date DATE NOT NULL,
+    expiry_date DATE,
+    approved_by UUID REFERENCES users(id),
+    iacuc_approval VARCHAR(50)
+);
 
-    # Research Status
-    training_level: int (1-10 scale)
-    is_active: bool (currently participating)
-
-    # Session Tracking
-    current_board: Device (nullable, current cage assignment)
-    game_instance: Experiment (nullable, active experiment)
-
-    # Metadata
-    notes: text (welfare observations, behavioral notes)
-    metadata: JSONB (flexible additional data)
+-- Training history
+CREATE TABLE training_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    primate_id UUID REFERENCES primates(id),
+    session_date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    task_id UUID REFERENCES tasks(id),
+    duration_minutes INTEGER,
+    trials_completed INTEGER,
+    success_rate DECIMAL(5,2),
+    reward_volume_ml DECIMAL(5,2),
+    notes TEXT,
+    trainer_id UUID REFERENCES users(id)
+);
 ```
 
-**Key Operations**:
-- **RFID Auto-Detection**: Edge devices detect RFID tags, automatically associate primate with session
-- **Training Level Enforcement**: Tasks validate minimum training requirements before execution
-- **Session History**: Complete audit trail of all experiments, tasks, and outcomes
-- **Multi-Lab Support**: Organization-based isolation for collaborative research
-
-#### Welfare and Ethics Compliance
-
-**IACUC Integration**:
-- **Protocol Versioning**: Track IACUC-approved protocol versions for each experiment
-- **Animal Tracking**: Number of sessions per day, cumulative weekly duration
-- **Welfare Flags**: Automated alerts for health concerns, excessive session counts
-- **Environmental Logging**: Cage temperature, humidity, light cycle tracking
-
-**Compliance Features**:
+#### API Endpoints for Primate Management
 ```python
-# Automated session limits
-MAX_SESSIONS_PER_DAY = 3
-MAX_DURATION_PER_SESSION = 120  # minutes
-MINIMUM_REST_BETWEEN_SESSIONS = 60  # minutes
+@router.get("/primates")
+async def list_primates(
+    organization_id: UUID,
+    species: Optional[str] = None,
+    training_level: Optional[int] = None,
+    active: bool = True,
+    db: AsyncSession = Depends(get_db)
+):
+    """List primates with filtering"""
+    query = select(Primate).where(
+        Primate.organization_id == organization_id,
+        Primate.active == active
+    )
+    
+    if species:
+        query = query.where(Primate.species == species)
+    if training_level is not None:
+        query = query.where(Primate.training_level >= training_level)
+    
+    result = await db.execute(query)
+    return result.scalars().all()
 
-# Welfare monitoring
-class WelfareCheck(BaseModel):
-    primate_id: UUID
-    check_date: datetime
-    weight_kg: Decimal
-    behavioral_observations: str
-    health_status: Enum[excellent, good, fair, concern]
-    veterinary_notes: text
+@router.post("/primates/{primate_id}/welfare-check")
+async def create_welfare_check(
+    primate_id: UUID,
+    welfare_data: WelfareCheckCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Record welfare check"""
+    # Create welfare check
+    welfare_check = WelfareCheck(
+        primate_id=primate_id,
+        veterinarian_id=current_user.id,
+        **welfare_data.dict()
+    )
+    db.add(welfare_check)
+    
+    # Check for concerning values
+    if welfare_data.appetite_score < 3 or welfare_data.activity_score < 3:
+        await send_alert(
+            f"Welfare concern for primate {primate_id}",
+            severity="medium"
+        )
+    
+    await db.commit()
+    return welfare_check
 ```
+
+### 18.2 Cognitive Task Paradigms
+
+#### Task Categories for Primates
+```python
+class CognitiveTaskCategory(str, Enum):
+    FIXATION = "fixation"  # Eye tracking, gaze holding
+    MEMORY = "memory"  # Working memory, DMTS
+    DISCRIMINATION = "discrimination"  # Visual/auditory discrimination
+    ATTENTION = "attention"  # Sustained attention, vigilance
+    MOTOR = "motor"  # Reaching, grasping, manipulation
+    DECISION = "decision"  # Decision making, gambling tasks
+    SOCIAL = "social"  # Social cognition tasks
+
+class TaskDifficulty(str, Enum):
+    TRAINING = "training"  # Initial shaping
+    EASY = "easy"  # High success expected
+    MEDIUM = "medium"  # Moderate challenge
+    HARD = "hard"  # Challenging
+    EXPERT = "expert"  # For highly trained subjects
+```
+
+#### Example Task Implementations
+
+**Delayed Match-to-Sample (DMTS)**:
+```python
+class DMTSTaskConfig(BaseModel):
+    """Configuration for DMTS task"""
+    sample_duration_ms: int = 1000
+    delay_duration_ms: int = 5000
+    choice_array_size: int = 4
+    match_reward_ml: float = 0.5
+    nonmatch_penalty_ms: int = 5000
+    trial_count: int = 100
+    difficulty_progression: bool = True
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "sample_duration_ms": 1000,
+                "delay_duration_ms": 5000,
+                "choice_array_size": 4,
+                "match_reward_ml": 0.5,
+                "nonmatch_penalty_ms": 5000,
+                "trial_count": 100,
+                "difficulty_progression": True
+            }
+        }
+```
+**Motor Control Task**:
+```python
+class MotorControlTaskConfig(BaseModel):
+    """Configuration for motor control task"""
+    target_size_px: int = 100
+    hold_duration_ms: int = 500
+    movement_window_ms: int = 2000
+    success_window_px: int = 50
+    force_threshold_n: float = 0.5
+    reward_schedule: str = "continuous"  # or "variable_ratio", "fixed_ratio"
+    
+    def validate_hardware(self, device: Device) -> bool:
+        """Check if device has required hardware"""
+        required = ["touchscreen", "force_sensor", "reward_dispenser"]
+        return all(h in device.capabilities for h in required)
 
 ### 18.3 Cognitive Task Paradigms
 
@@ -2955,256 +2649,126 @@ class HardwareManager:
 - **Rich UI Capabilities**: Leverage web technologies for complex visual stimuli
 - **Hot-Swap Tasks**: Update tasks without edge device reboot
 
-**Edge Agent Browser Automation**:
-
-```python
-# services/edge-agent/src/browser_controller.py
-
-from playwright.async_api import async_playwright, Browser, Page
-import asyncio
-
-class TaskBrowserController:
-    """Manages headless browser for task execution"""
-
-    def __init__(self, config: EdgeConfig):
-        self.config = config
-        self.browser: Browser = None
-        self.page: Page = None
-        self.playwright = None
-
-    async def initialize(self):
-        """Start headless Chromium"""
-        self.playwright = await async_playwright().start()
-        self.browser = await self.playwright.chromium.launch(
-            headless=True,
-            args=[
-                '--disable-dev-shm-usage',  # Avoid memory issues on Pi
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-gpu'
-            ]
-        )
-        self.page = await self.browser.new_page(viewport={'width': 1920, 'height': 1080})
-
-    async def load_task(self, task_url: str, experiment_config: dict):
-        """Load task application with configuration"""
-        # Navigate to task URL (served from backend or local cache)
-        await self.page.goto(task_url)
-
-        # Inject experiment configuration
-        await self.page.evaluate(f"""
-            window.LICS_EXPERIMENT_CONFIG = {json.dumps(experiment_config)};
-            window.LICS_DEVICE_ID = '{self.config.device_id}';
-        """)
-
-        # Wait for task initialization
-        await self.page.wait_for_function("window.LICS_TASK_READY === true", timeout=10000)
-
-    async def handle_task_events(self):
-        """Listen for task events and relay to backend"""
-        # Expose Python function to JavaScript
-        await self.page.expose_function('licsSendResult', self.on_task_result)
-        await self.page.expose_function('licsRequestReward', self.on_reward_request)
-        await self.page.expose_function('licsLogEvent', self.on_task_event)
-
-    async def on_task_result(self, result_data: dict):
-        """Task completed a trial, store result"""
-        logger.info(f"Task result: {result_data}")
-        await self.data_manager.store_result(result_data)
-        await self.api_client.post_result(result_data)
-
-    async def on_reward_request(self, reward_config: dict):
-        """Task requests reward delivery"""
-        logger.info(f"Reward request: {reward_config}")
-        await self.gpio_controller.activate_feeder(
-            duration_ms=reward_config.get('duration_ms', 500)
-        )
-
-    async def on_task_event(self, event_data: dict):
-        """Task logged an event (errors, warnings, info)"""
-        await self.telemetry_manager.log_event(event_data)
-```
-
-**Task Application Template** (JavaScript):
-
+#### Task JavaScript Template
 ```javascript
-// Example fixation task running in browser on edge device
-
-class FixationTask {
-  constructor(config) {
-    this.config = config;
-    this.trialNumber = 0;
-    this.canvas = document.getElementById('task-canvas');
-    this.ctx = this.canvas.getContext('2d');
-    this.currentButton = null;
-    this.holdStartTime = null;
-  }
-
-  async initialize() {
-    // Set up canvas, event listeners
-    this.canvas.addEventListener('mousedown', this.onMouseDown.bind(this));
-    this.canvas.addEventListener('mouseup', this.onMouseUp.bind(this));
-
-    // Signal ready to edge agent
-    window.LICS_TASK_READY = true;
-
-    // Start first trial
-    this.startTrial();
-  }
-
-  startTrial() {
-    this.trialNumber++;
-
-    // Generate button with random size and position
-    const buttonSize = this.getRandomSize();
-    const position = this.getRandomPosition(buttonSize);
-
-    this.currentButton = {
-      size: buttonSize,
-      x: position.x,
-      y: position.y,
-      targetHoldDuration: this.config.hold_duration_ms
-    };
-
-    this.drawButton();
-  }
-
-  onMouseDown(event) {
-    if (!this.isInsideButton(event.clientX, event.clientY)) {
-      return;
+// Web-based task template for browser execution
+class PrimateTask {
+    constructor(config) {
+        this.config = config;
+        this.results = [];
+        this.currentTrial = 0;
+        window.taskStatus = { started: false, completed: false };
     }
-
-    this.holdStartTime = Date.now();
-  }
-
-  onMouseUp(event) {
-    if (!this.holdStartTime) return;
-
-    const holdDuration = Date.now() - this.holdStartTime;
-    const isCorrect = holdDuration >= this.currentButton.targetHoldDuration;
-
-    // Send result to edge agent (which relays to backend)
-    window.licsSendResult({
-      trial_number: this.trialNumber,
-      timestamp: new Date().toISOString(),
-      button_size: this.currentButton.size,
-      button_position_x: this.currentButton.x,
-      button_position_y: this.currentButton.y,
-      response_time_ms: holdDuration,
-      hold_duration_achieved: holdDuration,
-      is_correct: isCorrect,
-      feedback_type: isCorrect ? 'reward' : 'timeout'
-    });
-
-    if (isCorrect) {
-      // Request reward from edge agent
-      window.licsRequestReward({
-        duration_ms: this.config.reward_config.duration_ms
-      });
-
-      // Wait inter-trial interval, start next trial
-      setTimeout(() => this.startTrial(), this.config.inter_trial_intervals.correct);
-    } else {
-      // Timeout, longer wait
-      setTimeout(() => this.startTrial(), this.config.inter_trial_intervals.incorrect);
+    
+    async start() {
+        window.taskStatus.started = true;
+        
+        // Wait for RFID detection
+        await this.waitForSubject();
+        
+        // Run trials
+        for (let i = 0; i < this.config.trialCount; i++) {
+            this.currentTrial = i + 1;
+            const result = await this.runTrial();
+            this.results.push(result);
+            
+            // Send result to backend
+            await this.sendResult(result);
+            
+            // Inter-trial interval
+            await this.wait(this.config.itiDuration);
+        }
+        
+        window.taskStatus.completed = true;
+        window.taskResults = this.summarizeResults();
     }
-
-    this.holdStartTime = null;
-  }
-
-  // ... rendering and utility methods ...
+    
+    async runTrial() {
+        // Display stimulus
+        this.showStimulus();
+        
+        // Wait for response
+        const response = await this.waitForResponse(this.config.responseWindow);
+        
+        // Process response
+        const correct = this.checkResponse(response);
+        
+        // Deliver feedback
+        if (correct) {
+            await window.hardwareBridge.activateReward(this.config.rewardAmount);
+        }
+        
+        return {
+            trial: this.currentTrial,
+            timestamp: Date.now(),
+            stimulusType: this.currentStimulus,
+            response: response,
+            correct: correct,
+            reactionTime: response.time - this.stimulusOnset
+        };
+    }
 }
-
-// Initialize task when loaded
-const task = new FixationTask(window.LICS_EXPERIMENT_CONFIG);
-task.initialize();
 ```
 
-### 18.6 No-Code Task Creation Workflow
+### 18.6 Task Creation Workflow
 
 #### Visual Task Builder Interface
 
-**React Flow-Based Editor**:
+**Scratch-Based Editor**:
 
-1. **Researcher opens Task Builder page**
-2. **Drag nodes onto canvas**:
-   - Start node (entry point)
-   - Stimulus Display node (show button, image, sound)
-   - Response Collection node (wait for touchscreen input)
-   - Decision node (check if response is correct)
-   - Reward Delivery node (activate feeder)
-   - Delay node (inter-trial interval)
-   - Loop node (repeat trials)
-   - End node
+1. **Researcher opens Task Builder with Scratch GUI**
+2. **Select or create sprites** for experimental stimuli:
+   - Button sprite with size/color costumes
+   - Target sprites for discrimination tasks
+   - Background stages for different trial phases
 
-3. **Connect nodes with edges** (define execution flow)
+3. **Drag blocks from custom palette**:
+```scratch
+   When [green flag clicked v]
+   Set [trial count v] to (0)
+   Repeat (100)
+     Change [trial count v] by (1)
+     Broadcast [start trial v] and wait
+     Wait (2) seconds  // Inter-trial interval
+   End
+   Broadcast [session complete v]
 
-4. **Configure node parameters** via property panel:
-   ```json
-   // Stimulus Display Node Parameters
-   {
-     "node_type": "stimulus_display",
-     "parameters": {
-       "stimulus_type": "button",
-       "size_range": {"min": 50, "max": 150},
-       "color": "#00FF00",
-       "position": "random",
-       "duration_ms": null  // Until response
-     }
-   }
+   When I receive [start trial v]
+   Go to [random position v]
+   Set size to (pick random (50) to (150)) %
+   Show
+   Reset timer
+   Wait until <<touching [mouse-pointer v]> and <mouse down?>>
+   If <(timer) < (10)> then
+     Broadcast [correct response v]
+     Hide
+   Else
+     Broadcast [timeout v]
+   End
 
-   // Response Collection Node Parameters
-   {
-     "node_type": "response_collection",
-     "parameters": {
-       "input_type": "touchscreen",
-       "timeout_ms": 10000,
-       "valid_area": "stimulus_bounds",
-       "hold_duration_required_ms": 200
-     }
-   }
-
-   // Reward Delivery Node Parameters
-   {
-     "node_type": "reward_delivery",
-     "parameters": {
-       "hardware_component": "primary_feeder",
-       "reward_type": "pellet",
-       "quantity": 1,
-       "delay_ms": 0
-     }
-   }
-   ```
-
-5. **Compile to Task Definition**:
-   - Visual flow → JSON task definition
-   - Validate node connections (no orphaned nodes, cycles only in loops)
-   - Check hardware requirements match registered devices
-   - Generate JavaScript task application code
-   - Store in database with version
-
-6. **Deploy to Devices**:
-   - Researcher assigns task to experiment
-   - Backend sends task URL to edge device
-   - Edge agent downloads task, caches locally
-   - Browser loads and executes task
-
-**Example Flow Compilation**:
-
-```mermaid
-flowchart TD
-    Start[Start Experiment] --> RFID[Wait for RFID Detection]
-    RFID --> Display[Display Button Stimulus]
-    Display --> Wait[Wait for Response]
-    Wait --> Check{Hold Duration\nCorrect?}
-    Check -->|Yes| Reward[Deliver Reward]
-    Check -->|No| Timeout[Timeout Delay]
-    Reward --> ITI[Inter-Trial Interval]
-    Timeout --> ITI
-    ITI --> TrialCount{Completed\n100 Trials?}
-    TrialCount -->|No| Display
-    TrialCount -->|Yes| End[End Experiment]
+   When I receive [correct response v]
+   Activate [pellet feeder v] for (1) pellets
+   Play sound [success v]
+   Add (timer) to [response times v]
 ```
+
+4. **Configure hardware extensions** via settings:
+   - Map Scratch sprites to physical devices
+   - Set GPIO pin assignments
+   - Configure MQTT topics for hardware events
+   - Calibrate touchscreen zones to sprite positions
+
+5. **Test in simulation mode**:
+   - Run task with virtual hardware
+   - Preview visual elements and timing
+   - Verify data collection logic
+   - Check branching and conditions
+
+6. **Export and deploy**:
+   - Package Scratch project with VM runtime
+   - Include hardware configuration
+   - Deploy to edge devices via API
+   - Auto-start on RFID detection
 
 ### 18.7 Dynamic Report Generation
 
@@ -3451,27 +3015,36 @@ socket.on('experiment:completed', (data) => {
        await browser_controller.signal_start()
    ```
 
-4. **Task Execution** (100 trials):
+4. **Task Execution with Scratch**:
    ```javascript
-   // Each trial: display button → wait for hold → deliver reward → ITI
-   for (let trial = 1; trial <= 100; trial++) {
-       const result = await this.runTrial(trial);
-
-       // Send to edge agent
-       window.licsSendResult(result);
-
-       // Edge agent forwards to backend
-       POST /api/v1/experiments/{experiment_id}/results
-       {
-           "trial_number": trial,
-           "timestamp": "2024-12-01T10:15:23Z",
-           "result_data": {
-               "button_size": 87.3,
-               "hold_duration_achieved": 245,
-               "is_correct": true,
-               ...
+   // Scratch blocks converted to JavaScript
+   async function runExperiment() {
+       // Wait for RFID confirmation
+       await waitForRFID(expectedPrimateID);
+       
+       // Run trials
+       for (let trial = 1; trial <= 100; trial++) {
+           // Show stimulus (Scratch sprite)
+           await showStimulus();
+           
+           // Wait for response
+           const response = await waitForTouch();
+           
+           // Check correctness
+           if (isCorrect(response)) {
+               await deliverReward();
+               logSuccess(trial);
+           } else {
+               await showError();
+               logError(trial);
            }
+           
+           // Inter-trial interval
+           await wait(2000);
        }
+       
+       // End session
+       await endSession();
    }
    ```
 
@@ -3523,6 +3096,7 @@ socket.on('experiment:completed', (data) => {
    }, room=f'user:{researcher_id}')
    ```
 
+
 7. **Report Generation**:
    ```python
    # Researcher clicks "Generate Report"
@@ -3546,26 +3120,364 @@ socket.on('experiment:completed', (data) => {
    return {'report_url': report_url}
    ```
 
+## 19. Scratch Task Builder Implementation Details
+
+This section provides comprehensive implementation guidance for integrating Scratch 3.0 as the visual programming interface for the Lab Instrument Control System (LICS). The implementation enables researchers to create behavioral experiments using Scratch's block-based programming without writing traditional code.
+
 ---
+
+### 19.1 System Architecture Overview
+
+#### 19.1.1 Component Integration Strategy
+
+The Scratch-based Task Builder integrates three primary architectural layers:
+
+**Frontend Integration Layer**: The web application embeds Scratch 3.0 GUI as a React component within the Next.js framework. This requires webpack configuration modifications to handle Scratch's module system, including worker threads for the Scratch VM and asset management for sprites and sounds. The integration maintains bidirectional communication between the Scratch editor and the LICS application state through a custom messaging interface.
+
+**Backend Processing Layer**: The FastAPI backend processes Scratch projects (.sb3 files) through specialized endpoints that handle project storage, compilation, and deployment. The backend extracts metadata from Scratch projects to determine hardware requirements, validates device compatibility, and generates optimized execution packages for edge devices.
+
+**Edge Execution Layer**: Edge devices run a modified Scratch VM runtime that bridges Scratch's block execution with physical hardware control. This layer translates Scratch block commands into GPIO operations, MQTT messages, and sensor readings while maintaining real-time synchronization with the cloud infrastructure.
+
+#### 19.1.2 Data Flow Architecture
+
+**Project Creation Flow**: Researchers interact with the Scratch GUI to create tasks visually. The Scratch VM serializes the project into an .sb3 file format (a ZIP archive containing project.json and media assets). The frontend sends this binary data to the backend API, which stores it in MinIO object storage and PostgreSQL metadata tables.
+
+**Compilation Pipeline**: When deploying a task, the backend compilation service extracts the Scratch project, analyzes block usage to determine hardware requirements, generates a JavaScript execution script that runs on the Scratch VM, bundles required extensions and runtime libraries, and creates a compressed deployment package optimized for the target edge device platform.
+
+**Execution Architecture**: Edge devices receive deployment packages via MQTT, extract and initialize the Scratch VM runtime environment, load custom hardware extensions that map to physical devices, execute Scratch blocks in real-time while collecting experimental data, and stream results back to the cloud through event-driven messaging.
+
+---
+
+### 19.2 Frontend Implementation Architecture
+
+#### 19.2.1 Scratch GUI Integration Approach
+
+**Component Structure**: The Scratch Task Builder component wraps the Scratch GUI in a controlled React component that manages its lifecycle. The implementation requires careful handling of Scratch's internal state management, which uses Redux, to prevent conflicts with the application's Zustand stores.
+
+**Module Loading Strategy**: Scratch modules must be loaded asynchronously due to their size and complexity. The implementation uses dynamic imports to load Scratch GUI, VM, and associated libraries only when the Task Builder is accessed. This approach reduces initial bundle size and improves application performance.
+
+**Asset Management**: Scratch projects include various media assets (images, sounds) that must be handled through a custom storage adapter. The implementation configures Scratch Storage to use the LICS backend API for asset persistence, ensuring all project media is stored centrally and accessible across sessions.
+
+#### 19.2.2 Custom Extension Architecture
+
+**Extension Framework**: Custom Scratch extensions provide domain-specific blocks for laboratory hardware control. Each extension is a JavaScript class that defines block specifications, implementation methods, and hardware communication protocols. Extensions are loaded into the Scratch VM extension manager during initialization.
+
+**Block Definition Structure**: Each custom block requires an opcode (unique identifier), block type (command, reporter, boolean, or hat), text template with argument placeholders, argument specifications with types and defaults, and implementation method that executes when the block runs.
+
+**Hardware Communication**: Extensions communicate with hardware through an abstraction layer that handles protocol differences between development (browser) and production (edge device) environments. In development, hardware commands are simulated; in production, they translate to actual GPIO operations or MQTT messages.
+
+#### 19.2.3 State Synchronization
+
+**Project State Management**: The Scratch VM maintains its own internal state for sprites, variables, and execution context. The implementation synchronizes relevant state changes with the LICS application through event listeners on the VM runtime, allowing the application to track experiment progress and collect data.
+
+**Save and Load Mechanisms**: Project saving involves serializing the current VM state to an .sb3 file, uploading to the backend with metadata extraction, updating the task database with version tracking, and triggering compilation for deployment readiness. Loading reverses this process, fetching the project from storage and restoring the VM state.
+
+**Real-time Collaboration Considerations**: While Scratch doesn't natively support real-time collaboration, the implementation includes infrastructure for future enhancement through WebSocket-based state synchronization, allowing multiple researchers to view (though not simultaneously edit) the same project.
+
+---
+
+### 19.3 Backend Services Implementation
+
+#### 19.3.1 API Endpoint Design
+
+**Project Management Endpoints**: The backend provides RESTful endpoints for CRUD operations on Scratch projects. These endpoints handle binary .sb3 file uploads and downloads, metadata extraction and indexing, version control with diff generation, and template management for sharing common task patterns.
+
+**Compilation Service Architecture**: The compilation service transforms Scratch projects into executable packages for edge devices. The process involves parsing the .sb3 ZIP archive to extract project.json, analyzing block usage to identify required extensions and hardware, generating a Node.js wrapper script for the Scratch VM, bundling all dependencies including the VM runtime, and optimizing the package for size and performance.
+
+**Deployment Pipeline**: Deployment involves validating device compatibility with required hardware, customizing the package for the specific device configuration, transmitting the package via MQTT to the edge device, monitoring deployment status and handling failures, and triggering automatic execution upon successful deployment.
+
+#### 19.3.2 Project Analysis Engine
+
+**Block Analysis**: The backend analyzes Scratch blocks to understand task requirements. This involves traversing the block tree structure to identify all opcodes, mapping opcodes to hardware requirements and data collection needs, detecting potential conflicts or incompatibilities, and generating warnings for suboptimal patterns.
+
+**Metadata Extraction**: Comprehensive metadata extraction provides insights into project complexity and requirements. The system extracts sprite count and types for visual complexity assessment, variable and list usage for data management understanding, extension requirements for hardware dependency checking, and estimated execution characteristics for resource planning.
+
+**Compatibility Validation**: Before deployment, the system validates that the target device has all required hardware capabilities, sufficient computational resources for the task complexity, compatible firmware and runtime versions, and proper network connectivity for data streaming.
+
+#### 19.3.3 Storage Architecture
+
+**Project Storage Strategy**: Scratch projects are stored using a hybrid approach where binary .sb3 files are stored in MinIO object storage for efficient blob handling, project metadata is stored in PostgreSQL for queryability, and version history is maintained using git-like content addressing for efficient storage of project iterations.
+
+**Template Repository**: The template system provides pre-built starting points for common experimental paradigms. Templates are stored with comprehensive metadata including species compatibility, required training levels, hardware requirements, and expected data output formats. The system supports template versioning, forking, and community rating.
+
+**Asset Management**: Media assets within Scratch projects require special handling. The system extracts and indexes all assets for reusability, converts formats as needed for edge device compatibility, implements CDN distribution for frequently used assets, and maintains asset versioning tied to project versions.
+
+---
+
+### 19.4 Edge Device Runtime Implementation
+
+#### 19.4.1 Scratch VM Deployment
+
+**Runtime Environment Setup**: Edge devices require a Node.js environment with the Scratch VM and custom extensions. The implementation includes automated installation scripts for runtime dependencies, system service configuration for process management, resource monitoring and limitation enforcement, and automatic recovery from crashes or errors.
+
+**Process Management**: The edge agent manages the Scratch VM process lifecycle including starting new experiments with proper environment configuration, monitoring process health and resource usage, handling graceful shutdowns and cleanup, and implementing watchdog timers for hung process detection.
+
+**Memory Management**: Raspberry Pi devices have limited memory, requiring careful management. The implementation includes memory usage monitoring and alerting, garbage collection tuning for optimal performance, project size limitations based on available resources, and swap file configuration for handling memory pressure.
+
+#### 19.4.2 Hardware Abstraction Layer
+
+**GPIO Integration**: The hardware abstraction layer maps Scratch block commands to GPIO operations. This includes pin configuration for inputs and outputs, interrupt handling for event-driven blocks, PWM control for analog-like outputs, and timing precision for behavioral requirements.
+
+**Sensor Integration**: Various sensors connect through different protocols requiring protocol-specific drivers (I2C, SPI, UART), calibration and scaling for accurate measurements, buffering and filtering for noise reduction, and event generation for Scratch hat blocks.
+
+**Actuator Control**: Output devices like feeders and speakers require precise control mechanisms including timing sequences for mechanical devices, safety interlocks to prevent damage, state verification for feedback, and error recovery procedures.
+
+#### 19.4.3 Data Collection Pipeline
+
+**Trial Data Capture**: The runtime captures experimental data at multiple levels including block-level execution timestamps, hardware activation logs, sensor readings with precise timing, and computed metrics from Scratch reporters.
+
+**Local Buffering Strategy**: Data is buffered locally to handle network interruptions using SQLite for structured trial data, circular buffers for high-frequency sensor data, compression for efficient storage, and prioritized queuing for upload when connected.
+
+**Synchronization Protocol**: Data synchronization with the cloud follows a robust protocol including batch uploads for efficiency, acknowledgment tracking for reliability, conflict resolution for concurrent modifications, and automatic retry with exponential backoff for failures.
+
+---
+
+### 19.5 Custom Extension Development
+
+#### 19.5.1 Extension Architecture Principles
+
+**Modular Design**: Each extension encapsulates related functionality into a cohesive module. Extensions should follow single responsibility principle, provide clear and intuitive block interfaces, handle errors gracefully with user feedback, and maintain state consistency across block executions.
+
+**Block Design Guidelines**: Effective blocks follow consistent naming conventions, provide appropriate default values, validate inputs to prevent errors, give clear visual feedback during execution, and support both synchronous and asynchronous operations appropriately.
+
+**Hardware Abstraction**: Extensions abstract hardware complexity from researchers by providing high-level operations that make sense in experimental context, handling protocol details internally, managing timing and synchronization automatically, and reporting errors in terms researchers understand.
+
+#### 19.5.2 Core Laboratory Extensions
+
+**PrimateLab Extension**: This primary extension provides blocks specific to primate research including RFID-based subject identification, trial sequencing and control, reward delivery mechanisms, response collection and timing, and automated data logging and analysis.
+
+**Hardware Control Extension**: Lower-level hardware control blocks enable direct GPIO manipulation for custom devices, I2C and SPI communication for sensors, PWM generation for motor control, analog-to-digital conversion for measurements, and interrupt handling for event detection.
+
+**Data Logger Extension**: Data collection and analysis blocks support creating and managing datasets, logging experimental measurements, calculating real-time statistics, exporting data in various formats, and generating summary reports automatically.
+
+#### 19.5.3 Extension Development Workflow
+
+**Development Process**: Creating new extensions follows a structured workflow starting with requirements analysis with researchers, block design and user experience planning, implementation with hardware simulation, testing across different scenarios, and documentation with examples.
+
+**Testing Strategy**: Extensions require comprehensive testing including unit tests for individual block functions, integration tests with hardware simulators, edge device testing with actual hardware, performance testing under load conditions, and user acceptance testing with researchers.
+
+**Deployment Pipeline**: Extension deployment involves code review and security validation, bundling with the Scratch VM runtime, version management and compatibility tracking, distribution to edge devices, and monitoring for errors and usage patterns.
+
+---
+
+### 19.6 Task Compilation and Optimization
+
+#### 19.6.1 Compilation Pipeline Architecture
+
+**Parse Phase**: The compiler first parses the Scratch project structure by extracting the project.json from the .sb3 archive, building an abstract syntax tree of blocks, identifying all sprites and their scripts, cataloging variables and lists, and determining extension dependencies.
+
+**Analysis Phase**: Static analysis determines execution characteristics including hardware requirements from block usage, potential parallel execution opportunities, memory requirements estimation, approximate execution time per trial, and data output volume predictions.
+
+**Generation Phase**: Code generation produces an optimized execution package by translating Scratch blocks to JavaScript, inlining frequently used procedures, eliminating dead code paths, optimizing loop structures, and pre-computing constant expressions.
+
+#### 19.6.2 Optimization Strategies
+
+**Performance Optimizations**: The compiler applies various optimizations for edge device execution including block fusion for reduced overhead, loop unrolling for tight inner loops, constant propagation and folding, common subexpression elimination, and branch prediction hints.
+
+**Memory Optimizations**: Memory usage is minimized through sprite and costume compression, variable lifetime analysis, stack frame size reduction, heap allocation minimization, and garbage collection hints.
+
+**Hardware-Specific Optimizations**: The compiler tailors output for specific edge devices by utilizing hardware acceleration features, optimizing for CPU cache sizes, leveraging SIMD instructions where available, minimizing system calls, and batching I/O operations.
+
+#### 19.6.3 Deployment Package Generation
+
+**Package Structure**: The deployment package contains all necessary components including the compiled Scratch project, Scratch VM runtime libraries, custom extension implementations, hardware configuration files, and startup scripts and metadata.
+
+**Compression and Bundling**: Packages are optimized for size through JavaScript minification and tree shaking, asset compression with format optimization, duplicate file elimination, compressed archive generation, and incremental update support.
+
+**Version Management**: Deployment packages are versioned for rollback capability with semantic versioning for compatibility tracking, dependency version locking, upgrade path definitions, compatibility matrix maintenance, and automated testing across versions.
+
+---
+
+### 19.7 Testing and Validation Framework
+
+#### 19.7.1 Simulation Environment
+
+**Virtual Hardware Simulation**: The simulator provides a realistic testing environment without physical hardware by emulating GPIO states and transitions, simulating sensor readings with noise, modeling actuator responses with delays, generating realistic timing variations, and supporting failure scenario injection.
+
+**Behavioral Modeling**: The simulator models experimental subject behavior including response time distributions, learning curves over trials, fatigue and satiation effects, attention and motivation variations, and individual difference parameters.
+
+**Performance Profiling**: Simulation includes performance analysis tools for measuring block execution timing, identifying performance bottlenecks, estimating resource usage, predicting battery life impact, and validating real-time constraints.
+
+#### 19.7.2 Testing Strategies
+
+**Unit Testing Approach**: Individual components are tested in isolation including Scratch block implementations, hardware communication protocols, data collection accuracy, error handling pathways, and state management correctness.
+
+**Integration Testing Framework**: System-wide testing validates end-to-end task execution, data flow from blocks to database, hardware control sequences, error propagation and recovery, and concurrent task execution.
+
+**Hardware-in-the-Loop Testing**: Physical hardware testing verifies GPIO signal generation accuracy, sensor reading precision, actuator control reliability, timing requirement satisfaction, and electromagnetic compatibility.
+
+#### 19.7.3 Validation Protocols
+
+**Scientific Validation**: Tasks undergo scientific validation to ensure experimental design integrity, data collection accuracy, statistical power adequacy, reproducibility across sessions, and compliance with protocols.
+
+**Performance Validation**: System performance is validated against requirements including response latency limits, throughput requirements, reliability targets, availability goals, and scalability projections.
+
+**User Acceptance Testing**: Researchers validate the system through task creation efficiency, interface intuitiveness, result accuracy, workflow integration, and training requirements.
+
+---
+
+### 19.8 Monitoring and Diagnostics
+
+#### 19.8.1 Runtime Monitoring
+
+**Execution Monitoring**: The system monitors Scratch task execution in real-time including block execution counts and timing, hardware activation patterns, data collection rates, error and warning generation, and resource utilization trends.
+
+**Performance Metrics Collection**: Comprehensive metrics provide operational insights including CPU and memory usage, network bandwidth utilization, disk I/O patterns, power consumption, and temperature monitoring.
+
+**Anomaly Detection**: Automated detection identifies potential issues including unusual execution patterns, hardware communication failures, data collection gaps, performance degradations, and resource exhaustion risks.
+
+#### 19.8.2 Diagnostic Tools
+
+**Debug Mode**: Development and troubleshooting are supported through block-by-block execution tracing, variable value inspection, hardware state monitoring, network traffic analysis, and detailed error reporting.
+
+**Log Management**: Comprehensive logging captures all system events with structured log formats for analysis, log level configuration per component, centralized log aggregation, search and filter capabilities, and automated alert generation.
+
+**Remote Diagnostics**: Edge devices support remote troubleshooting through SSH tunnel establishment, remote desktop access, log streaming to cloud, configuration updates, and remote restart capabilities.
+
+#### 19.8.3 Health Reporting
+
+**System Health Metrics**: Regular health assessments monitor service availability status, response time measurements, error rate tracking, queue depth monitoring, and connection pool utilization.
+
+**Hardware Health Monitoring**: Physical device health is tracked through sensor diagnostic checks, actuator response verification, power supply stability, temperature monitoring, and wear indicator tracking.
+
+**Data Integrity Verification**: Data quality is ensured through completeness checking, consistency validation, duplicate detection, corruption identification, and synchronization verification.
+
+---
+
+### 19.9 Security Considerations
+
+#### 19.9.1 Code Security
+
+**Scratch Project Validation**: Projects undergo security screening for malicious code patterns, infinite loop detection, resource exhaustion prevention, unauthorized hardware access, and data exfiltration attempts.
+
+**Sandboxing**: Execution environments are isolated through process-level sandboxing, filesystem access restrictions, network communication limits, resource usage quotas, and system call filtering.
+
+**Extension Security**: Custom extensions are vetted through code review requirements, capability-based permissions, API access restrictions, signing and verification, and automated security scanning.
+
+#### 19.9.2 Data Security
+
+**Encryption**: Data is protected at multiple levels including TLS for network communication, encryption at rest for storage, encrypted configuration files, secure key management, and hardware security module integration.
+
+**Access Control**: Multi-layer access control ensures project ownership verification, organization-based isolation, role-based permissions, API authentication, and audit trail generation.
+
+**Privacy Protection**: Experimental data privacy is maintained through subject anonymization, data minimization practices, retention policy enforcement, consent tracking, and GDPR compliance.
+
+#### 19.9.3 Device Security
+
+**Edge Device Hardening**: Devices are secured through minimal attack surface, regular security updates, firewall configuration, intrusion detection, and physical security measures.
+
+**Communication Security**: All communication channels are protected using mutual TLS authentication, message signing and verification, replay attack prevention, secure firmware updates, and certificate rotation.
+
+**Compromise Detection**: Security monitoring identifies potential compromises through anomaly detection, integrity checking, unauthorized access attempts, configuration changes, and suspicious network activity.
+
+---
+
+### 19.10 Performance Optimization Strategies
+
+#### 19.10.1 Frontend Optimization
+
+**Load Time Optimization**: Initial load performance is improved through code splitting for lazy loading, bundle size minimization, asset optimization, CDN distribution, and browser caching strategies.
+
+**Runtime Performance**: Smooth operation is ensured via React rendering optimization, memory leak prevention, efficient state updates, Web Worker utilization, and requestAnimationFrame usage.
+
+**Scratch VM Performance**: The Scratch environment is optimized through VM configuration tuning, extension lazy loading, sprite limit management, script complexity limits, and rendering optimization.
+
+#### 19.10.2 Backend Optimization
+
+**API Performance**: Response times are minimized through database query optimization, caching strategy implementation, connection pool tuning, async operation usage, and batch processing support.
+
+**Compilation Performance**: Project compilation speed is improved via parallel processing utilization, incremental compilation support, result caching, optimization level selection, and distributed compilation options.
+
+**Storage Optimization**: Efficient storage is achieved through deduplication strategies, compression algorithms, tiered storage usage, archive policies, and CDN integration.
+
+#### 19.10.3 Edge Device Optimization
+
+**Resource Management**: Limited resources are managed through memory usage optimization, CPU utilization control, disk space management, network bandwidth conservation, and power consumption minimization.
+
+**Execution Optimization**: Task execution is optimized via JavaScript engine tuning, hardware acceleration usage, interrupt handling optimization, scheduling optimization, and cache utilization.
+
+**Data Collection Optimization**: Efficient data handling includes buffering strategies, compression techniques, batch transmission, priority queuing, and bandwidth adaptation.
+
+---
+
+### 19.11 Scalability Architecture
+
+#### 19.11.1 Horizontal Scalability
+
+**Service Scaling**: The system scales through microservice architecture, container orchestration, load balancer configuration, auto-scaling policies, and geographic distribution.
+
+**Database Scaling**: Data layer scales via read replica deployment, sharding strategies, connection pooling, query optimization, and caching layers.
+
+**Storage Scaling**: Storage capacity scales through object storage expansion, CDN integration, archive tiering, distributed filesystems, and backup strategies.
+
+#### 19.11.2 Vertical Scalability
+
+**Resource Scaling**: Individual components scale through memory allocation increases, CPU core additions, network bandwidth upgrades, storage capacity expansion, and GPU acceleration.
+
+**Performance Scaling**: Processing power scales via compilation parallelization, batch processing support, queue depth increases, thread pool expansion, and cache size growth.
+
+**Edge Device Scaling**: Device capabilities scale through hardware upgrades, cluster deployment, load distribution, failover support, and remote management.
+
+#### 19.11.3 Multi-Tenancy Scaling
+
+**Organization Isolation**: The system supports multiple organizations through database partitioning, resource quotas, network isolation, storage separation, and compute allocation.
+
+**Template Sharing**: Collaboration scales via marketplace infrastructure, version management, access control, usage tracking, and quality ratings.
+
+**Cross-Organization Features**: Shared resources are managed through template libraries, extension repositories, documentation wikis, community forums, and best practices.
+
+---
+
+### 19.12 Deployment Strategies
+
+#### 19.12.1 Cloud Deployment
+
+**Container Orchestration**: Kubernetes deployment provides service discovery, health checking, secret management, configuration maps, and persistent volumes.
+
+**Service Mesh**: Istio integration enables traffic management, security policies, observability, resilience, and policy enforcement.
+
+**Continuous Deployment**: GitOps workflows support infrastructure as code, automated rollouts, canary deployments, rollback capabilities, and environment promotion.
+
+#### 19.12.2 Edge Deployment
+
+**Device Provisioning**: New devices are onboarded through automated discovery, identity assignment, certificate provisioning, configuration deployment, and health verification.
+
+**Update Management**: Software updates are managed via staged rollouts, compatibility checking, rollback support, offline updates, and differential updates.
+
+**Fleet Management**: Device fleets are managed through centralized monitoring, remote configuration, batch operations, grouping strategies, and compliance tracking.
+
+#### 19.12.3 Hybrid Deployment
+
+**Cloud-Edge Coordination**: Hybrid deployments coordinate through synchronization protocols, conflict resolution, cache management, failover handling, and load distribution.
+
+**Data Management**: Data flows are managed via edge processing, cloud analytics, archive strategies, privacy compliance, and bandwidth optimization.
+
+**Resilience Patterns**: System resilience is ensured through circuit breakers, retry logic, fallback mechanisms, graceful degradation, and disaster recovery.
+
+---
+
+This comprehensive implementation guide provides detailed architectural and technical guidance for implementing the Scratch-based Task Builder System without relying on code examples. Each section describes the key concepts, design decisions, and implementation strategies necessary for successful system development.
+
+*End of Section 19*
 
 ## Key Advantages of LICS for Primate Research
 
-### 1. **No-Code Operation**
-Researchers interact **only through web interface**:
-- Add new tasks via visual builder (no JavaScript knowledge)
-- Configure experiment parameters via forms (no config files)
-- Register hardware via device management UI (no GPIO code)
-- Generate reports via template selection (no data analysis scripts)
+### 1. **Scratch-Based No-Code Operation**
+Researchers interact **only through Scratch visual interface**:
+- Build tasks with drag-and-drop blocks (no JavaScript knowledge)
+- Configure experiment parameters via block properties (no config files)
+- Register hardware via Scratch extensions (no GPIO code)
+- Generate reports via Scratch reporter blocks (no data analysis scripts)
 
 ### 2. **Flexibility Without Code Changes**
-- **Add new task types**: Visual builder → JSON schema → automatic backend adaptation
-- **Add new hardware**: Web form → database update → edge agent polls and adapts
-- **Modify parameters**: Edit config → backend validates → edge agent receives update
-- **Custom reports**: Select metrics → system generates appropriate visualizations
+- **Add new task types**: Scratch blocks → automatic backend adaptation
+- **Add new hardware**: Scratch extension → edge agent integration
+- **Modify parameters**: Edit blocks → backend validates → edge receives
+- **Custom reports**: Select data blocks → system generates visualizations
 
 ### 3. **Multi-Lab Scalability**
 - **Organization isolation**: Each lab has separate data, users, devices
-- **Template sharing**: Labs can publish/subscribe to task templates
+- **Template sharing**: Labs can publish/subscribe to Scratch templates
 - **Collaborative studies**: Cross-lab data aggregation with privacy controls
 
 ### 4. **Real-Time Monitoring**
@@ -3576,12 +3488,46 @@ Researchers interact **only through web interface**:
 
 ### 5. **Data Integrity and Reproducibility**
 - **Complete audit trail**: Every parameter, result, and event logged
-- **Version control**: Task definitions, configurations, and protocols versioned
-- **Exact replication**: Re-run experiments with identical parameters
+- **Version control**: Scratch projects, configurations, and protocols versioned
+- **Exact replication**: Re-run experiments with identical Scratch projects
 - **Statistical validation**: Built-in analysis tools, export to R/Python/MATLAB
 
 ---
 
-*Version: 2.0.0*
-*Last Updated: December 2024*
-*Authors: LICS Development Team*
+## 20. Error Handling & Recovery Procedures
+
+### 20.1 Error Classification
+| Category | Examples | Recovery | User Impact |
+|----------|----------|----------|-------------|
+| Transient | Network timeout, Rate limit | Automatic retry with backoff | Delayed response |
+| Recoverable | Database lock, Queue full | Circuit breaker + fallback | Degraded service |
+| Critical | Data corruption, Security breach | Manual intervention | Service unavailable |
+| Fatal | Hardware failure, Data loss | Disaster recovery | Extended outage |
+
+### 20.2 Retry Strategy
+```yaml
+retry_policy:
+  max_attempts: 3
+  backoff:
+    initial: 1s
+    multiplier: 2
+    max: 30s
+  retryable_errors:
+    - CONNECTION_TIMEOUT
+    - SERVICE_UNAVAILABLE
+    - RATE_LIMITED
+```
+
+### 20.3 Circuit Breaker Configuration
+- Failure threshold: 50% over 10 requests
+- Timeout: 30 seconds
+- Half-open test: 1 request every 5 seconds
+- Recovery: 3 successful requests
+
+### 20.4 Graceful Degradation Modes
+1. **Read-only mode**: Database writes disabled
+2. **Local mode**: Edge devices operate independently
+3. **Essential mode**: Only critical operations allowed
+4. **Maintenance mode**: User-facing services disabled
+
+---

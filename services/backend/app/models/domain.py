@@ -129,7 +129,7 @@ class Device(OrganizationBaseModelFull):
     )
 
     device_type: Mapped[DeviceType] = mapped_column(
-        Enum(DeviceType),
+        Enum(DeviceType, values_callable=lambda obj: [e.value for e in obj]),
         nullable=False,
         default=DeviceType.RASPBERRY_PI,
         doc="Type of device (raspberry_pi, arduino, custom, simulation)"
@@ -160,7 +160,7 @@ class Device(OrganizationBaseModelFull):
 
     # Device status and health
     status: Mapped[DeviceStatus] = mapped_column(
-        Enum(DeviceStatus),
+        Enum(DeviceStatus, values_callable=lambda obj: [e.value for e in obj]),
         nullable=False,
         default=DeviceStatus.OFFLINE,
         index=True,
@@ -397,7 +397,7 @@ class Experiment(OrganizationBaseModelFull):
 
     # Status and lifecycle
     status: Mapped[ExperimentStatus] = mapped_column(
-        Enum(ExperimentStatus),
+        Enum(ExperimentStatus, values_callable=lambda obj: [e.value for e in obj]),
         nullable=False,
         default=ExperimentStatus.DRAFT,
         index=True,
@@ -699,6 +699,14 @@ class Task(OrganizationBaseModelFull):
         doc="Whether this task is publicly available"
     )
 
+    is_published: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False,
+        index=True,
+        doc="Whether this task is published to the marketplace"
+    )
+
     # Task definition
     definition: Mapped[Dict[str, Any]] = mapped_column(
         JSON,
@@ -849,10 +857,10 @@ class Participant(OrganizationBaseModelFull):
     __tablename__ = 'participants'
 
     # Experiment relationship
-    experiment_id: Mapped[uuid.UUID] = mapped_column(
+    experiment_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey('experiments.id'),
-        nullable=False,
+        nullable=True,
         index=True,
         doc="Experiment this participant belongs to"
     )
@@ -897,7 +905,7 @@ class Participant(OrganizationBaseModelFull):
 
     # Status and tracking
     status: Mapped[ParticipantStatus] = mapped_column(
-        Enum(ParticipantStatus),
+        Enum(ParticipantStatus, values_callable=lambda obj: [e.value for e in obj]),
         nullable=False,
         default=ParticipantStatus.ACTIVE,
         index=True,
@@ -1008,6 +1016,14 @@ class TaskExecution(OrganizationBaseModelFull):
         doc="Experiment this execution is part of (if any)"
     )
 
+    participant_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey('participants.id'),
+        nullable=True,
+        index=True,
+        doc="Participant this execution is associated with (if any)"
+    )
+
     # Execution metadata
     execution_id: Mapped[str] = mapped_column(
         String(100),
@@ -1018,7 +1034,7 @@ class TaskExecution(OrganizationBaseModelFull):
     )
 
     status: Mapped[TaskStatus] = mapped_column(
-        Enum(TaskStatus),
+        Enum(TaskStatus, values_callable=lambda obj: [e.value for e in obj]),
         nullable=False,
         default=TaskStatus.PENDING,
         index=True,

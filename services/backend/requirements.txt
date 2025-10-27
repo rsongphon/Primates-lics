@@ -27,6 +27,9 @@ python-socketio[asyncio_client]>=5.10.0
 influxdb-client>=1.38.0
 prometheus-client>=0.19.0
 
+# Resilience patterns
+pybreaker>=1.0.1
+
 # MQTT
 paho-mqtt>=1.6.0
 aiomqtt>=2.0.0

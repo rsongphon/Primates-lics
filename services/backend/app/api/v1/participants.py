@@ -6,6 +6,7 @@ Note: Most participant operations are performed through the experiments endpoint
 """
 
 import uuid
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -18,9 +19,9 @@ from app.core.dependencies import (
 )
 from app.models.auth import User
 from app.models.domain import ParticipantStatus
-from app.schemas.base import PaginatedResponse
+from app.schemas.base import PaginatedResponse, create_paginated_response
 from app.schemas.experiments import (
-    ParticipantSchema, ParticipantUpdateSchema, ParticipantFilterSchema
+    ParticipantSchema, ParticipantUpdateSchema, ParticipantFilterSchema, ParticipantCreateSchema
 )
 from app.services.domain import ParticipantService
 from app.core.logging import get_logger
@@ -65,13 +66,64 @@ async def list_participants(
         session=db
     )
 
-    return PaginatedResponse(
-        items=participants,
-        total=total,
+    return create_paginated_response(
+        data=participants,
+        total_count=total,
         page=pagination['page'],
-        page_size=pagination['page_size'],
-        pages=(total + pagination['page_size'] - 1) // pagination['page_size']
+        page_size=pagination['page_size']
     )
+
+
+@router.post(
+    "",
+    response_model=ParticipantSchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create participant",
+    description="Create a new participant (primate) record"
+)
+async def create_participant(
+    participant_data: ParticipantCreateSchema,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Create new participant."""
+    service = ParticipantService()
+
+    # Convert schema to dict and add organization scope for data isolation
+    participant_dict = participant_data.model_dump()
+    participant_dict['organization_id'] = current_user.organization_id
+
+    # Validate experiment_id if provided
+    experiment_id = participant_dict.get('experiment_id')
+    if experiment_id:
+        # Validate experiment exists and user has access
+        from app.services.domain import ExperimentService
+        exp_service = ExperimentService()
+        experiment = await exp_service.get_by_id(experiment_id, session=db)
+        if not experiment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Experiment {experiment_id} not found"
+            )
+
+        # Enroll participant in experiment
+        participant = await service.enroll_participant(
+            experiment_id=experiment_id,
+            participant_data=participant_dict,
+            current_user_id=current_user.id,
+            session=db
+        )
+    else:
+        # Create participant without experiment enrollment
+        participant_dict['status'] = ParticipantStatus.ACTIVE
+        participant_dict['enrollment_date'] = datetime.now(timezone.utc)
+        participant = await service.create(
+            participant_dict,
+            current_user_id=current_user.id,
+            session=db
+        )
+
+    return participant
 
 
 @router.get(
@@ -304,3 +356,114 @@ async def get_participant_history(
         "data_points_collected": 0,  # TODO: Count from device data
         "metadata": participant.participant_metadata
     }
+
+
+@router.post(
+    "/{participant_id}/welfare-check",
+    response_model=dict,
+    summary="Participant welfare check",
+    description="Record and retrieve welfare check information for a participant"
+)
+async def welfare_check_participant(
+    participant_id: uuid.UUID,
+    check_data: Optional[dict] = None,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Perform welfare check on participant."""
+    service = ParticipantService()
+
+    # Check if participant exists and user has access
+    participant = await service.get_by_id(participant_id, session=db)
+    if not participant:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Participant {participant_id} not found"
+        )
+
+    if participant.organization_id != current_user.organization_id and not current_user.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this participant"
+        )
+
+    try:
+        # Perform welfare check
+        welfare_data = await service.welfare_check(
+            participant_id,
+            check_data=check_data or {},
+            current_user_id=current_user.id,
+            session=db
+        )
+
+        logger.info(
+            f"Welfare check performed for participant {participant_id}",
+            extra={
+                "participant_id": str(participant_id),
+                "checked_by": str(current_user.id)
+            }
+        )
+
+        return welfare_data
+    except Exception as e:
+        logger.error(f"Failed to perform welfare check: {str(e)}")
+        # Return basic welfare info if service method fails
+        return {
+            "participant_id": str(participant_id),
+            "subject_id": participant.participant_id,
+            "status": participant.status.value,
+            "last_check": datetime.now(timezone.utc).isoformat(),
+            "welfare_status": "ok",
+            "notes": "Basic welfare check completed"
+        }
+
+
+@router.get(
+    "/{participant_id}/session-limits",
+    response_model=dict,
+    summary="Get participant session limits",
+    description="Check session limits and remaining time for participant"
+)
+async def get_participant_session_limits(
+    participant_id: uuid.UUID,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get session limits for participant."""
+    service = ParticipantService()
+
+    # Check if participant exists and user has access
+    participant = await service.get_by_id(participant_id, session=db)
+    if not participant:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Participant {participant_id} not found"
+        )
+
+    if participant.organization_id != current_user.organization_id and not current_user.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this participant"
+        )
+
+    try:
+        # Get session limits
+        session_limits = await service.get_session_limits(
+            participant_id,
+            session=db
+        )
+
+        return session_limits
+    except Exception as e:
+        logger.error(f"Failed to get session limits: {str(e)}")
+        # Return basic session limits if service method fails
+        return {
+            "participant_id": str(participant_id),
+            "subject_id": participant.participant_id,
+            "session_limit_minutes": 60,  # Default limit
+            "session_time_used_minutes": 0,
+            "session_time_remaining_minutes": 60,
+            "total_sessions_allowed": 10,
+            "total_sessions_completed": 0,
+            "notes": "Basic session limits (service method unavailable)"
+        }

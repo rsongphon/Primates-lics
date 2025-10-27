@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends
 
 from app.api.v1 import (
     health, auth, rbac, organizations, devices,
-    experiments, tasks, participants, tasks_monitoring
+    experiments, tasks, participants, tasks_monitoring, monitoring
 )
 from app.core.config import settings
 from app.core.dependencies import get_current_user
@@ -25,6 +25,18 @@ api_router.include_router(
     responses={
         503: {"description": "Service Unavailable"},
         500: {"description": "Internal Server Error"}
+    }
+)
+
+# Include system monitoring endpoints (requires authentication)
+api_router.include_router(
+    monitoring.router,
+    prefix="/monitoring",
+    tags=["monitoring"],
+    responses={
+        401: {"description": "Unauthorized"},
+        403: {"description": "Forbidden"},
+        503: {"description": "Service Unavailable"}
     }
 )
 

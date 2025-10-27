@@ -422,7 +422,14 @@ def set_updated_by_from_context(mapper, connection, target):
 
 # ===== CORE DOMAIN MODELS =====
 
-class Organization(BaseModelWithSoftDelete):
+class OrganizationBaseModel(BaseModel, SoftDeleteMixin, AuditMixin):
+    """
+    Base model class for organizations with soft delete and audit support.
+    Matches the actual database schema with audit fields.
+    """
+    __abstract__ = True
+
+class Organization(OrganizationBaseModel):
     """
     Organization model for multi-tenant support.
 

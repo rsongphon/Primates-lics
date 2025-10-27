@@ -154,20 +154,26 @@ app.add_middleware(RateLimitingMiddleware)
 # Authentication middleware (needs session from DatabaseSessionMiddleware)
 app.add_middleware(AuthenticationMiddleware)
 
-# Database session middleware (MUST run first to create session)
-# Added last so it executes first due to reverse order
-app.add_middleware(DatabaseSessionMiddleware)
-
-# CORS middleware
+# CORS middleware (must be first to handle OPTIONS preflight requests)
 if settings.BACKEND_CORS_ORIGINS:
+    # In development, be more permissive to support testing
+    allow_origins = [str(origin) for origin in settings.BACKEND_CORS_ORIGINS]
+    if settings.is_development():
+        # Add wildcard for development testing
+        allow_origins.append("*")
+
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
+        allow_origins=allow_origins,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
         allow_headers=["*"],
         expose_headers=["X-Correlation-ID", "X-RateLimit-Limit", "X-RateLimit-Remaining"]
     )
+
+# Database session middleware (MUST run first to create session)
+# Added last so it executes first due to reverse order
+app.add_middleware(DatabaseSessionMiddleware)
 
 # Trusted host middleware
 if settings.ALLOWED_HOSTS and settings.ALLOWED_HOSTS != ["*"]:
@@ -336,10 +342,40 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content={
+            "detail": errors,  # FastAPI compatibility
             "error": {
                 "code": "VALIDATION_ERROR",
                 "message": "Request validation failed",
                 "details": {"validation_errors": errors},
+                "trace_id": correlation_id
+            }
+        },
+        headers={"X-Correlation-ID": correlation_id}
+    )
+
+
+@app.exception_handler(404)
+async def not_found_exception_handler(request: Request, exc):
+    """
+    Custom 404 exception handler.
+    """
+    correlation_id = getattr(request.state, "correlation_id", str(uuid.uuid4()))
+
+    logger.info(
+        f"Resource not found: {request.method} {request.url.path}",
+        extra={
+            "correlation_id": correlation_id,
+            "url": str(request.url),
+            "method": request.method
+        }
+    )
+
+    return JSONResponse(
+        status_code=status.HTTP_404_NOT_FOUND,
+        content={
+            "error": {
+                "code": "NOT_FOUND",
+                "message": "The requested resource was not found",
                 "trace_id": correlation_id
             }
         },
@@ -460,6 +496,17 @@ async def prometheus_metrics():
     try:
         from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
         from fastapi.responses import Response
+        from app.tasks.metrics import worker_info
+
+        # Set worker info if not already set
+        try:
+            worker_info.info({
+                'version': '1.0.0',
+                'environment': settings.ENVIRONMENT,
+                'service': 'lics-backend'
+            })
+        except Exception:
+            pass  # Worker info might already be set
 
         # Generate Prometheus metrics output
         metrics_output = generate_latest()
@@ -470,10 +517,17 @@ async def prometheus_metrics():
             headers={"Cache-Control": "no-cache"}
         )
 
-    except ImportError:
+    except ImportError as e:
+        logger.error(f"Prometheus metrics import error: {e}")
         return JSONResponse(
             content={"error": "Prometheus metrics not available - prometheus_client not installed"},
             status_code=503
+        )
+    except Exception as e:
+        logger.error(f"Error generating Prometheus metrics: {e}")
+        return JSONResponse(
+            content={"error": "Failed to generate Prometheus metrics"},
+            status_code=500
         )
 
 

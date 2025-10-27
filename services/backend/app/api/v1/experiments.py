@@ -7,19 +7,19 @@ lifecycle management, participant tracking, and data export.
 
 import uuid
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import (
-    get_current_user, get_current_active_user,
+    get_current_user, get_current_active_user, get_current_verified_user,
     require_permissions, PaginationParams, get_pagination
 )
 from app.models.auth import User
 from app.models.domain import ExperimentStatus
-from app.schemas.base import PaginatedResponse
+from app.schemas.base import PaginatedResponse, create_paginated_response
 from app.schemas.experiments import (
     ExperimentSchema, ExperimentCreateSchema, ExperimentUpdateSchema,
     ExperimentFilterSchema,
@@ -27,6 +27,7 @@ from app.schemas.experiments import (
     ParticipantFilterSchema
 )
 from app.services.domain import ExperimentService, ParticipantService
+from app.services.base import ConflictError
 from app.core.logging import get_logger
 from app.websocket.emitters import emit_experiment_lifecycle, emit_experiment_progress
 
@@ -76,12 +77,11 @@ async def list_experiments(
         session=db
     )
 
-    return PaginatedResponse(
-        items=experiments,
-        total=total,
+    return create_paginated_response(
+        data=experiments,
+        total_count=total,
         page=pagination['page'],
-        page_size=pagination['page_size'],
-        pages=(total + pagination['page_size'] - 1) // pagination['page_size']
+        page_size=pagination['page_size']
     )
 
 
@@ -95,7 +95,7 @@ async def list_experiments(
 )
 async def create_experiment(
     experiment_data: ExperimentCreateSchema,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_verified_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new experiment."""
@@ -107,11 +107,21 @@ async def create_experiment(
         experiment_dict['organization_id'] = current_user.organization_id
 
         # Set created_by if not specified
-        if 'created_by_id' not in experiment_dict:
-            experiment_dict['created_by_id'] = current_user.id
+        if 'created_by' not in experiment_dict:
+            experiment_dict['created_by'] = current_user.id
 
-        experiment = await service.create(
+        # Set principal_investigator_id if not specified (default to current user)
+        if 'principal_investigator_id' not in experiment_dict or experiment_dict.get('principal_investigator_id') is None:
+            experiment_dict['principal_investigator_id'] = current_user.id
+
+        # Extract device_ids and task_ids to pass separately
+        device_ids = experiment_dict.pop('device_ids', None)
+        task_ids = experiment_dict.pop('task_ids', None)
+
+        experiment = await service.create_experiment(
             experiment_dict,
+            device_ids=device_ids,
+            task_ids=task_ids,
             current_user_id=current_user.id,
             session=db
         )
@@ -265,6 +275,69 @@ async def delete_experiment(
 # ===== EXPERIMENT LIFECYCLE MANAGEMENT =====
 
 @router.post(
+    "/{experiment_id}/ready",
+    response_model=ExperimentSchema,
+    summary="Ready experiment",
+    description="Transition experiment from draft to ready status",
+    dependencies=[Depends(require_permissions("experiment:control"))]
+)
+async def ready_experiment(
+    experiment_id: uuid.UUID,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Ready an experiment."""
+    service = ExperimentService()
+
+    # Check if experiment exists and user has access
+    experiment = await service.get_by_id(experiment_id, session=db)
+    if not experiment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Experiment {experiment_id} not found"
+        )
+
+    if experiment.organization_id != current_user.organization_id and not current_user.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to control this experiment"
+        )
+
+    try:
+        from app.models.domain import ExperimentStatus
+        if experiment.status != ExperimentStatus.DRAFT:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Experiment must be in DRAFT status to ready, current status: {experiment.status}"
+            )
+
+        # Update experiment status to ready
+        experiment.status = ExperimentStatus.READY
+        await db.commit()
+        await db.refresh(experiment)
+
+        logger.info(
+            f"Experiment readied",
+            extra={
+                "experiment_id": str(experiment_id),
+                "readied_by": str(current_user.id)
+            }
+        )
+
+        return experiment
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Failed to ready experiment: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@router.post(
     "/{experiment_id}/start",
     response_model=ExperimentSchema,
     summary="Start experiment",
@@ -363,6 +436,7 @@ async def pause_experiment(
 
         paused_experiment = await service.pause_experiment(
             experiment_id,
+            current_user_id=current_user.id,
             session=db
         )
         logger.info(
@@ -383,8 +457,84 @@ async def pause_experiment(
         )
 
         return paused_experiment
+    except ConflictError as e:
+        logger.warning(f"Conflict pausing experiment: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e)
+        )
     except Exception as e:
         logger.error(f"Failed to pause experiment: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@router.post(
+    "/{experiment_id}/resume",
+    response_model=ExperimentSchema,
+    summary="Resume experiment",
+    description="Resume a paused experiment",
+    dependencies=[Depends(require_permissions("experiment:control"))]
+)
+async def resume_experiment(
+    experiment_id: uuid.UUID,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Resume an experiment."""
+    service = ExperimentService()
+
+    # Check if experiment exists and user has access
+    experiment = await service.get_by_id(experiment_id, session=db)
+    if not experiment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Experiment {experiment_id} not found"
+        )
+
+    if experiment.organization_id != current_user.organization_id and not current_user.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to control this experiment"
+        )
+
+    try:
+        # Get previous state for WebSocket event
+        previous_state = experiment.status.value
+
+        resumed_experiment = await service.resume_experiment(
+            experiment_id,
+            current_user_id=current_user.id,
+            session=db
+        )
+        logger.info(
+            f"Experiment resumed",
+            extra={
+                "experiment_id": str(experiment_id),
+                "resumed_by": str(current_user.id)
+            }
+        )
+
+        # Emit WebSocket event for real-time lifecycle updates
+        await emit_experiment_lifecycle(
+            experiment_id=experiment_id,
+            state="running",
+            previous_state=previous_state,
+            triggered_by=current_user.id,
+            reason="Experiment resumed by user"
+        )
+
+        return resumed_experiment
+    except ConflictError as e:
+        logger.warning(f"Conflict resuming experiment: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e)
+        )
+    except Exception as e:
+        logger.error(f"Failed to resume experiment: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
@@ -426,6 +576,7 @@ async def complete_experiment(
 
         completed_experiment = await service.complete_experiment(
             experiment_id,
+            current_user_id=current_user.id,
             session=db
         )
         logger.info(
@@ -446,6 +597,12 @@ async def complete_experiment(
         )
 
         return completed_experiment
+    except ConflictError as e:
+        logger.warning(f"Conflict completing experiment: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(e)
+        )
     except Exception as e:
         logger.error(f"Failed to complete experiment: {str(e)}")
         raise HTTPException(
@@ -676,3 +833,117 @@ async def get_experiment_stats(
         "completed_tasks": 0,  # TODO: Count completed task executions
         "total_data_points": 0  # TODO: Count from DeviceData
     }
+
+
+@router.post(
+    "/{experiment_id}/data",
+    response_model=dict,
+    summary="Collect experiment data",
+    description="Submit and store experiment data collection from devices"
+)
+async def collect_experiment_data(
+    experiment_id: uuid.UUID,
+    data_submission: dict,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Collect experiment data from devices."""
+    service = ExperimentService()
+
+    # Check if experiment exists and user has access
+    experiment = await service.get_by_id(experiment_id, session=db)
+    if not experiment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Experiment {experiment_id} not found"
+        )
+
+    if experiment.organization_id != current_user.organization_id and not current_user.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this experiment"
+        )
+
+    try:
+        # Validate experiment is in a state that can accept data
+        if experiment.status not in [ExperimentStatus.RUNNING, ExperimentStatus.PAUSED]:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Experiment must be running or paused to collect data, current status: {experiment.status}"
+            )
+
+        # Process data submission
+        from app.services.domain import DeviceDataService
+        device_service = DeviceDataService()
+
+        # Extract data points from submission
+        device_id = data_submission.get('device_id')
+        if not device_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="device_id is required in data submission"
+            )
+
+        # Convert device_id to UUID if needed
+        if isinstance(device_id, str):
+            device_id = uuid.UUID(device_id)
+
+        # Prepare data points for storage
+        data_points = data_submission.get('data_points', [])
+        if not data_points:
+            # If no data_points array, treat the whole submission as one data point
+            data_points = [data_submission]
+
+        processed_data_points = []
+        for data_point in data_points:
+            # Prepare metadata with experiment and participant context
+            metadata = data_point.get('metadata', {})
+            metadata['experiment_id'] = str(experiment_id)
+            if data_point.get('participant_id'):
+                metadata['participant_id'] = str(data_point.get('participant_id'))
+
+            processed_point = {
+                'device_id': device_id,
+                'data_type': 'experiment_data',
+                'data_source': data_point.get('metric', 'unknown'),
+                'numeric_value': data_point.get('value'),
+                'string_value': str(data_point.get('value')) if not isinstance(data_point.get('value'), (int, float)) else None,
+                'timestamp': datetime.now(timezone.utc),
+                'units': data_point.get('units'),
+                'data_metadata': metadata
+            }
+            processed_data_points.append(processed_point)
+
+        # Store data points
+        created_data = await device_service.record_telemetry_data(
+            device_id,
+            processed_data_points,
+            session=db
+        )
+
+        logger.info(
+            f"Experiment data collected for experiment {experiment_id}",
+            extra={
+                "experiment_id": str(experiment_id),
+                "device_id": str(device_id),
+                "data_points_count": len(created_data),
+                "submitted_by": str(current_user.id)
+            }
+        )
+
+        return {
+            "message": "Experiment data collected successfully",
+            "experiment_id": str(experiment_id),
+            "device_id": str(device_id),
+            "data_points": len(created_data),
+            "submission_time": datetime.now(timezone.utc).isoformat()
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to collect experiment data: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )

@@ -245,12 +245,12 @@ generate-test-report: ## Generate formatted test report from JSON results (usage
 	fi
 	@echo "$(YELLOW)Generating test report from $(INPUT)...$(NC)"
 	@mkdir -p test-results/reports
-	@TIMESTAMP="$(shell date +%Y%m%d_%H%M%S)"; \
-	REPORT_BASE="test-results/reports/report_$$TIMESTAMP"; \
-	python3 tools/scripts/generate-test-report.py --input $(INPUT) --format both --output $$REPORT_BASE.md; \
+	@TIMESTAMP=$$(date +%Y%m%d_%H%M%S); \
+	REPORT_BASE="test-results/reports/report_$${TIMESTAMP}"; \
+	python3 tools/scripts/generate-test-report.py --input $(INPUT) --format both --output $${REPORT_BASE}.md; \
 	echo "$(GREEN)✓ Test report generated$(NC)"; \
-	echo "  📝 Markdown: $$REPORT_BASE.md"; \
-	echo "  🌐 HTML:     $$REPORT_BASE.html"
+	echo "  📝 Markdown: $${REPORT_BASE}.md"; \
+	echo "  🌐 HTML:     $${REPORT_BASE}.html"
 
 clean-test-reports: ## Remove all test reports from test-results/reports directory
 	@echo "$(YELLOW)Cleaning test reports...$(NC)"
@@ -267,19 +267,19 @@ test-phase1-full: ## Run Phase 1 tests and generate reports (complete workflow)
 	@RESULT_FILE="test-results/phase1_manual_$(shell date +%Y%m%d_%H%M%S).json"; \
 	REPORT_BASE="test-results/reports/phase1_report_$(shell date +%Y%m%d_%H%M%S)"; \
 	echo "$(YELLOW)Step 1/2: Running automated tests...$(NC)"; \
-	python3 tools/scripts/test-phase1-manual-suite.py --test all --format json --output $$RESULT_FILE --verbose || true; \
+	python3 tools/scripts/test-phase1-manual-suite.py --test all --format json --output $${RESULT_FILE} --verbose || true; \
 	echo "$(YELLOW)Step 2/2: Generating reports...$(NC)"; \
-	python3 tools/scripts/generate-test-report.py --input $$RESULT_FILE --format both --output $$REPORT_BASE.md; \
+	python3 tools/scripts/generate-test-report.py --input $${RESULT_FILE} --format both --output $${REPORT_BASE}.md; \
 	echo ""; \
 	echo "$(GREEN)✓ Complete Phase 1 test workflow finished$(NC)"; \
 	echo ""; \
 	echo "$(YELLOW)Generated Files:$(NC)"; \
-	echo "  JSON Results:  $$RESULT_FILE"; \
-	echo "  Markdown Report: $$REPORT_BASE.md"; \
-	echo "  HTML Report:   $$REPORT_BASE.html"; \
+	echo "  JSON Results:  $${RESULT_FILE}"; \
+	echo "  Markdown Report: $${REPORT_BASE}.md"; \
+	echo "  HTML Report:   $${REPORT_BASE}.html"; \
 	echo ""; \
 	echo "$(YELLOW)Open HTML report:$(NC)"; \
-	echo "  open $$REPORT_BASE.html"
+	echo "  open $${REPORT_BASE}.html"
 
 ## Phase 2 Manual Test Automation
 test-phase2-manual: ## Run all Phase 2 manual tests (automated - 125 tests)
@@ -329,27 +329,27 @@ test-phase2-list: ## List all available Phase 2 test cases (125 total)
 test-phase2-full: ## Run Phase 2 tests and generate markdown + HTML reports (complete workflow)
 	@echo "$(YELLOW)Starting complete Phase 2 test workflow...$(NC)"
 	@mkdir -p test-results test-results/reports
-	@TIMESTAMP="$(shell date +%Y%m%d_%H%M%S)"; \
-	RESULT_FILE="test-results/phase2_manual_$$TIMESTAMP.json"; \
-	REPORT_BASE="test-results/reports/phase2_report_$$TIMESTAMP"; \
+	@TIMESTAMP=$$(date +%Y%m%d_%H%M%S); \
+	RESULT_FILE="test-results/phase2_manual_$${TIMESTAMP}.json"; \
+	REPORT_BASE="test-results/reports/phase2_report_$${TIMESTAMP}"; \
 	echo "$(YELLOW)Step 1/2: Running automated Phase 2 tests (125 tests)...$(NC)"; \
-	python3 tools/scripts/test-phase2-manual.py --verbose --output $$RESULT_FILE || true; \
+	python3 tools/scripts/test-phase2-manual.py --verbose --output $${RESULT_FILE} || true; \
 	echo ""; \
 	echo "$(YELLOW)Step 2/2: Generating test reports (Markdown + HTML)...$(NC)"; \
-	python3 tools/scripts/generate-test-report.py --input $$RESULT_FILE --format both --output $$REPORT_BASE.md; \
+	python3 tools/scripts/generate-test-report.py --input $${RESULT_FILE} --format both --output $${REPORT_BASE}.md; \
 	echo ""; \
 	echo "$(GREEN)================================================================$(NC)"; \
 	echo "$(GREEN)✓ Complete Phase 2 test workflow finished successfully$(NC)"; \
 	echo "$(GREEN)================================================================$(NC)"; \
 	echo ""; \
 	echo "$(YELLOW)Generated Files:$(NC)"; \
-	echo "  📄 JSON Results:     $$RESULT_FILE"; \
-	echo "  📝 Markdown Report:  $$REPORT_BASE.md"; \
-	echo "  🌐 HTML Report:      $$REPORT_BASE.html"; \
+	echo "  📄 JSON Results:     $${RESULT_FILE}"; \
+	echo "  📝 Markdown Report:  $${REPORT_BASE}.md"; \
+	echo "  🌐 HTML Report:      $${REPORT_BASE}.html"; \
 	echo ""; \
 	echo "$(YELLOW)Quick Actions:$(NC)"; \
-	echo "  View Markdown: cat $$REPORT_BASE.md"; \
-	echo "  Open HTML:     open $$REPORT_BASE.html"; \
+	echo "  View Markdown: cat $${REPORT_BASE}.md"; \
+	echo "  Open HTML:     open $${REPORT_BASE}.html"; \
 	echo ""; \
 	echo "$(YELLOW)Reports saved to:$(NC) test-results/reports/"
 
@@ -357,116 +357,116 @@ test-phase2-full: ## Run Phase 2 tests and generate markdown + HTML reports (com
 test-phase2-app: ## Run Phase 2 Application Foundation tests (5 tests) with reports
 	@echo "$(YELLOW)Running Application Foundation tests (5 tests)...$(NC)"
 	@mkdir -p test-results test-results/reports
-	@TIMESTAMP="$(shell date +%Y%m%d_%H%M%S)"; \
-	RESULT_FILE="test-results/phase2_app_$$TIMESTAMP.json"; \
-	REPORT_BASE="test-results/reports/phase2_app_report_$$TIMESTAMP"; \
+	@TIMESTAMP=$$(date +%Y%m%d_%H%M%S); \
+	RESULT_FILE="test-results/phase2_app_$${TIMESTAMP}.json"; \
+	REPORT_BASE="test-results/reports/phase2_app_report_$${TIMESTAMP}"; \
 	echo "$(YELLOW)Step 1/2: Running tests...$(NC)"; \
-	python3 tools/scripts/test-phase2-manual.py --category app --verbose --output $$RESULT_FILE || true; \
+	python3 tools/scripts/test-phase2-manual.py --category app --verbose --output $${RESULT_FILE} || true; \
 	echo ""; \
 	echo "$(YELLOW)Step 2/2: Generating test reports...$(NC)"; \
-	python3 tools/scripts/generate-test-report.py --input $$RESULT_FILE --format both --output $$REPORT_BASE.md; \
+	python3 tools/scripts/generate-test-report.py --input $${RESULT_FILE} --format both --output $${REPORT_BASE}.md; \
 	echo ""; \
 	echo "$(GREEN)✓ Application Foundation tests completed$(NC)"; \
 	echo ""; \
 	echo "$(YELLOW)Generated Files:$(NC)"; \
-	echo "  📄 JSON:     $$RESULT_FILE"; \
-	echo "  📝 Markdown: $$REPORT_BASE.md"; \
-	echo "  🌐 HTML:     $$REPORT_BASE.html"
+	echo "  📄 JSON:     $${RESULT_FILE}"; \
+	echo "  📝 Markdown: $${REPORT_BASE}.md"; \
+	echo "  🌐 HTML:     $${REPORT_BASE}.html"
 
 test-phase2-auth: ## Run Phase 2 Authentication tests (20 tests) with reports
 	@echo "$(YELLOW)Running Authentication & Authorization tests (20 tests)...$(NC)"
 	@mkdir -p test-results test-results/reports
-	@TIMESTAMP="$(shell date +%Y%m%d_%H%M%S)"; \
-	RESULT_FILE="test-results/phase2_auth_$$TIMESTAMP.json"; \
-	REPORT_BASE="test-results/reports/phase2_auth_report_$$TIMESTAMP"; \
+	@TIMESTAMP=$$(date +%Y%m%d_%H%M%S); \
+	RESULT_FILE="test-results/phase2_auth_$${TIMESTAMP}.json"; \
+	REPORT_BASE="test-results/reports/phase2_auth_report_$${TIMESTAMP}"; \
 	echo "$(YELLOW)Step 1/2: Running tests...$(NC)"; \
-	python3 tools/scripts/test-phase2-manual.py --category auth --verbose --output $$RESULT_FILE || true; \
+	python3 tools/scripts/test-phase2-manual.py --category auth --verbose --output $${RESULT_FILE} || true; \
 	echo ""; \
 	echo "$(YELLOW)Step 2/2: Generating test reports...$(NC)"; \
-	python3 tools/scripts/generate-test-report.py --input $$RESULT_FILE --format both --output $$REPORT_BASE.md; \
+	python3 tools/scripts/generate-test-report.py --input $${RESULT_FILE} --format both --output $${REPORT_BASE}.md; \
 	echo ""; \
 	echo "$(GREEN)✓ Authentication tests completed$(NC)"; \
 	echo ""; \
 	echo "$(YELLOW)Generated Files:$(NC)"; \
-	echo "  📄 JSON:     $$RESULT_FILE"; \
-	echo "  📝 Markdown: $$REPORT_BASE.md"; \
-	echo "  🌐 HTML:     $$REPORT_BASE.html"
+	echo "  📄 JSON:     $${RESULT_FILE}"; \
+	echo "  📝 Markdown: $${REPORT_BASE}.md"; \
+	echo "  🌐 HTML:     $${REPORT_BASE}.html"
 
 test-phase2-domain: ## Run Phase 2 Domain Model tests (15 tests) with reports
 	@echo "$(YELLOW)Running Core Domain Models tests (15 tests)...$(NC)"
 	@mkdir -p test-results test-results/reports
-	@TIMESTAMP="$(shell date +%Y%m%d_%H%M%S)"; \
-	RESULT_FILE="test-results/phase2_domain_$$TIMESTAMP.json"; \
-	REPORT_BASE="test-results/reports/phase2_domain_report_$$TIMESTAMP"; \
+	@TIMESTAMP=$$(date +%Y%m%d_%H%M%S); \
+	RESULT_FILE="test-results/phase2_domain_$${TIMESTAMP}.json"; \
+	REPORT_BASE="test-results/reports/phase2_domain_report_$${TIMESTAMP}"; \
 	echo "$(YELLOW)Step 1/2: Running tests...$(NC)"; \
-	python3 tools/scripts/test-phase2-manual.py --category domain --verbose --output $$RESULT_FILE || true; \
+	python3 tools/scripts/test-phase2-manual.py --category domain --verbose --output $${RESULT_FILE} || true; \
 	echo ""; \
 	echo "$(YELLOW)Step 2/2: Generating test reports...$(NC)"; \
-	python3 tools/scripts/generate-test-report.py --input $$RESULT_FILE --format both --output $$REPORT_BASE.md; \
+	python3 tools/scripts/generate-test-report.py --input $${RESULT_FILE} --format both --output $${REPORT_BASE}.md; \
 	echo ""; \
 	echo "$(GREEN)✓ Domain Model tests completed$(NC)"; \
 	echo ""; \
 	echo "$(YELLOW)Generated Files:$(NC)"; \
-	echo "  📄 JSON:     $$RESULT_FILE"; \
-	echo "  📝 Markdown: $$REPORT_BASE.md"; \
-	echo "  🌐 HTML:     $$REPORT_BASE.html"
+	echo "  📄 JSON:     $${RESULT_FILE}"; \
+	echo "  📝 Markdown: $${REPORT_BASE}.md"; \
+	echo "  🌐 HTML:     $${REPORT_BASE}.html"
 
 test-phase2-api: ## Run Phase 2 RESTful API tests (40 tests) with reports
 	@echo "$(YELLOW)Running RESTful API Implementation tests (40 tests)...$(NC)"
 	@mkdir -p test-results test-results/reports
-	@TIMESTAMP="$(shell date +%Y%m%d_%H%M%S)"; \
-	RESULT_FILE="test-results/phase2_api_$$TIMESTAMP.json"; \
-	REPORT_BASE="test-results/reports/phase2_api_report_$$TIMESTAMP"; \
+	@TIMESTAMP=$$(date +%Y%m%d_%H%M%S); \
+	RESULT_FILE="test-results/phase2_api_$${TIMESTAMP}.json"; \
+	REPORT_BASE="test-results/reports/phase2_api_report_$${TIMESTAMP}"; \
 	echo "$(YELLOW)Step 1/2: Running tests...$(NC)"; \
-	python3 tools/scripts/test-phase2-manual.py --category api --verbose --output $$RESULT_FILE || true; \
+	python3 tools/scripts/test-phase2-manual.py --category api --verbose --output $${RESULT_FILE} || true; \
 	echo ""; \
 	echo "$(YELLOW)Step 2/2: Generating test reports...$(NC)"; \
-	python3 tools/scripts/generate-test-report.py --input $$RESULT_FILE --format both --output $$REPORT_BASE.md; \
+	python3 tools/scripts/generate-test-report.py --input $${RESULT_FILE} --format both --output $${REPORT_BASE}.md; \
 	echo ""; \
 	echo "$(GREEN)✓ RESTful API tests completed$(NC)"; \
 	echo ""; \
 	echo "$(YELLOW)Generated Files:$(NC)"; \
-	echo "  📄 JSON:     $$RESULT_FILE"; \
-	echo "  📝 Markdown: $$REPORT_BASE.md"; \
-	echo "  🌐 HTML:     $$REPORT_BASE.html"
+	echo "  📄 JSON:     $${RESULT_FILE}"; \
+	echo "  📝 Markdown: $${REPORT_BASE}.md"; \
+	echo "  🌐 HTML:     $${REPORT_BASE}.html"
 
 test-phase2-websocket: ## Run Phase 2 WebSocket tests (20 tests) with reports
 	@echo "$(YELLOW)Running WebSocket and Real-time Features tests (20 tests)...$(NC)"
 	@mkdir -p test-results test-results/reports
-	@TIMESTAMP="$(shell date +%Y%m%d_%H%M%S)"; \
-	RESULT_FILE="test-results/phase2_websocket_$$TIMESTAMP.json"; \
-	REPORT_BASE="test-results/reports/phase2_websocket_report_$$TIMESTAMP"; \
+	@TIMESTAMP=$$(date +%Y%m%d_%H%M%S); \
+	RESULT_FILE="test-results/phase2_websocket_$${TIMESTAMP}.json"; \
+	REPORT_BASE="test-results/reports/phase2_websocket_report_$${TIMESTAMP}"; \
 	echo "$(YELLOW)Step 1/2: Running tests...$(NC)"; \
-	python3 tools/scripts/test-phase2-manual.py --category websocket --verbose --output $$RESULT_FILE || true; \
+	python3 tools/scripts/test-phase2-manual.py --category websocket --verbose --output $${RESULT_FILE} || true; \
 	echo ""; \
 	echo "$(YELLOW)Step 2/2: Generating test reports...$(NC)"; \
-	python3 tools/scripts/generate-test-report.py --input $$RESULT_FILE --format both --output $$REPORT_BASE.md; \
+	python3 tools/scripts/generate-test-report.py --input $${RESULT_FILE} --format both --output $${REPORT_BASE}.md; \
 	echo ""; \
 	echo "$(GREEN)✓ WebSocket tests completed$(NC)"; \
 	echo ""; \
 	echo "$(YELLOW)Generated Files:$(NC)"; \
-	echo "  📄 JSON:     $$RESULT_FILE"; \
-	echo "  📝 Markdown: $$REPORT_BASE.md"; \
-	echo "  🌐 HTML:     $$REPORT_BASE.html"
+	echo "  📄 JSON:     $${RESULT_FILE}"; \
+	echo "  📝 Markdown: $${REPORT_BASE}.md"; \
+	echo "  🌐 HTML:     $${REPORT_BASE}.html"
 
 test-phase2-celery: ## Run Phase 2 Background Tasks tests (25 tests) with reports
 	@echo "$(YELLOW)Running Background Tasks and Scheduling tests (25 tests)...$(NC)"
 	@mkdir -p test-results test-results/reports
-	@TIMESTAMP="$(shell date +%Y%m%d_%H%M%S)"; \
-	RESULT_FILE="test-results/phase2_celery_$$TIMESTAMP.json"; \
-	REPORT_BASE="test-results/reports/phase2_celery_report_$$TIMESTAMP"; \
+	@TIMESTAMP=$$(date +%Y%m%d_%H%M%S); \
+	RESULT_FILE="test-results/phase2_celery_$${TIMESTAMP}.json"; \
+	REPORT_BASE="test-results/reports/phase2_celery_report_$${TIMESTAMP}"; \
 	echo "$(YELLOW)Step 1/2: Running tests...$(NC)"; \
-	python3 tools/scripts/test-phase2-manual.py --category celery --verbose --output $$RESULT_FILE || true; \
+	python3 tools/scripts/test-phase2-manual.py --category celery --verbose --output $${RESULT_FILE} || true; \
 	echo ""; \
 	echo "$(YELLOW)Step 2/2: Generating test reports...$(NC)"; \
-	python3 tools/scripts/generate-test-report.py --input $$RESULT_FILE --format both --output $$REPORT_BASE.md; \
+	python3 tools/scripts/generate-test-report.py --input $${RESULT_FILE} --format both --output $${REPORT_BASE}.md; \
 	echo ""; \
 	echo "$(GREEN)✓ Background Tasks tests completed$(NC)"; \
 	echo ""; \
 	echo "$(YELLOW)Generated Files:$(NC)"; \
-	echo "  📄 JSON:     $$RESULT_FILE"; \
-	echo "  📝 Markdown: $$REPORT_BASE.md"; \
-	echo "  🌐 HTML:     $$REPORT_BASE.html"
+	echo "  📄 JSON:     $${RESULT_FILE}"; \
+	echo "  📝 Markdown: $${REPORT_BASE}.md"; \
+	echo "  🌐 HTML:     $${REPORT_BASE}.html"
 
 ## Phase 2 Quick Validation
 test-phase2-quick: ## Run quick Phase 2 validation (core tests only) with verbose output

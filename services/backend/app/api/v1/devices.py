@@ -14,18 +14,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import (
-    get_current_user, get_current_active_user,
+    get_current_user, get_current_active_user, get_current_verified_user,
     require_permissions, PaginationParams, get_pagination
 )
 from app.models.auth import User
 from app.models.domain import DeviceStatus, DeviceType
-from app.schemas.base import PaginatedResponse
+from app.schemas.base import PaginatedResponse, create_paginated_response
 from app.schemas.devices import (
     DeviceSchema, DeviceCreateSchema, DeviceUpdateSchema,
     DeviceFilterSchema, DeviceStatusUpdateSchema, DeviceHealthSchema,
     DeviceDataCreateSchema, DeviceDataSchema
 )
 from app.services.domain import DeviceService, DeviceDataService
+from app.services.base import NotFoundError
 from app.core.logging import get_logger
 from app.websocket.emitters import (
     emit_device_status,
@@ -79,12 +80,11 @@ async def list_devices(
         session=db
     )
 
-    return PaginatedResponse(
-        items=devices,
-        total=total,
+    return create_paginated_response(
+        data=devices,
+        total_count=total,
         page=pagination['page'],
-        page_size=pagination['page_size'],
-        pages=(total + pagination['page_size'] - 1) // pagination['page_size']
+        page_size=pagination['page_size']
     )
 
 
@@ -98,7 +98,7 @@ async def list_devices(
 )
 async def register_device(
     device_data: DeviceCreateSchema,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_verified_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Register a new device."""
@@ -140,27 +140,34 @@ async def register_device(
 )
 async def get_device(
     device_id: uuid.UUID,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_verified_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Get device by ID."""
     service = DeviceService()
 
-    device = await service.get_by_id(device_id, session=db)
-    if not device:
+    try:
+        device = await service.get_by_id(device_id, session=db)
+        if not device:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Device {device_id} not found"
+            )
+
+        # Check organization access
+        if device.organization_id != current_user.organization_id and not current_user.is_superuser:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not authorized to access this device"
+            )
+
+        return device
+    except NotFoundError:
+        # Handle soft-deleted devices and other NotFoundError cases
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Device {device_id} not found"
         )
-
-    # Check organization access
-    if device.organization_id != current_user.organization_id and not current_user.is_superuser:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Not authorized to access this device"
-        )
-
-    return device
 
 
 @router.patch(
@@ -173,7 +180,7 @@ async def get_device(
 async def update_device(
     device_id: uuid.UUID,
     device_data: DeviceUpdateSchema,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_verified_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Update device details."""
@@ -225,7 +232,7 @@ async def update_device(
 )
 async def delete_device(
     device_id: uuid.UUID,
-    current_user: User = Depends(get_current_active_user),
+    current_user: User = Depends(get_current_verified_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Soft delete a device."""
@@ -341,9 +348,15 @@ async def update_device_status(
         # Get previous status for WebSocket event
         previous_status = device.status.value
 
+        # Handle both enum and string status values
+        status_value = status_data.status
+        if hasattr(status_value, 'value'):
+            # It's an enum, get the value
+            status_value = status_value.value
+
         updated_device = await service.update_device_status(
             device_id,
-            status_data.status,
+            DeviceStatus(status_value) if isinstance(status_value, str) else status_value,
             error_message=status_data.error_message,
             session=db
         )
@@ -351,7 +364,7 @@ async def update_device_status(
             f"Device status updated",
             extra={
                 "device_id": str(device_id),
-                "new_status": status_data.status.value,
+                "new_status": status_value,
                 "updated_by": str(current_user.id) if hasattr(current_user, 'id') else "system"
             }
         )
@@ -359,7 +372,7 @@ async def update_device_status(
         # Emit WebSocket event for real-time status updates
         await emit_device_status(
             device_id=device_id,
-            status=status_data.status.value,
+            status=status_value,
             previous_status=previous_status,
             reason=status_data.error_message
         )
@@ -376,11 +389,142 @@ async def update_device_status(
 # ===== DEVICE TELEMETRY =====
 
 @router.post(
-    "/{device_id}/data",
-    response_model=DeviceDataSchema,
+    "/{device_id}/telemetry",
     status_code=status.HTTP_201_CREATED,
     summary="Submit device telemetry",
     description="Submit telemetry data from device sensors"
+)
+async def submit_device_telemetry(
+    device_id: uuid.UUID,
+    telemetry_data: dict,
+    current_user: User = Depends(get_current_user),  # Allow device tokens
+    db: AsyncSession = Depends(get_db)
+):
+    """Submit telemetry data from a device."""
+    service = DeviceDataService()
+
+    # Check if device exists
+    device_service = DeviceService()
+    device = await device_service.get_by_id(device_id, session=db)
+    if not device:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Device {device_id} not found"
+        )
+
+    try:
+        # Create multiple data points from telemetry data
+        data_points = []
+        timestamp = datetime.now(timezone.utc)
+
+        for metric, value in telemetry_data.items():
+            data_point = {
+                'device_id': device_id,
+                'data_type': 'telemetry',
+                'data_source': metric,
+                'numeric_value': float(value) if isinstance(value, (int, float)) else None,
+                'string_value': str(value) if not isinstance(value, (int, float)) else None,
+                'timestamp': timestamp,
+                'units': _get_units_for_metric(metric)
+            }
+            data_points.append(data_point)
+
+        # Store all telemetry data points
+        created_data = await service.record_telemetry_data(
+            device_id,
+            data_points,
+            session=db
+        )
+
+        return {"message": f"Telemetry data recorded successfully", "records": len(created_data)}
+    except Exception as e:
+        logger.error(f"Failed to submit device telemetry: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@router.get(
+    "/{device_id}/telemetry",
+    summary="Get device telemetry",
+    description="Retrieve telemetry data for a device with time-based filtering"
+)
+async def get_device_telemetry(
+    device_id: uuid.UUID,
+    start_date: Optional[str] = Query(None, description="Start date for telemetry query (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End date for telemetry query (YYYY-MM-DD)"),
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get telemetry data for a device."""
+    # Check if device exists and user has access
+    device_service = DeviceService()
+    device = await device_service.get_by_id(device_id, session=db)
+    if not device:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Device {device_id} not found"
+        )
+
+    if device.organization_id != current_user.organization_id and not current_user.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access this device's data"
+        )
+
+    try:
+        # Parse date parameters
+        start_time = None
+        end_time = None
+
+        if start_date:
+            start_time = datetime.fromisoformat(start_date.replace('Z', '+00:00'))
+        if end_date:
+            end_time = datetime.fromisoformat(end_date.replace('Z', '+00:00'))
+
+        # If no end date specified, use current time
+        if not end_time:
+            end_time = datetime.now(timezone.utc)
+
+        # Get device telemetry data
+        service = DeviceDataService()
+        telemetry_data = await service.get_device_telemetry(
+            device_id,
+            start_time=start_time,
+            end_time=end_time,
+            skip=0,
+            limit=1000,
+            session=db
+        )
+
+        return {
+            "device_id": str(device_id),
+            "telemetry_data": [
+                {
+                    "timestamp": data.timestamp.isoformat(),
+                    "data_source": data.data_source,
+                    "numeric_value": data.numeric_value,
+                    "string_value": data.string_value,
+                    "units": data.units
+                }
+                for data in telemetry_data
+            ]
+        }
+    except Exception as e:
+        logger.error(f"Failed to get device telemetry: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+
+
+@router.post(
+    "/{device_id}/data",
+    response_model=DeviceDataSchema,
+    status_code=status.HTTP_201_CREATED,
+    summary="Submit device data",
+    description="Submit structured data from device sensors"
 )
 async def submit_device_data(
     device_id: uuid.UUID,
@@ -388,7 +532,7 @@ async def submit_device_data(
     current_user: User = Depends(get_current_user),  # Allow device tokens
     db: AsyncSession = Depends(get_db)
 ):
-    """Submit telemetry data from a device."""
+    """Submit structured data from a device."""
     service = DeviceDataService()
 
     # Check if device exists
@@ -413,10 +557,10 @@ async def submit_device_data(
         # Emit WebSocket event for real-time telemetry updates
         await emit_device_telemetry(
             device_id=device_id,
-            metric=data.metric_type,
-            value=data.value,
-            unit=data.unit,
-            tags=data.tags
+            metric=data.data_type,
+            value=data.numeric_value or data.string_value,
+            unit=data.units,
+            tags=data.data_metadata
         )
 
         return device_data
@@ -431,8 +575,8 @@ async def submit_device_data(
 @router.get(
     "/{device_id}/data",
     response_model=PaginatedResponse[DeviceDataSchema],
-    summary="Get device telemetry",
-    description="Retrieve telemetry data for a device with time-based filtering"
+    summary="Get device data",
+    description="Retrieve structured data for a device with time-based filtering"
 )
 async def get_device_data(
     device_id: uuid.UUID,
@@ -443,7 +587,7 @@ async def get_device_data(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get telemetry data for a device."""
+    """Get structured data for a device."""
     # Check if device exists and user has access
     device_service = DeviceService()
     device = await device_service.get_by_id(device_id, session=db)
@@ -463,7 +607,7 @@ async def get_device_data(
     service = DeviceDataService()
     filters = {'device_id': device_id}
     if metric_type:
-        filters['metric_type'] = metric_type
+        filters['data_type'] = metric_type
 
     # TODO: Implement time-based filtering in repository
     # For now, use basic filtering
@@ -481,6 +625,22 @@ async def get_device_data(
         page_size=pagination['page_size'],
         pages=(total + pagination['page_size'] - 1) // pagination['page_size']
     )
+
+
+def _get_units_for_metric(metric_name: str) -> Optional[str]:
+    """Get appropriate units for common telemetry metrics."""
+    units_map = {
+        'cpu_usage': 'percent',
+        'memory_usage': 'percent',
+        'temperature': 'celsius',
+        'disk_usage': 'percent',
+        'humidity': 'percent',
+        'pressure': 'hPa',
+        'light_level': 'lux',
+        'voltage': 'volts',
+        'current': 'amps'
+    }
+    return units_map.get(metric_name.lower())
 
 
 # ===== DEVICE STATISTICS =====

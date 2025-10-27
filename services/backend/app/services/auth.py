@@ -900,6 +900,31 @@ class UserService(BaseService[User, UserRepository]):
 
             return permissions
 
+    async def count_by_organization(
+        self,
+        organization_id: uuid.UUID,
+        *,
+        session: Optional[AsyncSession] = None
+    ) -> int:
+        """
+        Count users for an organization.
+
+        Args:
+            organization_id: Organization identifier
+            session: Optional database session
+
+        Returns:
+            Number of users
+        """
+        filters = {"organization_id": organization_id}
+        if session:
+            repo = self.get_repository(session)
+            return await repo.count(filters=filters)
+        else:
+            async with db_manager.session_scope() as db_session:
+                repo = self.get_repository(db_session)
+                return await repo.count(filters=filters)
+
 
 # ===== PASSWORD SERVICE =====
 

@@ -59,9 +59,13 @@ class BaseRepository(Generic[ModelType], ABC):
             Entity if found, None otherwise
         """
         with perf_logger.log_execution_time(f"get_{self.model.__name__.lower()}_by_id"):
-            result = await self.db_session.execute(
-                select(self.model).where(self.model.id == entity_id)
-            )
+            query = select(self.model).where(self.model.id == entity_id)
+
+            # Filter out soft-deleted records if model supports soft delete
+            if hasattr(self.model, 'deleted_at'):
+                query = query.where(self.model.deleted_at.is_(None))
+
+            result = await self.db_session.execute(query)
             return result.scalar_one_or_none()
 
     async def get_by_ids(self, entity_ids: List[Union[int, str, uuid.UUID]]) -> List[ModelType]:
@@ -78,9 +82,13 @@ class BaseRepository(Generic[ModelType], ABC):
             return []
 
         with perf_logger.log_execution_time(f"get_{self.model.__name__.lower()}_by_ids"):
-            result = await self.db_session.execute(
-                select(self.model).where(self.model.id.in_(entity_ids))
-            )
+            query = select(self.model).where(self.model.id.in_(entity_ids))
+
+            # Filter out soft-deleted records if model supports soft delete
+            if hasattr(self.model, 'deleted_at'):
+                query = query.where(self.model.deleted_at.is_(None))
+
+            result = await self.db_session.execute(query)
             return list(result.scalars().all())
 
     async def get_all(

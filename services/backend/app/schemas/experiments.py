@@ -67,8 +67,8 @@ class ExperimentCreateSchema(BaseCreateSchema):
         examples=["behavioral", "cognitive", "physiological", "environmental", "social"]
     )
 
-    principal_investigator_id: uuid.UUID = Field(
-        ...,
+    principal_investigator_id: Optional[uuid.UUID] = Field(
+        None,
         description="Principal investigator responsible for the experiment",
         examples=["123e4567-e89b-12d3-a456-426614174000"]
     )
@@ -127,7 +127,13 @@ class ExperimentCreateSchema(BaseCreateSchema):
     task_ids: Optional[List[uuid.UUID]] = Field(
         None,
         description="List of task IDs to assign to this experiment",
-        examples=[["660f9511-f2ac-52e5-b827-557766551111", "660f9511-f2ac-52e5-b827-557766551112"]]
+        examples=[["660f9511-f2ac-52e5-b827-557766551112", "660f9511-f2ac-52e5-b827-557766551112"]]
+    )
+
+    status: Optional[ExperimentStatusEnum] = Field(
+        ExperimentStatusEnum.DRAFT,
+        description="Initial experiment status (defaults to DRAFT)",
+        examples=["draft", "ready", "running"]
     )
 
     @validator('name')
@@ -140,9 +146,12 @@ class ExperimentCreateSchema(BaseCreateSchema):
     @validator('scheduled_end_at')
     def validate_schedule(cls, v, values):
         """Validate that end time is after start time."""
-        if v and 'scheduled_start_at' in values and values['scheduled_start_at']:
-            if v <= values['scheduled_start_at']:
-                raise ValueError('Scheduled end time must be after start time')
+        # Only validate if both dates are provided and not None
+        if v is not None and 'scheduled_start_at' in values:
+            start = values.get('scheduled_start_at')
+            if start is not None:
+                if v <= start:
+                    raise ValueError('Scheduled end time must be after start time')
         return v
 
     @validator('data_collection_rate_hz')
@@ -616,9 +625,9 @@ class ExperimentSummarySchema(BaseSchema):
 class ParticipantSchema(OrganizationEntityFullSchema):
     """Schema for participant responses."""
 
-    experiment_id: uuid.UUID = Field(
-        ...,
-        description="Experiment this participant belongs to"
+    experiment_id: Optional[uuid.UUID] = Field(
+        None,
+        description="Experiment this participant belongs to (optional for standalone participants)"
     )
 
     participant_id: str = Field(

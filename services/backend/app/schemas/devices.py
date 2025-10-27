@@ -290,6 +290,12 @@ class DeviceStatusUpdateSchema(BaseSchema):
         description="When the device was last maintained"
     )
 
+    error_message: Optional[str] = Field(
+        None,
+        description="Error message (if status is 'error')",
+        examples=["Connection timeout", "Sensor malfunction"]
+    )
+
 
 class DeviceFilterSchema(BaseFilterSchema):
     """Schema for filtering devices."""

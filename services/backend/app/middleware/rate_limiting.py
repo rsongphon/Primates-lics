@@ -88,10 +88,12 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
 
             return response
 
-        except Exception as e:
-            logger.error(f"Rate limiting error during request processing: {e}")
-            # Continue without rate limiting if there's an error BEFORE processing
+        except (ConnectionError, redis.RedisError, TimeoutError, OSError) as e:
+            # Only catch Redis/connection related errors, not application errors
+            logger.error(f"Rate limiting Redis error: {e}")
+            # Continue without rate limiting for Redis errors
             return await call_next(request)
+        # Don't catch general exceptions - let application errors (like 404) propagate normally
 
     def _is_exempt_route(self, path: str) -> bool:
         """Check if route is exempt from rate limiting."""
@@ -104,7 +106,7 @@ class RateLimitingMiddleware(BaseHTTPMiddleware):
             "/openapi.json"
         }
         # Exempt paths
-        exempt_prefixes = ["/docs", "/redoc", "/api/v1/rbac"]
+        exempt_prefixes = ["/docs", "/redoc", "/api/v1/rbac", "/api/v1/health"]
 
         return (path in exempt_routes or
                 any(path.startswith(prefix) for prefix in exempt_prefixes))

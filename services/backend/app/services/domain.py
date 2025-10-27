@@ -121,6 +121,29 @@ class DeviceService(BaseService[Device, DeviceRepository]):
 
         return await self.update(device_id, update_data, session=session)
 
+    async def update_device_status(
+        self,
+        device_id: uuid.UUID,
+        status: DeviceStatus,
+        error_message: Optional[str] = None,
+        *,
+        session: Optional[AsyncSession] = None
+    ) -> Device:
+        """
+        Update device status with optional error message.
+
+        Args:
+            device_id: Device identifier
+            status: New device status
+            error_message: Optional error message (for error status)
+            session: Optional database session
+
+        Returns:
+            Updated device
+        """
+        repository = self.get_repository(session)
+        return await repository.update_device_status(device_id, status, error_message)
+
     async def mark_device_error(
         self,
         device_id: uuid.UUID,
@@ -139,8 +162,7 @@ class DeviceService(BaseService[Device, DeviceRepository]):
         Returns:
             Updated device
         """
-        repository = self.get_repository(session)
-        return await repository.update_device_status(device_id, DeviceStatus.ERROR, error_message)
+        return await self.update_device_status(device_id, DeviceStatus.ERROR, error_message, session=session)
 
     async def get_devices_by_organization(
         self,
@@ -350,8 +372,9 @@ class ExperimentService(BaseService[Experiment, ExperimentRepository]):
         Returns:
             Created experiment
         """
-        # Set initial experiment status
-        experiment_data['status'] = ExperimentStatus.DRAFT
+        # Set initial experiment status if not provided
+        if 'status' not in experiment_data or experiment_data['status'] is None:
+            experiment_data['status'] = ExperimentStatus.DRAFT
 
         # Create experiment
         experiment = await self.create(

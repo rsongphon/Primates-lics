@@ -401,3 +401,17 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 Made with ❤️ for the research community
+
+
+{
+      "name": "zhipu",
+      "api_base_url": "https://api.z.ai/api/anthropic/v1/messages",
+      "api_key": "431f9dec55cf4fb3bce0642238dbd131.HrIDuuiq1zSfGlx6",
+      "models": [
+        "glm-4.6",
+        "glm-4.5-air"
+      ],
+      "transformer": {
+        "use": ["Anthropic"]
+      }
+    }

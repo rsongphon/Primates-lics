@@ -107,7 +107,14 @@ class Settings(BaseSettings):
         "http://localhost:3000",  # Frontend development
         "https://localhost:3000", # Frontend development HTTPS
         "http://localhost:8080",  # Alternative frontend port
-        "https://localhost:8080"  # Alternative frontend port HTTPS
+        "https://localhost:8080", # Alternative frontend port HTTPS
+        "http://localhost:8000",  # Backend API server (for testing)
+        "http://127.0.0.1:3000", # Alternative localhost notation
+        "http://127.0.0.1:8000", # Alternative backend notation
+        "http://0.0.0.0:3000",   # Docker container access
+        "http://0.0.0.0:8000",   # Docker backend access
+        "http://host.docker.internal:3000", # Docker host access
+        "http://host.docker.internal:8000", # Docker backend host access
     ]
 
     @field_validator("BACKEND_CORS_ORIGINS", mode="before")
