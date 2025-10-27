@@ -1575,7 +1575,7 @@ class Phase2TestRunner:
                 )
 
             # Skip if no user ID
-            if not self.test_user_id:
+            if not self.user_id:
                 return TestResult(
                     test_id=test_id,
                     test_name="RBAC - Permission Assignment",
@@ -1592,7 +1592,7 @@ class Phase2TestRunner:
             async with aiohttp.ClientSession() as session:
                 headers = {"Authorization": f"Bearer {admin_token}"}
                 async with session.post(
-                    f"{BACKEND_URL}/api/v1/rbac/users/{self.test_user_id}/roles",
+                    f"{BACKEND_URL}/api/v1/rbac/users/{self.user_id}/roles",
                     json=[],  # Empty list for now as we don't have role IDs
                     headers=headers
                 ) as resp:
@@ -7305,7 +7305,7 @@ class Phase2TestRunner:
             async with aiohttp.ClientSession() as session:
                 headers = {"Authorization": f"Bearer {self.access_token}"}
                 email_data = {
-                    "user_id": self.test_user_id or "test-user",
+                    "user_id": str(self.user_id) if self.user_id else "test-user",
                     "subject": "Test Email",
                     "body": "Test notification email"
                 }
@@ -7595,8 +7595,8 @@ class Phase2TestRunner:
             async with aiohttp.ClientSession() as session:
                 headers = {"Authorization": f"Bearer {self.access_token}"}
                 export_data = {
-                    "experiment_id": experiment_id,
-                    "format": "csv"
+                    "export_type": "experiments",
+                    "filters": {"experiment_id": experiment_id}
                 }
                 try:
                     async with session.post(
@@ -7654,9 +7654,13 @@ class Phase2TestRunner:
             step_start = time.time()
             async with aiohttp.ClientSession() as session:
                 headers = {"Authorization": f"Bearer {self.access_token}"}
+                cleanup_data = {
+                    "hours_to_keep": 24
+                }
                 try:
                     async with session.post(
                         f"{BACKEND_URL}/api/v1/tasks/cleanup-sessions",
+                        json=cleanup_data,
                         headers=headers,
                         timeout=5
                     ) as resp:
@@ -7764,9 +7768,13 @@ class Phase2TestRunner:
             step_start = time.time()
             async with aiohttp.ClientSession() as session:
                 headers = {"Authorization": f"Bearer {self.access_token}"}
+                backup_data = {
+                    "backup_type": "incremental"
+                }
                 try:
                     async with session.post(
                         f"{BACKEND_URL}/api/v1/tasks/backup-database",
+                        json=backup_data,
                         headers=headers,
                         timeout=5
                     ) as resp:
@@ -8064,7 +8072,7 @@ class Phase2TestRunner:
             try:
                 flower_url = "http://localhost:5555"
                 async with aiohttp.ClientSession() as session:
-                    async with session.get(flower_url, timeout=5) as resp:
+                    async with session.get(flower_url, timeout=5, auth=aiohttp.BasicAuth("admin", "admin123")) as resp:
                         flower_accessible = resp.status == 200
                         steps.append(TestStep(
                             description="Flower UI accessible",
@@ -8113,7 +8121,7 @@ class Phase2TestRunner:
             try:
                 async with aiohttp.ClientSession() as session:
                     async with session.get(
-                        f"{BACKEND_URL}/api/v1/metrics",
+                        f"{BACKEND_URL}/metrics",
                         timeout=5
                     ) as resp:
                         if resp.status == 200:
@@ -8358,22 +8366,22 @@ class Phase2TestRunner:
         self.record_result(await self.test_auth_002_user_login())
         self.record_result(await self.test_auth_003_jwt_token_validation())
         self.record_result(await self.test_auth_004_invalid_token_handling())
-        self.record_result(await self.test_auth_005_refresh_token())
-        self.record_result(await self.test_auth_006_token_expiration())
-        self.record_result(await self.test_auth_007_logout())
-        self.record_result(await self.test_auth_008_password_reset())
-        self.record_result(await self.test_auth_009_email_verification())
-        self.record_result(await self.test_auth_010_rbac_permissions())
-        self.record_result(await self.test_auth_011_rbac_roles())
-        self.record_result(await self.test_auth_012_rbac_user_role_assignment())
-        self.record_result(await self.test_auth_013_api_key_generation())
-        self.record_result(await self.test_auth_014_api_key_authentication())
-        self.record_result(await self.test_auth_015_rate_limiting())
-        self.record_result(await self.test_auth_016_cors_configuration())
-        self.record_result(await self.test_auth_017_session_management())
-        self.record_result(await self.test_auth_018_concurrent_sessions())
-        self.record_result(await self.test_auth_019_account_lockout())
-        self.record_result(await self.test_auth_020_two_factor_authentication())
+        self.record_result(await self.test_auth_005_token_refresh())
+        self.record_result(await self.test_auth_006_password_change())
+        self.record_result(await self.test_auth_007_password_reset_request())
+        self.record_result(await self.test_auth_008_password_reset_confirmation())
+        self.record_result(await self.test_auth_009_rbac_role_creation())
+        self.record_result(await self.test_auth_010_rbac_permission_assignment())
+        self.record_result(await self.test_auth_011_rbac_permission_enforcement())
+        self.record_result(await self.test_auth_012_mfa_setup())
+        self.record_result(await self.test_auth_013_mfa_login_flow())
+        self.record_result(await self.test_auth_014_session_management())
+        self.record_result(await self.test_auth_015_user_profile_update())
+        self.record_result(await self.test_auth_016_email_verification())
+        self.record_result(await self.test_auth_017_account_lockout())
+        self.record_result(await self.test_auth_018_logout())
+        self.record_result(await self.test_auth_019_concurrent_sessions())
+        self.record_result(await self.test_auth_020_admin_user_management())
 
         # Domain Model Tests (15)
         self.log("\n--- Core Domain Models Tests (15) ---")
@@ -8399,7 +8407,7 @@ class Phase2TestRunner:
         self.record_result(await self.test_api_002_organizations_statistics())
         self.record_result(await self.test_api_003_devices_list_with_filters())
         self.record_result(await self.test_api_004_devices_create())
-        self.record_result(await self.test_api_005_devices_get_by_id())
+        self.record_result(await self.test_api_005_devices_update())
         self.record_result(await self.test_api_006_devices_update())
         self.record_result(await self.test_api_007_devices_delete())
         self.record_result(await self.test_api_008_devices_bulk_update())

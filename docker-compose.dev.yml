@@ -105,6 +105,35 @@ services:
       retries: 3
       start_period: 30s
 
+  # Flower Development Monitoring
+  flower-dev:
+    build:
+      context: ./services/backend
+      dockerfile: Dockerfile.dev
+    command: celery -A app.tasks.celery_app flower --port=5555 --basic_auth=admin:admin123
+    ports:
+      - "5555:5555"  # Flower UI
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - CELERY_BROKER_URL=redis://redis-dev:6379/1
+      - CELERY_RESULT_BACKEND=redis://redis-dev:6379/1
+    volumes:
+      - ./services/backend:/app
+      - ./logs/flower-dev:/app/logs
+    depends_on:
+      - redis-dev
+      - celery-worker-dev
+    networks:
+      - lics-dev-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5555 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
   # Edge Agent Development (simulated) - COMMENTED OUT - Not implemented yet (Phase 4)
   # edge-agent-dev:
   #   build:
@@ -128,6 +157,97 @@ services:
   #   restart: unless-stopped
   #   stdin_open: true
   #   tty: true
+
+  # ===== KONG API GATEWAY =====
+
+  # Kong Database (PostgreSQL)
+  kong-database-dev:
+    image: postgres:15-alpine
+    ports:
+      - "5434:5432"  # Different port to avoid conflicts
+    environment:
+      - POSTGRES_DB=kong
+      - POSTGRES_USER=kong
+      - POSTGRES_PASSWORD=kong123
+    volumes:
+      - kong_postgres_data:/var/lib/postgresql/data
+    networks:
+      - lics-dev-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kong -d kong"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Kong Database Migration (runs once to initialize)
+  kong-migration-dev:
+    image: kong:latest
+    command: kong migrations bootstrap
+    environment:
+      - KONG_DATABASE=postgres
+      - KONG_PG_HOST=kong-database-dev
+      - KONG_PG_PORT=5432
+      - KONG_PG_USER=kong
+      - KONG_PG_PASSWORD=kong123
+      - KONG_PG_DATABASE=kong
+    depends_on:
+      kong-database-dev:
+        condition: service_healthy
+    networks:
+      - lics-dev-network
+    restart: on-failure
+
+  # Kong API Gateway
+  kong-dev:
+    image: kong:latest
+    ports:
+      - "8080:8000"   # Kong Proxy (HTTP)
+      - "8443:8443"   # Kong Proxy (HTTPS)
+      - "8002:8001"   # Kong Admin API
+      - "8445:8444"   # Kong Admin API (HTTPS)
+    environment:
+      - KONG_DATABASE=off
+      - KONG_DECLARATIVE_CONFIG=/kong/declarative/kong-dev.yml
+      - KONG_PROXY_ACCESS_LOG=/dev/stdout
+      - KONG_ADMIN_ACCESS_LOG=/dev/stdout
+      - KONG_PROXY_ERROR_LOG=/dev/stderr
+      - KONG_ADMIN_ERROR_LOG=/dev/stderr
+      - KONG_ADMIN_LISTEN=0.0.0.0:8001, 0.0.0.0:8444 ssl
+      - KONG_LOG_LEVEL=debug
+    volumes:
+      - ./infrastructure/kong/config:/kong/declarative:ro
+      - ./infrastructure/kong/plugins:/kong/plugins:ro
+      - ./logs/kong-dev:/kong/logs
+    depends_on:
+      backend-dev:
+        condition: service_healthy
+      redis-dev:
+        condition: service_healthy
+    networks:
+      - lics-dev-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Kong Configuration Setup (runs once to configure services via Admin API)
+  kong-setup-dev:
+    image: curlimages/curl:latest
+    depends_on:
+      kong-dev:
+        condition: service_healthy
+    volumes:
+      - ./infrastructure/kong/scripts:/scripts:ro
+    networks:
+      - lics-dev-network
+    entrypoint: /bin/sh
+    command: -c "sleep 10 && /scripts/init-kong.sh && echo 'Kong configuration completed'"
+    restart: "no"
 
   # PostgreSQL Development Database
   postgres-dev:
@@ -585,4 +705,6 @@ volumes:
   loki_dev_data:
     driver: local
   alertmanager_dev_data:
+    driver: local
+  kong_postgres_data:
     driver: local
