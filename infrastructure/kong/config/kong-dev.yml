@@ -1,0 +1,405 @@
+# Kong Declarative Configuration - Development Environment
+# LICS API Gateway Configuration
+# Documentation: https://docs.konghq.com/gateway/latest/production/deployment-topologies/db-less-and-declarative-config/
+
+_format_version: "3.0"
+_transform: true
+
+# ===== SERVICES =====
+# Define backend services that Kong will proxy
+
+services:
+  # LICS Backend Service
+  - name: lics-backend
+    url: http://backend-dev:8000
+    protocol: http
+    retries: 3
+    connect_timeout: 60000
+    write_timeout: 60000
+    read_timeout: 60000
+    tags:
+      - lics
+      - backend
+      - api
+
+    routes:
+      # Public Health Check Route (no JWT required)
+      # More specific paths match first, so this takes precedence
+      - name: health-public
+        paths:
+          - /api/v1/health
+          - /api/v1/health/ready
+          - /api/v1/health/live
+          - /api/v1/health/database
+          - /api/v1/health/redis
+          - /api/v1/health/comprehensive
+        strip_path: false
+        preserve_host: false
+        protocols:
+          - http
+          - https
+        tags:
+          - health
+          - monitoring
+          - public
+
+        plugins:
+          # Rate limiting for health (more lenient)
+          - name: rate-limiting
+            enabled: true
+            config:
+              minute: 1000          # Very lenient for monitoring
+              hour: 10000
+              policy: local         # Local policy for simplicity
+              fault_tolerant: true
+            tags:
+              - rate-limiting
+              - health
+
+          # CORS for health checks
+          - name: cors
+            enabled: true
+            config:
+              origins:
+                - "*"
+              methods:
+                - GET
+                - HEAD
+                - OPTIONS
+              credentials: false
+            tags:
+              - cors
+
+          # Add Gateway header
+          - name: response-transformer
+            enabled: true
+            config:
+              add:
+                headers:
+                  - "X-Gateway:Kong"
+                  - "X-Health-Route:Public"
+            tags:
+              - transformation
+
+      # API v1 Routes (JWT protected)
+      - name: api-v1
+        paths:
+          - /api/v1
+        strip_path: false
+        preserve_host: false
+        protocols:
+          - http
+          - https
+        tags:
+          - api
+          - v1
+
+        plugins:
+          # JWT Authentication (only for api-v1 route, not health)
+          - name: jwt
+            enabled: true
+            config:
+              secret_is_base64: false
+              run_on_preflight: false
+              uri_param_names:
+                - jwt
+              cookie_names: []
+              claims_to_verify:
+                - exp
+              maximum_expiration: 86400  # 24 hours
+            tags:
+              - authentication
+              - jwt
+
+    plugins:
+      # Rate Limiting Plugin (service-level default, can be overridden by routes)
+      - name: rate-limiting
+        enabled: true
+        config:
+          minute: 100          # 100 requests per minute default
+          hour: 1000           # 1000 requests per hour
+          policy: redis        # Use Redis for distributed rate limiting
+          fault_tolerant: true
+          hide_client_headers: false
+          redis:
+            host: redis-dev
+            port: 6379
+            database: 0
+            timeout: 2000
+        tags:
+          - rate-limiting
+
+      # NOTE: JWT moved to route level (api-v1 route only, not health routes)
+
+      # CORS Plugin
+      - name: cors
+        enabled: true
+        config:
+          origins:
+            - http://localhost:3000
+            - https://localhost:3000
+            - http://localhost:8080
+            - https://localhost:8080
+          methods:
+            - GET
+            - POST
+            - PUT
+            - PATCH
+            - DELETE
+            - OPTIONS
+            - HEAD
+          headers:
+            - Accept
+            - Accept-Version
+            - Content-Length
+            - Content-MD5
+            - Content-Type
+            - Date
+            - Authorization
+            - X-Correlation-ID
+          exposed_headers:
+            - X-Correlation-ID
+            - X-RateLimit-Limit
+            - X-RateLimit-Remaining
+            - X-RateLimit-Reset
+            - X-Auth-Token
+          credentials: true
+          max_age: 3600
+          preflight_continue: false
+        tags:
+          - cors
+          - security
+
+      # Request Transformer Plugin
+      - name: request-transformer
+        enabled: true
+        config:
+          add:
+            headers:
+              - "X-Gateway:Kong"
+              - "X-Gateway-Version:3.0"
+        tags:
+          - transformation
+
+      # Response Transformer Plugin
+      - name: response-transformer
+        enabled: true
+        config:
+          add:
+            headers:
+              - "X-Gateway:Kong"
+        tags:
+          - transformation
+
+      # Prometheus Metrics Plugin
+      - name: prometheus
+        enabled: true
+        config:
+          per_consumer: true
+          status_code_metrics: true
+          latency_metrics: true
+          bandwidth_metrics: true
+          upstream_health_metrics: true
+        tags:
+          - monitoring
+          - metrics
+
+      # Request Size Limiting Plugin
+      - name: request-size-limiting
+        enabled: true
+        config:
+          allowed_payload_size: 100  # 100 MB
+          size_unit: megabytes
+        tags:
+          - security
+
+      # IP Restriction Plugin (removed in dev - configure in production)
+      # - name: ip-restriction
+      #   enabled: false
+      #   config:
+      #     allow: []
+      #     deny: []
+      #   tags:
+      #     - security
+
+  # LICS WebSocket Service
+  - name: lics-websocket
+    url: http://backend-dev:8001
+    protocol: http
+    retries: 3
+    connect_timeout: 60000
+    write_timeout: 120000  # Longer timeout for WebSocket
+    read_timeout: 120000
+    tags:
+      - lics
+      - websocket
+      - realtime
+
+    routes:
+      - name: websocket
+        paths:
+          - /ws
+        strip_path: false
+        preserve_host: true  # Preserve host for WebSocket
+        protocols:
+          - http
+          - https
+        tags:
+          - websocket
+
+    plugins:
+      # Rate Limiting for WebSocket (more lenient)
+      - name: rate-limiting
+        enabled: true
+        config:
+          minute: 200          # More requests allowed for WebSocket
+          hour: 2000
+          policy: redis
+          fault_tolerant: true
+          redis:
+            host: redis-dev
+            port: 6379
+            database: 0
+        tags:
+          - rate-limiting
+
+      # JWT for WebSocket
+      - name: jwt
+        enabled: true
+        config:
+          secret_is_base64: false
+          run_on_preflight: false
+          claims_to_verify:
+            - exp
+        tags:
+          - authentication
+
+      # CORS for WebSocket
+      - name: cors
+        enabled: true
+        config:
+          origins:
+            - http://localhost:3000
+            - https://localhost:3000
+          credentials: true
+        tags:
+          - cors
+
+# ===== CONSUMERS =====
+# Define API consumers (users/applications)
+
+consumers:
+  # Development Test Consumer
+  - username: dev-test-user
+    custom_id: dev-test-001
+    tags:
+      - development
+      - testing
+
+# ===== PLUGINS (Global) =====
+# Plugins that apply to all services
+
+plugins:
+  # Global Correlation ID Plugin (also serves as Request ID)
+  - name: correlation-id
+    enabled: true
+    config:
+      header_name: X-Correlation-ID
+      generator: uuid
+      echo_downstream: true
+    tags:
+      - global
+      - correlation
+
+  # Global HTTP Log Plugin (for debugging in dev)
+  - name: http-log
+    enabled: false  # Enable for debugging
+    config:
+      http_endpoint: http://logstash:8080
+      method: POST
+      timeout: 1000
+      keepalive: 60000
+    tags:
+      - logging
+      - debugging
+
+# ===== UPSTREAMS (for load balancing) =====
+# Define upstream targets for services
+
+upstreams:
+  - name: lics-backend-upstream
+    algorithm: round-robin
+    hash_on: none
+    hash_fallback: none
+    healthchecks:
+      active:
+        type: http
+        http_path: /health
+        timeout: 10
+        concurrency: 10
+        healthy:
+          interval: 30
+          successes: 2
+          http_statuses:
+            - 200
+            - 302
+        unhealthy:
+          interval: 30
+          http_failures: 3
+          timeouts: 3
+          tcp_failures: 3
+          http_statuses:
+            - 429
+            - 500
+            - 503
+      passive:
+        type: http
+        healthy:
+          http_statuses:
+            - 200
+            - 201
+            - 202
+            - 203
+            - 204
+            - 205
+            - 206
+            - 207
+            - 208
+            - 226
+            - 300
+            - 301
+            - 302
+            - 303
+            - 304
+            - 305
+            - 306
+            - 307
+            - 308
+          successes: 5
+        unhealthy:
+          http_failures: 5
+          tcp_failures: 2
+          timeouts: 3
+          http_statuses:
+            - 429
+            - 500
+            - 503
+    tags:
+      - upstream
+      - backend
+
+    targets:
+      - target: backend-dev:8000
+        weight: 100
+        tags:
+          - primary
+
+# ===== CERTIFICATES (for HTTPS) =====
+# SSL/TLS certificates for secure connections
+
+certificates: []
+
+# ===== CA CERTIFICATES =====
+# Certificate Authority certificates
+
+ca_certificates: []
