@@ -277,19 +277,42 @@ services:
   pgbouncer-dev:
     image: pgbouncer/pgbouncer:latest
     ports:
-      - "6433:6432"  # Different port to avoid conflicts
+      - "6433:6432"  # PgBouncer port
+      - "9127:9127"  # Prometheus metrics port
     environment:
       - DATABASES_HOST=postgres-dev
       - DATABASES_PORT=5432
       - DATABASES_USER=lics
       - DATABASES_PASSWORD=lics123
       - DATABASES_DBNAME=lics_dev
+      # Optimized pooling parameters for Phase 2
       - POOL_MODE=transaction
-      - MAX_CLIENT_CONN=50
-      - DEFAULT_POOL_SIZE=10
+      - MAX_CLIENT_CONN=200
+      - DEFAULT_POOL_SIZE=25
+      - MIN_POOL_SIZE=5
+      - RESERVE_POOL_SIZE=5
+      - RESERVE_POOL_TIMEOUT=5
+      - MAX_DB_CONNECTIONS=100
+      - MAX_USER_CONNECTIONS=100
+      # TimescaleDB optimizations
+      - SERVER_RESET_QUERY=DISCARD ALL
+      - SERVER_CHECK_DELAY=30
+      - SERVER_CHECK_QUERY=select 1
+      - SERVER_LIFETIME=3600
+      - SERVER_IDLE_TIMEOUT=600
+      # Enhanced logging for monitoring
+      - LOG_CONNECTIONS=1
+      - LOG_DISCONNECTIONS=1
+      - LOG_POOLER_ERRORS=1
+      - LOG_STATS=1
+      - STATS_PERIOD=60
+      - VERBOSE=1
+      # Prometheus metrics
+      - SHOW_PROMETHEUS_STATS=1
     volumes:
-      - ./infrastructure/pgbouncer/pgbouncer-dev.ini:/etc/pgbouncer/pgbouncer.ini
-      - ./infrastructure/pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt
+      - ./infrastructure/pgbouncer/pgbouncer-dev.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ./infrastructure/pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
+      - ./infrastructure/pgbouncer/pgbouncer-logs:/var/log/pgbouncer
     networks:
       - lics-dev-network
     restart: unless-stopped
@@ -297,10 +320,11 @@ services:
       postgres-dev:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "6432"]
-      interval: 30s
+      test: ["CMD", "pg_isready", "-h", "localhost", "-p", "6432", "-U", "lics"]
+      interval: 15s
       timeout: 5s
-      retries: 3
+      retries: 5
+      start_period: 30s
 
   # Redis Development Cache
   redis-dev:

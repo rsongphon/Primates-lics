@@ -11,7 +11,7 @@ import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional, Union
 
-from sqlalchemy import and_, desc, func, select
+from sqlalchemy import and_, desc, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -711,29 +711,66 @@ class DeviceDataRepository(BaseRepository[DeviceData]):
         end_time: datetime,
         interval_minutes: int = 60
     ) -> List[Dict[str, Any]]:
-        """Get aggregated data points over time intervals."""
-        # This is a simplified version - in production, you'd use TimescaleDB functions
+        """Get aggregated data points over time intervals using TimescaleDB continuous aggregates."""
         with perf_logger.log_execution_time("get_aggregated_device_data"):
-            result = await self.db_session.execute(
-                select(
-                    func.date_trunc('hour', DeviceData.timestamp).label('time_bucket'),
-                    func.avg(DeviceData.numeric_value).label('avg_value'),
-                    func.min(DeviceData.numeric_value).label('min_value'),
-                    func.max(DeviceData.numeric_value).label('max_value'),
-                    func.count(DeviceData.id).label('count')
+            # For recent data (last 3 days), use continuous aggregates for better performance
+            recent_cutoff = datetime.now(timezone.utc) - timedelta(days=3)
+
+            if start_time >= recent_cutoff:
+                # Use continuous aggregate for recent data
+                interval_func = func.time_bucket(
+                    f'{interval_minutes} minutes',
+                    text('device_data_hourly.hour')
                 )
-                .where(
-                    and_(
-                        DeviceData.device_id == device_id,
-                        DeviceData.data_type == data_type,
-                        DeviceData.timestamp >= start_time,
-                        DeviceData.timestamp <= end_time,
-                        DeviceData.numeric_value.is_not(None)
+
+                result = await self.db_session.execute(
+                    select(
+                        interval_func.label('time_bucket'),
+                        func.avg(text('device_data_hourly.avg_numeric_value')).label('avg_value'),
+                        func.min(text('device_data_hourly.min_numeric_value')).label('min_value'),
+                        func.max(text('device_data_hourly.max_numeric_value')).label('max_value'),
+                        func.sum(text('device_data_hourly.sample_count')).label('count')
                     )
+                    .select_from(text('device_data_hourly'))
+                    .where(
+                        and_(
+                            text('device_data_hourly.device_id = :device_id'),
+                            text('device_data_hourly.data_type = :data_type'),
+                            text('device_data_hourly.hour >= :start_time'),
+                            text('device_data_hourly.hour <= :end_time')
+                        )
+                    )
+                    .group_by(interval_func)
+                    .order_by(interval_func)
+                ).bindparams(device_id=str(device_id), data_type=data_type,
+                           start_time=start_time, end_time=end_time)
+            else:
+                # For historical data, use TimescaleDB time_bucket function directly
+                time_bucket_func = func.time_bucket(
+                    f'{interval_minutes} minutes',
+                    DeviceData.timestamp
                 )
-                .group_by(func.date_trunc('hour', DeviceData.timestamp))
-                .order_by(func.date_trunc('hour', DeviceData.timestamp))
-            )
+
+                result = await self.db_session.execute(
+                    select(
+                        time_bucket_func.label('time_bucket'),
+                        func.avg(DeviceData.numeric_value).label('avg_value'),
+                        func.min(DeviceData.numeric_value).label('min_value'),
+                        func.max(DeviceData.numeric_value).label('max_value'),
+                        func.count(DeviceData.id).label('count')
+                    )
+                    .where(
+                        and_(
+                            DeviceData.device_id == device_id,
+                            DeviceData.data_type == data_type,
+                            DeviceData.timestamp >= start_time,
+                            DeviceData.timestamp <= end_time,
+                            DeviceData.numeric_value.is_not(None)
+                        )
+                    )
+                    .group_by(time_bucket_func)
+                    .order_by(time_bucket_func)
+                )
 
             return [
                 {
@@ -747,19 +784,99 @@ class DeviceDataRepository(BaseRepository[DeviceData]):
             ]
 
     @postgresql_breaker
+    async def get_device_health_summary(
+        self,
+        device_id: uuid.UUID,
+        start_date: datetime,
+        end_date: Optional[datetime] = None
+    ) -> List[Dict[str, Any]]:
+        """Get daily health summary using TimescaleDB continuous aggregate."""
+        if not end_date:
+            end_date = datetime.now(timezone.utc)
+
+        with perf_logger.log_execution_time("get_device_health_summary"):
+            # For recent data, use continuous aggregate
+            recent_cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+
+            if start_date >= recent_cutoff:
+                result = await self.db_session.execute(
+                    select(
+                        text('device_health_daily.day'),
+                        text('device_health_daily.total_readings'),
+                        text('device_health_daily.unique_data_types'),
+                        text('device_health_daily.last_reading_time'),
+                        text('device_health_daily.first_reading_time')
+                    )
+                    .select_from(text('device_health_daily'))
+                    .where(
+                        and_(
+                            text('device_health_daily.device_id = :device_id'),
+                            text('device_health_daily.day >= :start_date'),
+                            text('device_health_daily.day <= :end_date')
+                        )
+                    )
+                    .order_by(text('device_health_daily.day DESC'))
+                ).bindparams(device_id=str(device_id), start_date=start_date, end_date=end_date)
+            else:
+                # For historical data, query the base table
+                result = await self.db_session.execute(
+                    select(
+                        func.time_bucket('1 day', DeviceData.timestamp).label('day'),
+                        func.count(DeviceData.id).label('total_readings'),
+                        func.count(func.distinct(DeviceData.data_type)).label('unique_data_types'),
+                        func.max(DeviceData.timestamp).label('last_reading_time'),
+                        func.min(DeviceData.timestamp).label('first_reading_time')
+                    )
+                    .where(
+                        and_(
+                            DeviceData.device_id == device_id,
+                            DeviceData.timestamp >= start_date,
+                            DeviceData.timestamp <= end_date
+                        )
+                    )
+                    .group_by(func.time_bucket('1 day', DeviceData.timestamp))
+                    .order_by(func.time_bucket('1 day', DeviceData.timestamp).desc())
+                )
+
+            return [
+                {
+                    "date": row.day,
+                    "total_readings": row.total_readings,
+                    "unique_data_types": row.unique_data_types,
+                    "last_reading": row.last_reading_time,
+                    "first_reading": row.first_reading_time
+                }
+                for row in result.all()
+            ]
+
+    @postgresql_breaker
     async def cleanup_old_data(
         self,
-        retention_days: int = 30,
+        retention_days: int = 90,  # Updated to match TimescaleDB retention policy
         batch_size: int = 1000
     ) -> int:
-        """Clean up old device data beyond retention period."""
+        """Clean up old device data beyond retention period.
+
+        Note: TimescaleDB retention policy handles this automatically,
+        but this method can be used for manual cleanup or different retention periods.
+        """
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=retention_days)
 
         with perf_logger.log_execution_time("cleanup_old_device_data"):
-            result = await self.db_session.execute(
-                DeviceData.__table__.delete().where(
-                    DeviceData.timestamp < cutoff_date
+            # Use TimescaleDB's drop_chunks function for more efficient cleanup
+            try:
+                result = await self.db_session.execute(
+                    text("SELECT drop_chunks(interval '1 day', 'device_data', older_than => :cutoff_date)")
+                    .bindparams(cutoff_date=cutoff_date)
                 )
-            )
 
-            return result.rowcount or 0
+                # Return count of dropped chunks (0 means no chunks were dropped)
+                return result.scalar() or 0
+            except Exception:
+                # Fallback to regular delete if drop_chunks fails
+                result = await self.db_session.execute(
+                    DeviceData.__table__.delete().where(
+                        DeviceData.timestamp < cutoff_date
+                    )
+                )
+                return result.rowcount or 0

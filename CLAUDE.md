@@ -26,6 +26,8 @@ LICS (Lab Instrument Control System) is a cloud-native, distributed platform for
 ### Technology Stack
 - **Frontend**: Next.js 14, TypeScript, Tailwind CSS, Shadcn/ui, Zustand, React Query
 - **Backend**: FastAPI, SQLAlchemy 2.0 async, PostgreSQL with TimescaleDB, Redis, Celery
+- **API Gateway**: Kong 3.4 with rate limiting, JWT authentication, and Prometheus metrics
+- **Circuit Breakers**: pybreaker with 6 service types and fallback strategies
 - **Edge**: Python 3.11+, SQLite, MQTT (Paho), OpenCV, GPIO control (RPi.GPIO)
 - **Infrastructure**: Docker, Kubernetes, Terraform, Prometheus, Grafana, Jaeger v2 (OpenTelemetry)
 
@@ -40,8 +42,10 @@ LICS (Lab Instrument Control System) is a cloud-native, distributed platform for
 ```bash
 # Start complete development environment (RECOMMENDED)
 make dev                                    # Starts all services with hot-reload
-                                           # Backend: http://localhost:8000
+                                           # Backend (direct): http://localhost:8000
+                                           # Backend (via Kong): http://localhost:8080
                                            # Frontend: http://localhost:3000
+                                           # Kong Admin API: http://localhost:8001
                                            # PostgreSQL: localhost:5433
                                            # Redis: localhost:6380
                                            # MQTT: localhost:1884
@@ -51,6 +55,7 @@ make dev                                    # Starts all services with hot-reloa
 docker-compose -f docker-compose.dev.yml logs -f              # All services
 docker-compose -f docker-compose.dev.yml logs -f backend-dev  # Backend only
 docker-compose -f docker-compose.dev.yml logs -f frontend-dev # Frontend only
+docker-compose -f docker-compose.dev.yml logs -f kong-dev      # Kong Gateway only
 
 # Stop services
 docker-compose -f docker-compose.dev.yml down     # Stop all
@@ -59,6 +64,7 @@ docker-compose -f docker-compose.dev.yml down -v  # Stop and remove volumes (cle
 # Restart individual services
 docker-compose -f docker-compose.dev.yml restart backend-dev
 docker-compose -f docker-compose.dev.yml restart frontend-dev
+docker-compose -f docker-compose.dev.yml restart kong-dev
 
 # Execute commands inside containers
 docker-compose -f docker-compose.dev.yml exec backend-dev bash
@@ -150,10 +156,55 @@ All these tools are accessible when running `make dev`:
 - **Redis Commander** (Redis GUI): http://localhost:8081
 - **MailHog** (Email testing): http://localhost:8025
 - **Jaeger v2** (Distributed tracing): http://localhost:16686
-- **Backend API Docs**: http://localhost:8000/docs
+- **Kong Admin API**: http://localhost:8001
+- **Backend API Docs** (direct): http://localhost:8000/docs
+- **Backend API Docs** (via Kong): http://localhost:8080/docs
 - **Frontend**: http://localhost:3000
 
 **Note**: The project uses **Jaeger v2**, which is built on OpenTelemetry Collector and natively supports OTLP protocol. Configuration files are located in `infrastructure/monitoring/jaeger/`.
+
+### Kong API Gateway Management
+
+```bash
+# Check Kong status
+curl http://localhost:8001/status
+
+# List configured services
+curl http://localhost:8001/services
+
+# List configured routes
+curl http://localhost:8001/routes
+
+# Check Kong metrics (Prometheus format)
+curl http://localhost:8001/metrics
+
+# Access API through Kong Gateway
+curl http://localhost:8080/api/v1/health
+
+# Admin operations (manage consumers, plugins, etc.)
+curl http://localhost:8001/consumers
+curl http://localhost:8001/plugins
+```
+
+### Circuit Breaker Monitoring
+
+```bash
+# Get all circuit breaker status (requires authentication)
+curl http://localhost:8080/api/v1/monitoring/circuit-breakers \
+  -H "Authorization: Bearer $TOKEN"
+
+# Get specific service circuit breaker
+curl http://localhost:8080/api/v1/monitoring/circuit-breakers/postgresql \
+  -H "Authorization: Bearer $TOKEN"
+
+# Get system health with circuit breaker status
+curl http://localhost:8080/api/v1/monitoring/system-health \
+  -H "Authorization: Bearer $TOKEN"
+
+# Get service dependency visualization
+curl http://localhost:8080/api/v1/monitoring/dependencies/visualization/mermaid \
+  -H "Authorization: Bearer $TOKEN"
+```
 
 ## Development Workflow
 
@@ -289,9 +340,9 @@ Valid scopes: frontend, backend, edge-agent, infrastructure, docs, api, ui, auth
 - Do not end commit message with " 🤖 Generated with [Claude Code](https://claude.com/claude-code) Co-Authored-By: Claude <noreply@anthropic.com>"     
 
 
-**Current Phase**: Phase 2 - Backend Core Development (Week 4)
-**Last Completed**: WebSocket and Real-time Features implementation
-**Next Steps**: Background Tasks and Scheduling (Celery implementation)
+**Current Phase**: Phase 3 Refactoring - SLI/SLO & Enhanced Monitoring (Ready to Start)
+**Last Completed**: Phase 2 - Database Optimization & Performance with TimescaleDB hypertables, circuit breaker retry logic, and advanced indexing
+**Next Steps**: Implement SLI/SLO monitoring, enhanced alerting, and performance dashboards
 
 - Hide API key in CLAUDE.md and README.md when commit these 2 files.
 

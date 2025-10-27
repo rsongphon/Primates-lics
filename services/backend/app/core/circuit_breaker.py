@@ -6,14 +6,16 @@ Provides resilience for external service dependencies
 import asyncio
 import functools
 import logging
+import random
 import time
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Callable, Dict, Optional, TypeVar, cast
+from typing import Any, Callable, Dict, List, Optional, Type, TypeVar, cast
 
 import pybreaker
 from prometheus_client import Counter, Gauge, Histogram
 from pybreaker import CircuitBreaker, CircuitBreakerListener
+from sqlalchemy.exc import OperationalError
 
 logger = logging.getLogger(__name__)
 
@@ -88,19 +90,23 @@ class PrometheusCircuitBreakerListener(CircuitBreakerListener):
 
     def state_change(self, cb: CircuitBreaker, old_state: Any, new_state: Any) -> None:
         """Called when circuit breaker changes state."""
+        # Handle both string and enum state types
+        old_name = old_state.name if hasattr(old_state, 'name') else str(old_state)
+        new_name = new_state.name if hasattr(new_state, 'name') else str(new_state)
+
         logger.warning(
             f"Circuit breaker state change: {self.service_name} "
-            f"({self.service_type}) {old_state.name} -> {new_state.name}"
+            f"({self.service_type}) {old_name} -> {new_name}"
         )
 
         # Update Prometheus metric
-        state_value = 0 if new_state.name == "closed" else 1 if new_state.name == "open" else 2
+        state_value = 0 if new_name == "closed" else 1 if new_name == "open" else 2
         circuit_breaker_state.labels(
             service_name=self.service_name,
             service_type=self.service_type
         ).set(state_value)
 
-    def before_call(self, cb: CircuitBreaker, func: Callable, args: tuple, kwargs: dict) -> None:
+    def before_call(self, cb: CircuitBreaker, func: Callable, *args, **kwargs) -> None:
         """Called before executing the protected function."""
         pass
 
@@ -275,11 +281,11 @@ class CircuitBreakerManager:
         return {
             "service_type": service_type.value,
             "name": breaker.name,
-            "state": breaker.current_state.name.lower(),
-            "fail_counter": breaker.fail_counter,
-            "fail_max": breaker.fail_max,
-            "timeout_duration": breaker.timeout_duration,
-            "opened_at": breaker.opened_at.isoformat() if breaker.opened_at else None,
+            "state": breaker.current_state.lower() if isinstance(breaker.current_state, str) else breaker.current_state.name.lower(),
+            "fail_counter": getattr(breaker, 'fail_counter', 0),
+            "fail_max": getattr(breaker, 'fail_max', 5),
+            "timeout_duration": getattr(breaker, 'timeout_duration', 60),
+            "opened_at": getattr(breaker, 'opened_at', None).isoformat() if hasattr(breaker, 'opened_at') and getattr(breaker, 'opened_at', None) else None,
         }
 
     def get_all_breaker_states(self) -> Dict[str, Any]:
@@ -474,12 +480,188 @@ def are_all_circuits_healthy() -> bool:
     )
 
 
-# ===== PRE-CONFIGURED CIRCUIT BREAKER DECORATORS =====
+# ===== ENHANCED RETRY LOGIC WITH EXPONENTIAL BACKOFF =====
 
-# Service-specific circuit breaker decorators for easy use
+
+class RetryConfig:
+    """Configuration for retry logic with exponential backoff and jitter."""
+
+    def __init__(
+        self,
+        max_retries: int = 3,
+        base_delay: float = 0.1,
+        max_delay: float = 30.0,
+        exponential_base: float = 2.0,
+        jitter: bool = True,
+        retry_on: List[Type[Exception]] = None
+    ):
+        self.max_retries = max_retries
+        self.base_delay = base_delay
+        self.max_delay = max_delay
+        self.exponential_base = exponential_base
+        self.jitter = jitter
+        self.retry_on = retry_on or [Exception]
+
+    def get_delay(self, attempt: int) -> float:
+        """Calculate delay with exponential backoff and jitter."""
+        delay = min(
+            self.base_delay * (self.exponential_base ** attempt),
+            self.max_delay
+        )
+
+        if self.jitter:
+            # Add jitter to prevent thundering herd problems
+            jitter_amount = delay * 0.1  # 10% jitter
+            delay += random.uniform(-jitter_amount, jitter_amount)
+
+        return max(0, delay)
+
+
+class RetryState:
+    """State tracking for retry attempts."""
+
+    def __init__(self):
+        self.attempts = 0
+        self.last_exception = None
+
+
+def with_retry(config: RetryConfig = None):
+    """Decorator that adds retry logic with exponential backoff to functions."""
+    if config is None:
+        config = RetryConfig()
+
+    def decorator(func: Callable[..., T]) -> Callable[..., T]:
+        @functools.wraps(func)
+        async def async_wrapper(*args, **kwargs) -> T:
+            state = RetryState()
+            last_exception = None
+
+            for attempt in range(config.max_retries + 1):
+                try:
+                    if attempt > 0:
+                        delay = config.get_delay(attempt - 1)
+                        logger.warning(
+                            f"Retrying {func.__name__} (attempt {attempt + 1}/{config.max_retries + 1}) "
+                            f"after {delay:.2f}s delay. Last error: {str(last_exception)}"
+                        )
+                        await asyncio.sleep(delay)
+
+                    # For async functions, check if it's an async generator
+                    if asyncio.iscoroutinefunction(func):
+                        return await func(*args, **kwargs)
+                    else:
+                        # For sync functions wrapped in async context
+                        return func(*args, **kwargs)
+
+                except Exception as e:
+                    last_exception = e
+                    state.last_exception = e
+                    state.attempts = attempt + 1
+
+                    # Check if this exception type should be retried
+                    should_retry = any(
+                        isinstance(e, retry_type) for retry_type in config.retry_on
+                    )
+
+                    if not should_retry or attempt >= config.max_retries:
+                        logger.error(
+                            f"Function {func.__name__} failed after {attempt + 1} attempts. "
+                            f"Final error: {str(e)}"
+                        )
+                        raise
+
+                    # Log the retry attempt
+                    logger.debug(
+                        f"Attempt {attempt + 1} failed for {func.__name__}: {str(e)}"
+                    )
+
+            # This should never be reached, but just in case
+            raise last_exception or RuntimeError("Unexpected error in retry logic")
+
+        return async_wrapper
+
+    return decorator
+
+
+# Service-specific retry configurations for different use cases
+DEFAULT_RETRY = RetryConfig(
+    max_retries=3,
+    base_delay=0.1,
+    max_delay=10.0,
+    exponential_base=2.0,
+    jitter=True
+)
+
+AGGRESSIVE_RETRY = RetryConfig(
+    max_retries=5,
+    base_delay=0.5,
+    max_delay=30.0,
+    exponential_base=1.5,
+    jitter=True
+)
+
+FAST_RETRY = RetryConfig(
+    max_retries=2,
+    base_delay=0.05,
+    max_delay=2.0,
+    exponential_base=2.0,
+    jitter=False
+)
+
+# Network-related retry with more tolerance for transient issues
+NETWORK_RETRY = RetryConfig(
+    max_retries=5,
+    base_delay=0.2,
+    max_delay=15.0,
+    exponential_base=2.0,
+    jitter=True,
+    retry_on=[ConnectionError, TimeoutError, OSError]
+)
+
+# Database retry with specific exception handling
+DATABASE_RETRY = RetryConfig(
+    max_retries=3,
+    base_delay=0.1,
+    max_delay=5.0,
+    exponential_base=2.0,
+    jitter=True,
+    retry_on=[ConnectionError, TimeoutError, OperationalError]
+)
+
+
+# ===== ENHANCED CIRCUIT BREAKER WITH RETRY DECORATORS =====
+
+def with_circuit_breaker_and_retry(
+    service_type: ServiceType,
+    retry_config: RetryConfig = None
+):
+    """Combined decorator that applies both circuit breaker and retry logic."""
+    circuit_decorator = with_circuit_breaker(service_type)
+    retry_decorator = with_retry(retry_config or DEFAULT_RETRY)
+
+    def decorator(func: Callable[..., T]) -> Callable[..., T]:
+        return retry_decorator(circuit_decorator(func))
+
+    return decorator
+
+
+# ===== PRE-CONFIGURED CIRCUIT BREAKER DECORATORS WITH RETRY =====
+
+# Service-specific circuit breaker decorators with retry logic for easy use
 postgresql_breaker = with_circuit_breaker(ServiceType.POSTGRESQL)
+postgresql_breaker_with_retry = with_circuit_breaker_and_retry(ServiceType.POSTGRESQL, DATABASE_RETRY)
+
 redis_breaker = with_circuit_breaker(ServiceType.REDIS)
+redis_breaker_with_retry = with_circuit_breaker_and_retry(ServiceType.REDIS, FAST_RETRY)
+
 influxdb_breaker = with_circuit_breaker(ServiceType.INFLUXDB)
+influxdb_breaker_with_retry = with_circuit_breaker_and_retry(ServiceType.INFLUXDB, NETWORK_RETRY)
+
 mqtt_breaker = with_circuit_breaker(ServiceType.MQTT)
+mqtt_breaker_with_retry = with_circuit_breaker_and_retry(ServiceType.MQTT, FAST_RETRY)
+
 minio_breaker = with_circuit_breaker(ServiceType.MINIO)
+minio_breaker_with_retry = with_circuit_breaker_and_retry(ServiceType.MINIO, AGGRESSIVE_RETRY)
+
 external_api_breaker = with_circuit_breaker(ServiceType.EXTERNAL_API)
+external_api_breaker_with_retry = with_circuit_breaker_and_retry(ServiceType.EXTERNAL_API, AGGRESSIVE_RETRY)
