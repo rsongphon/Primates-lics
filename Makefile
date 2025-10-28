@@ -105,11 +105,11 @@ test: ## Run all tests
 
 test-frontend: ## Run frontend tests
 	@echo "$(YELLOW)Running frontend tests...$(NC)"
-	cd @tests && npx jest --config jest.config.js
+	cd tests && npx jest --config jest.config.js
 
 test-backend: ## Run backend tests
 	@echo "$(YELLOW)Running backend tests...$(NC)"
-	cd @tests && pytest -c pytest.ini
+	cd tests && pytest -c pytest.ini
 
 test-edge-agent: ## Run edge agent tests
 	@echo "$(YELLOW)Running edge agent tests...$(NC)"
@@ -118,12 +118,12 @@ test-edge-agent: ## Run edge agent tests
 test-coverage: ## Run tests with coverage report
 	@echo "$(YELLOW)Running tests with coverage...$(NC)"
 	cd services/frontend && npm run test:coverage
-	cd @tests && pytest -c pytest.ini --cov=services/backend/app --cov-report=html
+	cd tests && pytest -c pytest.ini --cov=services/backend/app --cov-report=html
 	cd services/edge-agent && pytest --cov=src --cov-report=html
 
 test-integration: ## Run integration tests
 	@echo "$(YELLOW)Running integration tests...$(NC)"
-	cd @tests && pytest -c pytest.ini integration/
+	cd tests && pytest -c pytest.ini integration/
 
 test-e2e: ## Run end-to-end tests
 	@echo "$(YELLOW)Running E2E tests...$(NC)"
@@ -541,7 +541,7 @@ health-check-continuous: ## Run continuous health monitoring
 ## Performance Testing
 performance-test: ## Run performance tests with K6
 	@echo "$(YELLOW)Running performance tests...$(NC)"
-	k6 run @tests/performance/api-load-test.js
+	k6 run tests/performance/api-load-test.js
 	@echo "$(GREEN)✓ Performance testing completed$(NC)"
 
 performance-baseline: ## Establish performance baselines

@@ -74,18 +74,18 @@ docker-compose -f docker-compose.dev.yml exec frontend-dev npm install
 
 ### Testing Inside Containers
 
-**Important**: All tests are now centralized in the `@tests/` directory. See `@tests/README.md` for complete documentation.
+**Important**: All tests are now centralized in the `tests/` directory. See `tests/README.md` for complete documentation.
 
 ```bash
-# Backend tests (inside container) - Using centralized @tests/ directory
-docker-compose -f docker-compose.dev.yml exec backend-dev pytest -c @tests/pytest.ini
-docker-compose -f docker-compose.dev.yml exec backend-dev pytest -c @tests/pytest.ini --cov=services/backend/app
-docker-compose -f docker-compose.dev.yml exec backend-dev pytest -c @tests/pytest.ini unit/backend/
-docker-compose -f docker-compose.dev.yml exec backend-dev pytest -c @tests/pytest.ini integration/
+# Backend tests (inside container) - Using centralized tests/ directory
+docker-compose -f docker-compose.dev.yml exec backend-dev pytest -c tests/pytest.ini
+docker-compose -f docker-compose.dev.yml exec backend-dev pytest -c tests/pytest.ini --cov=services/backend/app
+docker-compose -f docker-compose.dev.yml exec backend-dev pytest -c tests/pytest.ini unit/backend/
+docker-compose -f docker-compose.dev.yml exec backend-dev pytest -c tests/pytest.ini integration/
 
 # Frontend tests (inside container) - Using centralized Jest config
-docker-compose -f docker-compose.dev.yml exec frontend-dev npx jest --config @tests/jest.config.js
-docker-compose -f docker-compose.dev.yml exec frontend-dev npx jest --config @tests/jest.config.js --coverage
+docker-compose -f docker-compose.dev.yml exec frontend-dev npx jest --config tests/jest.config.js
+docker-compose -f docker-compose.dev.yml exec frontend-dev npx jest --config tests/jest.config.js --coverage
 
 # Edge agent tests (inside container)
 docker-compose -f docker-compose.dev.yml exec edge-agent-dev pytest

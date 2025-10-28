@@ -5,7 +5,7 @@ This directory contains the centralized test infrastructure for the LICS (Lab In
 ## Directory Structure
 
 ```
-@tests/
+tests/
 ├── README.md                           # This file
 ├── pytest.ini                         # Global pytest configuration
 ├── jest.config.js                      # Jest configuration for frontend tests
@@ -108,58 +108,58 @@ make performance-test
 ### Backend Tests (Python/Pytest)
 
 ```bash
-# Run all backend tests from @tests/
-cd @tests && pytest -c pytest.ini
+# Run all backend tests from tests/
+cd tests && pytest -c pytest.ini
 
 # Run specific test categories
-cd @tests && pytest -c pytest.ini unit/backend/
-cd @tests && pytest -c pytest.ini integration/
-cd @tests && pytest -c pytest.ini security/
+cd tests && pytest -c pytest.ini unit/backend/
+cd tests && pytest -c pytest.ini integration/
+cd tests && pytest -c pytest.ini security/
 
 # Run with coverage
-cd @tests && pytest -c pytest.ini --cov=services/backend/app --cov-report=html
+cd tests && pytest -c pytest.ini --cov=services/backend/app --cov-report=html
 
 # Run specific test file
-cd @tests && pytest -c pytest.ini unit/backend/test_routes.py
+cd tests && pytest -c pytest.ini unit/backend/test_routes.py
 ```
 
 ### Frontend Tests (JavaScript/Jest)
 
 ```bash
-# Run all frontend tests from @tests/
-cd @tests && npx jest --config jest.config.js
+# Run all frontend tests from tests/
+cd tests && npx jest --config jest.config.js
 
 # Run specific test files
-cd @tests && npx jest --config jest.config.js unit/frontend/__tests__/components/
+cd tests && npx jest --config jest.config.js unit/frontend/__tests__/components/
 
 # Run with coverage
-cd @tests && npx jest --config jest.config.js --coverage
+cd tests && npx jest --config jest.config.js --coverage
 
 # Run in watch mode
-cd @tests && npx jest --config jest.config.js --watch
+cd tests && npx jest --config jest.config.js --watch
 ```
 
 ### Circuit Breaker Tests
 
 ```bash
 # Run circuit breaker system tests
-cd @tests && python circuit-breaker/test_circuit_breaker_system.py
+cd tests && python circuit-breaker/test_circuit_breaker_system.py
 
 # Run circuit breaker validation tests
-cd @tests && python circuit-breaker/test_circuit_breaker_validation.py
+cd tests && python circuit-breaker/test_circuit_breaker_validation.py
 
 # Run circuit breaker performance tests
-cd @tests && python circuit-breaker/test_circuit_breaker_performance.py
+cd tests && python circuit-breaker/test_circuit_breaker_performance.py
 ```
 
 ### Performance Tests
 
 ```bash
 # Run K6 load tests
-k6 run @tests/performance/api-load-test.js
+k6 run tests/performance/api-load-test.js
 
 # Run circuit breaker performance tests
-cd @tests && python performance/circuit_breaker_performance.py
+cd tests && python performance/circuit_breaker_performance.py
 ```
 
 ### Phase Tests
@@ -176,7 +176,7 @@ make test-phase2-full
 
 ### Backend (pytest.ini)
 
-- **Test Path**: Points to `@tests/` directory
+- **Test Path**: Points to `tests/` directory
 - **Coverage**: Configured for `services/backend/app`
 - **Coverage Threshold**: 80%
 - **Markers**: unit, integration, security, performance, slow, auth, rbac
@@ -236,7 +236,7 @@ docker-compose -f docker-compose.dev.yml exec frontend-dev npm test
 ### Backend Unit Tests
 
 ```python
-# @tests/unit/backend/test_example.py
+# tests/unit/backend/test_example.py
 import pytest
 from fastapi.testclient import TestClient
 from app.main import app
@@ -250,7 +250,7 @@ def test_example_endpoint():
 ### Frontend Unit Tests
 
 ```typescript
-// @tests/unit/frontend/__tests__/components/Example.test.tsx
+// tests/unit/frontend/__tests__/components/Example.test.tsx
 import { render, screen } from '@testing-library/react'
 import { Example } from '@/components/Example'
 
@@ -265,7 +265,7 @@ describe('Example Component', () => {
 ### Integration Tests
 
 ```python
-# @tests/integration/test_api_integration.py
+# tests/integration/test_api_integration.py
 import pytest
 import requests
 
@@ -295,7 +295,7 @@ All tests are integrated into the GitHub Actions workflow:
 
 ### Backend Tests
 - Ensure PostgreSQL and Redis are running
-- Check environment variables in `@tests/utils/test_config.py`
+- Check environment variables in `tests/utils/test_config.py`
 - Verify database migrations are up to date
 
 ### Frontend Tests
