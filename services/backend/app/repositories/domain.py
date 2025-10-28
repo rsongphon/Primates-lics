@@ -25,7 +25,7 @@ from app.models.domain import (
 from app.core.logging import get_logger, PerformanceLogger
 from app.core.circuit_breaker import (
     postgresql_breaker, ServiceType,
-    circuit_breaker_manager
+    cb_manager as circuit_breaker_manager
 )
 from app.core.fallback_strategies import fallback_strategies
 
@@ -97,7 +97,7 @@ class DeviceRepository(BaseRepository[Device]):
         result = await self.update(device_id, last_heartbeat_at=datetime.now(timezone.utc))
         return result is not None
 
-  @postgresql_breaker
+    @postgresql_breaker
     async def update_device_status(
         self,
         device_id: uuid.UUID,

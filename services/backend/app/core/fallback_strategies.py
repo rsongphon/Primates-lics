@@ -330,6 +330,9 @@ class DegradedModeHandler:
 # Global degraded mode handler instance
 degraded_mode_handler = DegradedModeHandler()
 
+# Global fallback strategies instance
+fallback_strategies = FallbackStrategies()
+
 
 # ===== UTILITY FUNCTIONS =====
 
