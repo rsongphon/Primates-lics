@@ -335,7 +335,7 @@ For security issues, please see our [Security Policy](SECURITY.md).
 - **[User Guides](docs/user-guides/)** - End-user documentation
 - **[Deployment Guide](docs/deployment.md)** - Production deployment instructions
 - **[Contributing Guide](CONTRIBUTING.md)** - Development contribution guidelines
-- **[Known Issues](KNOWN_ISSUES.md)** - Comprehensive issue tracking and resolution status
+- **[Known Issues](known-issues.md)** - Comprehensive issue tracking and resolution status
 
 ## 🗺️ Roadmap
 

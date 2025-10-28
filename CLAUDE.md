@@ -355,6 +355,6 @@ Valid scopes: frontend, backend, edge-agent, infrastructure, docs, api, ui, auth
 **Last Completed**: Phase 2 - Database Optimization & Performance with TimescaleDB hypertables, circuit breaker retry logic, and advanced indexing
 **Next Steps**: Implement SLI/SLO monitoring, enhanced alerting, and performance dashboards
 
-- Hide API key in CLAUDE.md and README.md when commit these 2 files.
+- Hide API key in CLAUDE.md and docs/project/project-README.md when commit these 2 files.
 
 ---
