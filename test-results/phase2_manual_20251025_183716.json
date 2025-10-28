@@ -1,0 +1,34 @@
+{
+  "timestamp": "2025-10-25T18:37:16.997579",
+  "duration_seconds": 0.75,
+  "summary": {
+    "total_tests": 1,
+    "passed_tests": 1,
+    "failed_tests": 0,
+    "skipped_tests": 0,
+    "success_rate": 100.0
+  },
+  "test_cases": {
+    "TC-API-011": {
+      "name": "Experiments API - Create",
+      "objective": "Validate Experiments API - Create functionality in RESTful API Implementation",
+      "passed": true,
+      "duration_seconds": 0.6310651302337646,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Create experiment with initial state 'draft'",
+          "expected": "Step should complete successfully",
+          "actual": "Experiment created: 702620c7-efd8-4332-82f8-573618a2e811",
+          "passed": true,
+          "duration_ms": 631.040096282959,
+          "error": null
+        }
+      ],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    }
+  }
+}

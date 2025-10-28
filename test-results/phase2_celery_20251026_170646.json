@@ -1,0 +1,537 @@
+{
+  "timestamp": "2025-10-26T17:06:47.709520",
+  "duration_seconds": 0.43,
+  "summary": {
+    "total_tests": 25,
+    "passed_tests": 11,
+    "failed_tests": 14,
+    "skipped_tests": 10,
+    "success_rate": 44.0
+  },
+  "test_cases": {
+    "TC-CELERY-001": {
+      "name": "Celery Worker Startup",
+      "objective": "Validate Celery Worker Startup functionality in Background Tasks and Scheduling",
+      "passed": false,
+      "duration_seconds": 0.002586841583251953,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Celery workers running",
+          "expected": "Step should complete successfully",
+          "actual": "Failed",
+          "passed": false,
+          "duration_ms": 2.4666786193847656,
+          "error": "Health check returned 401"
+        }
+      ],
+      "category": "Background Tasks and Scheduling",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-CELERY-002": {
+      "name": "Celery Beat Scheduler",
+      "objective": "Validate Celery Beat Scheduler functionality in Background Tasks and Scheduling",
+      "passed": true,
+      "duration_seconds": 1.9073486328125e-06,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Celery Beat scheduler running",
+          "expected": "Step should complete successfully",
+          "actual": "Test skipped: Requires Docker logs inspection",
+          "passed": true,
+          "duration_ms": 0.00095367431640625,
+          "error": null
+        }
+      ],
+      "category": "Background Tasks and Scheduling",
+      "skipped": true,
+      "skip_reason": "Requires Docker logs inspection or Flower UI access",
+      "error_message": null
+    },
+    "TC-CELERY-003": {
+      "name": "Task - Process Experiment Data",
+      "objective": "Validate Task - Process Experiment Data functionality in Background Tasks and Scheduling",
+      "passed": false,
+      "duration_seconds": 0.17096996307373047,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Trigger process experiment data task",
+          "expected": "Step should complete successfully",
+          "actual": "Failed",
+          "passed": false,
+          "duration_ms": 8.031845092773438,
+          "error": "Status: 405"
+        }
+      ],
+      "category": "Background Tasks and Scheduling",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-CELERY-004": {
+      "name": "Task - Process Device Telemetry",
+      "objective": "Validate Task - Process Device Telemetry functionality in Background Tasks and Scheduling",
+      "passed": false,
+      "duration_seconds": 0.027322769165039062,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Trigger telemetry processing task",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 405",
+          "passed": false,
+          "duration_ms": 8.09788703918457,
+          "error": null
+        }
+      ],
+      "category": "Background Tasks and Scheduling",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-CELERY-005": {
+      "name": "Task - Cleanup Old Data",
+      "objective": "Validate Task - Cleanup Old Data functionality in Background Tasks and Scheduling",
+      "passed": false,
+      "duration_seconds": 0.007695198059082031,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Trigger cleanup old data task",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 405",
+          "passed": false,
+          "duration_ms": 7.531881332397461,
+          "error": null
+        }
+      ],
+      "category": "Background Tasks and Scheduling",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-CELERY-006": {
+      "name": "Task - Send Email Notification",
+      "objective": "Validate Task - Send Email Notification functionality in Background Tasks and Scheduling",
+      "passed": false,
+      "duration_seconds": 6.508827209472656e-05,
+      "steps": [],
+      "category": "Background Tasks and Scheduling",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": "'Phase2TestRunner' object has no attribute 'test_user_id'"
+    },
+    "TC-CELERY-007": {
+      "name": "Task - Send Webhook Notification",
+      "objective": "Validate Task - Send Webhook Notification functionality in Background Tasks and Scheduling",
+      "passed": false,
+      "duration_seconds": 0.006680011749267578,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Trigger webhook notification task",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 405",
+          "passed": false,
+          "duration_ms": 6.487131118774414,
+          "error": null
+        }
+      ],
+      "category": "Background Tasks and Scheduling",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-CELERY-008": {
+      "name": "Task - Send WebSocket Notification",
+      "objective": "Validate Task - Send WebSocket Notification functionality in Background Tasks and Scheduling",
+      "passed": true,
+      "duration_seconds": 5.9604644775390625e-06,
+      "steps": [
+        {
+          "number": 1,
+          "description": "WebSocket notification task",
+          "expected": "Step should complete successfully",
+          "actual": "Test skipped: Requires active WebSocket connection",
+          "passed": true,
+          "duration_ms": 0.0007152557373046875,
+          "error": null
+        }
+      ],
+      "category": "Background Tasks and Scheduling",
+      "skipped": true,
+      "skip_reason": "Requires active WebSocket connection to verify delivery",
+      "error_message": null
+    },
+    "TC-CELERY-009": {
+      "name": "Task - Generate Experiment Report",
+      "objective": "Validate Task - Generate Experiment Report functionality in Background Tasks and Scheduling",
+      "passed": false,
+      "duration_seconds": 0.017828941345214844,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Trigger experiment report generation",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 405",
+          "passed": false,
+          "duration_ms": 6.468296051025391,
+          "error": null
+        }
+      ],
+      "category": "Background Tasks and Scheduling",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-CELERY-010": {
+      "name": "Task - Generate Participant Progress Report",
+      "objective": "Validate Task - Generate Participant Progress Report functionality in Background Tasks and Scheduling",
+      "passed": false,
+      "duration_seconds": 0.026787996292114258,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Trigger participant progress report",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 405",
+          "passed": false,
+          "duration_ms": 9.564876556396484,
+          "error": null
+        }
+      ],
+      "category": "Background Tasks and Scheduling",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-CELERY-011": {
+      "name": "Task - Export Data to Storage",
+      "objective": "Validate Task - Export Data to Storage functionality in Background Tasks and Scheduling",
+      "passed": false,
+      "duration_seconds": 0.020041942596435547,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Trigger data export to storage",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 405",
+          "passed": false,
+          "duration_ms": 7.197856903076172,
+          "error": null
+        }
+      ],
+      "category": "Background Tasks and Scheduling",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-CELERY-012": {
+      "name": "Task - Cleanup Expired Sessions",
+      "objective": "Validate Task - Cleanup Expired Sessions functionality in Background Tasks and Scheduling",
+      "passed": false,
+      "duration_seconds": 0.009124755859375,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Trigger expired sessions cleanup",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 405",
+          "passed": false,
+          "duration_ms": 8.906841278076172,
+          "error": null
+        }
+      ],
+      "category": "Background Tasks and Scheduling",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-CELERY-013": {
+      "name": "Task - Refresh Cache Warmup",
+      "objective": "Validate Task - Refresh Cache Warmup functionality in Background Tasks and Scheduling",
+      "passed": false,
+      "duration_seconds": 0.017685890197753906,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Trigger cache warmup task",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 405",
+          "passed": false,
+          "duration_ms": 17.460346221923828,
+          "error": null
+        }
+      ],
+      "category": "Background Tasks and Scheduling",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-CELERY-014": {
+      "name": "Task - Backup Database",
+      "objective": "Validate Task - Backup Database functionality in Background Tasks and Scheduling",
+      "passed": false,
+      "duration_seconds": 0.00900888442993164,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Trigger database backup task",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 405",
+          "passed": false,
+          "duration_ms": 8.783817291259766,
+          "error": null
+        }
+      ],
+      "category": "Background Tasks and Scheduling",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-CELERY-015": {
+      "name": "Task - Update Device Status",
+      "objective": "Validate Task - Update Device Status functionality in Background Tasks and Scheduling",
+      "passed": true,
+      "duration_seconds": 6.198883056640625e-06,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Periodic device status update",
+          "expected": "Step should complete successfully",
+          "actual": "Test skipped: Requires periodic task scheduler",
+          "passed": true,
+          "duration_ms": 0.0011920928955078125,
+          "error": null
+        }
+      ],
+      "category": "Background Tasks and Scheduling",
+      "skipped": true,
+      "skip_reason": "Requires Celery Beat periodic task execution",
+      "error_message": null
+    },
+    "TC-CELERY-016": {
+      "name": "Task Retry Mechanism",
+      "objective": "Validate Task Retry Mechanism functionality in Background Tasks and Scheduling",
+      "passed": true,
+      "duration_seconds": 3.0994415283203125e-06,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Task retry with exponential backoff",
+          "expected": "Step should complete successfully",
+          "actual": "Test skipped: Requires Flower UI monitoring",
+          "passed": true,
+          "duration_ms": 0.0011920928955078125,
+          "error": null
+        }
+      ],
+      "category": "Background Tasks and Scheduling",
+      "skipped": true,
+      "skip_reason": "Requires Flower UI for retry monitoring",
+      "error_message": null
+    },
+    "TC-CELERY-017": {
+      "name": "Task Priority Queues",
+      "objective": "Validate Task Priority Queues functionality in Background Tasks and Scheduling",
+      "passed": true,
+      "duration_seconds": 2.1457672119140625e-06,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Priority queue routing",
+          "expected": "Step should complete successfully",
+          "actual": "Test skipped: Requires queue monitoring",
+          "passed": true,
+          "duration_ms": 0.00095367431640625,
+          "error": null
+        }
+      ],
+      "category": "Background Tasks and Scheduling",
+      "skipped": true,
+      "skip_reason": "Requires Flower UI for queue priority verification",
+      "error_message": null
+    },
+    "TC-CELERY-018": {
+      "name": "Task Chaining",
+      "objective": "Validate Task Chaining functionality in Background Tasks and Scheduling",
+      "passed": true,
+      "duration_seconds": 2.86102294921875e-06,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Task chaining (sequential execution)",
+          "expected": "Step should complete successfully",
+          "actual": "Test skipped: Requires task chain monitoring",
+          "passed": true,
+          "duration_ms": 0.0,
+          "error": null
+        }
+      ],
+      "category": "Background Tasks and Scheduling",
+      "skipped": true,
+      "skip_reason": "Requires complex task chain setup and monitoring",
+      "error_message": null
+    },
+    "TC-CELERY-019": {
+      "name": "Task Groups",
+      "objective": "Validate Task Groups functionality in Background Tasks and Scheduling",
+      "passed": true,
+      "duration_seconds": 2.1457672119140625e-06,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Task groups (parallel execution)",
+          "expected": "Step should complete successfully",
+          "actual": "Test skipped: Requires task group monitoring",
+          "passed": true,
+          "duration_ms": 0.0,
+          "error": null
+        }
+      ],
+      "category": "Background Tasks and Scheduling",
+      "skipped": true,
+      "skip_reason": "Requires complex task group setup and monitoring",
+      "error_message": null
+    },
+    "TC-CELERY-020": {
+      "name": "Task Revocation",
+      "objective": "Validate Task Revocation functionality in Background Tasks and Scheduling",
+      "passed": true,
+      "duration_seconds": 2.1457672119140625e-06,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Task revocation (cancellation)",
+          "expected": "Step should complete successfully",
+          "actual": "Test skipped: Requires task execution monitoring",
+          "passed": true,
+          "duration_ms": 0.0,
+          "error": null
+        }
+      ],
+      "category": "Background Tasks and Scheduling",
+      "skipped": true,
+      "skip_reason": "Requires long-running task and revocation monitoring",
+      "error_message": null
+    },
+    "TC-CELERY-021": {
+      "name": "Flower Monitoring UI",
+      "objective": "Validate Flower Monitoring UI functionality in Background Tasks and Scheduling",
+      "passed": false,
+      "duration_seconds": 0.0012600421905517578,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Flower UI accessible",
+          "expected": "Step should complete successfully",
+          "actual": "Failed",
+          "passed": false,
+          "duration_ms": 1.2469291687011719,
+          "error": "Flower not accessible: Cannot connect to host localhost:5555 ssl:default [Multiple exceptions: [Errno 61] Connect call failed ('::1', 5555, 0, 0), [Errno 61] Connect call failed ('127.0.0.1', 5555)]"
+        }
+      ],
+      "category": "Background Tasks and Scheduling",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-CELERY-022": {
+      "name": "Prometheus Metrics",
+      "objective": "Validate Prometheus Metrics functionality in Background Tasks and Scheduling",
+      "passed": false,
+      "duration_seconds": 0.002063751220703125,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Celery metrics in Prometheus format",
+          "expected": "Step should complete successfully",
+          "actual": "Failed",
+          "passed": false,
+          "duration_ms": 1.8949508666992188,
+          "error": "Metrics endpoint returned 401"
+        }
+      ],
+      "category": "Background Tasks and Scheduling",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-CELERY-023": {
+      "name": "Periodic Task - Cleanup",
+      "objective": "Validate Periodic Task - Cleanup functionality in Background Tasks and Scheduling",
+      "passed": true,
+      "duration_seconds": 3.814697265625e-06,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Periodic cleanup task scheduled",
+          "expected": "Step should complete successfully",
+          "actual": "Test skipped: Requires Celery Beat log inspection",
+          "passed": true,
+          "duration_ms": 0.00095367431640625,
+          "error": null
+        }
+      ],
+      "category": "Background Tasks and Scheduling",
+      "skipped": true,
+      "skip_reason": "Requires Celery Beat logs or schedule inspection",
+      "error_message": null
+    },
+    "TC-CELERY-024": {
+      "name": "Periodic Task - Analytics",
+      "objective": "Validate Periodic Task - Analytics functionality in Background Tasks and Scheduling",
+      "passed": true,
+      "duration_seconds": 2.6226043701171875e-06,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Periodic analytics task scheduled",
+          "expected": "Step should complete successfully",
+          "actual": "Test skipped: Requires Celery Beat log inspection",
+          "passed": true,
+          "duration_ms": 0.00095367431640625,
+          "error": null
+        }
+      ],
+      "category": "Background Tasks and Scheduling",
+      "skipped": true,
+      "skip_reason": "Requires Celery Beat logs or schedule inspection",
+      "error_message": null
+    },
+    "TC-CELERY-025": {
+      "name": "Task Monitoring API",
+      "objective": "Validate Task Monitoring API functionality in Background Tasks and Scheduling",
+      "passed": true,
+      "duration_seconds": 0.018041133880615234,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Task monitoring API endpoint",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 404",
+          "passed": true,
+          "duration_ms": 7.8639984130859375,
+          "error": null
+        },
+        {
+          "number": 2,
+          "description": "Task statistics API endpoint",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 404",
+          "passed": true,
+          "duration_ms": 9.652137756347656,
+          "error": null
+        }
+      ],
+      "category": "Background Tasks and Scheduling",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    }
+  }
+}

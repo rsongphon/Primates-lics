@@ -1,0 +1,43 @@
+{
+  "timestamp": "2025-10-25T18:49:48.430355",
+  "duration_seconds": 0.58,
+  "summary": {
+    "total_tests": 1,
+    "passed_tests": 1,
+    "failed_tests": 0,
+    "skipped_tests": 0,
+    "success_rate": 100.0
+  },
+  "test_cases": {
+    "TC-API-012": {
+      "name": "Experiments API - Start",
+      "objective": "Validate Experiments API - Start functionality in RESTful API Implementation",
+      "passed": true,
+      "duration_seconds": 0.41357898712158203,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Ready experiment (draft \u2192 ready)",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 200",
+          "passed": true,
+          "duration_ms": 33.080101013183594,
+          "error": null
+        },
+        {
+          "number": 2,
+          "description": "Start experiment (ready \u2192 running)",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 200",
+          "passed": true,
+          "duration_ms": 39.507150650024414,
+          "error": null
+        }
+      ],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    }
+  }
+}

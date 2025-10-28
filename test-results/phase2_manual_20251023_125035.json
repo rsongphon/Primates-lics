@@ -1,0 +1,70 @@
+{
+  "timestamp": "2025-10-23T12:50:35.654533",
+  "duration_seconds": 0.49,
+  "summary": {
+    "total_tests": 1,
+    "passed_tests": 0,
+    "failed_tests": 1,
+    "skipped_tests": 0,
+    "success_rate": 0.0
+  },
+  "test_cases": {
+    "TC-DOMAIN-001": {
+      "name": "Organization CRUD",
+      "objective": "Validate Organization CRUD functionality in Core Domain Models",
+      "passed": false,
+      "duration_seconds": 0.4612159729003906,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Create organization",
+          "expected": "Step should complete successfully",
+          "actual": "Created org ID: fe11df6b-f2d9-4bc6-9372-091008794bb2",
+          "passed": true,
+          "duration_ms": 118.80898475646973,
+          "error": null
+        },
+        {
+          "number": 2,
+          "description": "List organizations",
+          "expected": "Step should complete successfully",
+          "actual": "Found in list: True",
+          "passed": true,
+          "duration_ms": 23.150205612182617,
+          "error": null
+        },
+        {
+          "number": 3,
+          "description": "Get single organization",
+          "expected": "Step should complete successfully",
+          "actual": "Name matches: False",
+          "passed": false,
+          "duration_ms": 21.031856536865234,
+          "error": null
+        },
+        {
+          "number": 4,
+          "description": "Update organization",
+          "expected": "Step should complete successfully",
+          "actual": "Name updated: False",
+          "passed": false,
+          "duration_ms": 33.66398811340332,
+          "error": null
+        },
+        {
+          "number": 5,
+          "description": "Delete organization",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 204",
+          "passed": true,
+          "duration_ms": 26.26204490661621,
+          "error": null
+        }
+      ],
+      "category": "Core Domain Models",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    }
+  }
+}

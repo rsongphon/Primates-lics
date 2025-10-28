@@ -1,0 +1,34 @@
+{
+  "timestamp": "2025-10-23T19:51:33.434802",
+  "duration_seconds": 0.49,
+  "summary": {
+    "total_tests": 1,
+    "passed_tests": 0,
+    "failed_tests": 1,
+    "skipped_tests": 0,
+    "success_rate": 0.0
+  },
+  "test_cases": {
+    "TC-API-001": {
+      "name": "Organizations API - List",
+      "objective": "Validate Organizations API - List functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.4803938865661621,
+      "steps": [
+        {
+          "number": 1,
+          "description": "List organizations with pagination",
+          "expected": "Step should complete successfully",
+          "actual": "Failed",
+          "passed": false,
+          "duration_ms": 110.59713363647461,
+          "error": "Status: 500"
+        }
+      ],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    }
+  }
+}

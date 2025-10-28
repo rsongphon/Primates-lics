@@ -1,0 +1,34 @@
+{
+  "timestamp": "2025-10-25T18:34:53.450978",
+  "duration_seconds": 0.23,
+  "summary": {
+    "total_tests": 1,
+    "passed_tests": 0,
+    "failed_tests": 1,
+    "skipped_tests": 0,
+    "success_rate": 0.0
+  },
+  "test_cases": {
+    "TC-API-005": {
+      "name": "Devices API - Update",
+      "objective": "Validate Devices API - Update functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.14394903182983398,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Update device with 200 status",
+          "expected": "Step should complete successfully",
+          "actual": "Failed",
+          "passed": false,
+          "duration_ms": 8.878946304321289,
+          "error": "Status: 405"
+        }
+      ],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    }
+  }
+}

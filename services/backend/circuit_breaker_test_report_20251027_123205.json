@@ -1,0 +1,12 @@
+{
+  "summary": {
+    "tests_run": 0,
+    "tests_passed": 0,
+    "success_rate": 0.0,
+    "duration": 0.6135685443878174
+  },
+  "details": [
+    "Setup failed: Multiple exceptions: [Errno 111] Connect call failed ('::1', 5433, 0, 0), [Errno 111] Connect call failed ('127.0.0.1', 5433)"
+  ],
+  "timestamp": "2025-10-27T12:32:05.759549+00:00"
+}

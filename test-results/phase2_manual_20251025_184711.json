@@ -1,0 +1,43 @@
+{
+  "timestamp": "2025-10-25T18:47:11.211346",
+  "duration_seconds": 0.27,
+  "summary": {
+    "total_tests": 1,
+    "passed_tests": 0,
+    "failed_tests": 1,
+    "skipped_tests": 0,
+    "success_rate": 0.0
+  },
+  "test_cases": {
+    "TC-API-006": {
+      "name": "Devices API - Delete",
+      "objective": "Validate Devices API - Delete functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.17136907577514648,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Delete device (soft delete)",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 204",
+          "passed": true,
+          "duration_ms": 20.76864242553711,
+          "error": null
+        },
+        {
+          "number": 2,
+          "description": "Verify deleted device returns 404",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 200",
+          "passed": false,
+          "duration_ms": 13.603925704956055,
+          "error": null
+        }
+      ],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    }
+  }
+}

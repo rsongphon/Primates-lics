@@ -1,0 +1,70 @@
+{
+  "timestamp": "2025-10-23T12:41:06.299582",
+  "duration_seconds": 0.53,
+  "summary": {
+    "total_tests": 1,
+    "passed_tests": 0,
+    "failed_tests": 1,
+    "skipped_tests": 0,
+    "success_rate": 0.0
+  },
+  "test_cases": {
+    "TC-DOMAIN-001": {
+      "name": "Organization CRUD",
+      "objective": "Validate Organization CRUD functionality in Core Domain Models",
+      "passed": false,
+      "duration_seconds": 0.4946150779724121,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Create organization",
+          "expected": "Step should complete successfully",
+          "actual": "Created org ID: 3ea79618-703f-4dbf-8218-4b8c17a1d2ac",
+          "passed": true,
+          "duration_ms": 135.03384590148926,
+          "error": null
+        },
+        {
+          "number": 2,
+          "description": "List organizations",
+          "expected": "Step should complete successfully",
+          "actual": "Failed",
+          "passed": false,
+          "duration_ms": 40.93432426452637,
+          "error": "Status: 500"
+        },
+        {
+          "number": 3,
+          "description": "Get single organization",
+          "expected": "Step should complete successfully",
+          "actual": "Failed",
+          "passed": false,
+          "duration_ms": 25.07495880126953,
+          "error": "Status: 403"
+        },
+        {
+          "number": 4,
+          "description": "Update organization",
+          "expected": "Step should complete successfully",
+          "actual": "Failed",
+          "passed": false,
+          "duration_ms": 25.054931640625,
+          "error": "Status: 405"
+        },
+        {
+          "number": 5,
+          "description": "Delete organization",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 403",
+          "passed": false,
+          "duration_ms": 40.100812911987305,
+          "error": null
+        }
+      ],
+      "category": "Core Domain Models",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    }
+  }
+}

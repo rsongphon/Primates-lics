@@ -1,0 +1,445 @@
+{
+  "timestamp": "2025-10-26T16:06:37.330944",
+  "duration_seconds": 1.04,
+  "summary": {
+    "total_tests": 15,
+    "passed_tests": 13,
+    "failed_tests": 2,
+    "skipped_tests": 0,
+    "success_rate": 86.67
+  },
+  "test_cases": {
+    "TC-DOMAIN-001": {
+      "name": "Organization CRUD",
+      "objective": "Validate Organization CRUD functionality in Core Domain Models",
+      "passed": true,
+      "duration_seconds": 0.24062371253967285,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Create organization",
+          "expected": "Step should complete successfully",
+          "actual": "Created org ID: 8d536306-4dea-48f4-9d5b-9cb52bc3d307",
+          "passed": true,
+          "duration_ms": 19.97995376586914,
+          "error": null
+        },
+        {
+          "number": 2,
+          "description": "List organizations",
+          "expected": "Step should complete successfully",
+          "actual": "Found in list: True, Total orgs: 100",
+          "passed": true,
+          "duration_ms": 22.326231002807617,
+          "error": null
+        },
+        {
+          "number": 3,
+          "description": "Get single organization",
+          "expected": "Step should complete successfully",
+          "actual": "Name matches: True",
+          "passed": true,
+          "duration_ms": 13.459205627441406,
+          "error": null
+        },
+        {
+          "number": 4,
+          "description": "Update organization",
+          "expected": "Step should complete successfully",
+          "actual": "Name updated: True",
+          "passed": true,
+          "duration_ms": 13.3209228515625,
+          "error": null
+        },
+        {
+          "number": 5,
+          "description": "Delete organization",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 204",
+          "passed": true,
+          "duration_ms": 15.11693000793457,
+          "error": null
+        }
+      ],
+      "category": "Core Domain Models",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-DOMAIN-002": {
+      "name": "Device Registration",
+      "objective": "Validate Device Registration functionality in Core Domain Models",
+      "passed": true,
+      "duration_seconds": 0.016236066818237305,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Device registration",
+          "expected": "Step should complete successfully",
+          "actual": "ID: True, Initial status: offline",
+          "passed": true,
+          "duration_ms": 15.550851821899414,
+          "error": null
+        }
+      ],
+      "category": "Core Domain Models",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-DOMAIN-003": {
+      "name": "Device Status Updates",
+      "objective": "Validate Device Status Updates functionality in Core Domain Models",
+      "passed": false,
+      "duration_seconds": 0.04326033592224121,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Device heartbeat",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 200",
+          "passed": true,
+          "duration_ms": 15.210866928100586,
+          "error": null
+        },
+        {
+          "number": 2,
+          "description": "Update device status",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 400, Error: {\"error\":{\"code\":\"HTTP_ERROR\",\"message\":\"'str' object has no attribute 'value'\",\"trace_id\":\"82856b9c-6300-4eb9-bf95-fcb6f4c4c57c\"}}",
+          "passed": false,
+          "duration_ms": 10.841131210327148,
+          "error": null
+        }
+      ],
+      "category": "Core Domain Models",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-DOMAIN-004": {
+      "name": "Device Telemetry",
+      "objective": "Validate Device Telemetry functionality in Core Domain Models",
+      "passed": true,
+      "duration_seconds": 0.06782078742980957,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Store telemetry data",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 201",
+          "passed": true,
+          "duration_ms": 29.409170150756836,
+          "error": null
+        },
+        {
+          "number": 2,
+          "description": "Query telemetry history",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 200",
+          "passed": true,
+          "duration_ms": 17.384767532348633,
+          "error": null
+        }
+      ],
+      "category": "Core Domain Models",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-DOMAIN-005": {
+      "name": "Experiment Creation",
+      "objective": "Validate Experiment Creation functionality in Core Domain Models",
+      "passed": true,
+      "duration_seconds": 0.024297237396240234,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Experiment creation",
+          "expected": "Step should complete successfully",
+          "actual": "ID: True, Status: ready",
+          "passed": true,
+          "duration_ms": 24.068117141723633,
+          "error": null
+        }
+      ],
+      "category": "Core Domain Models",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-DOMAIN-006": {
+      "name": "Experiment Lifecycle",
+      "objective": "Validate Experiment Lifecycle functionality in Core Domain Models",
+      "passed": true,
+      "duration_seconds": 0.09926891326904297,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Ready experiment (draft \u2192 ready)",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 200",
+          "passed": true,
+          "duration_ms": 16.833066940307617,
+          "error": null
+        },
+        {
+          "number": 2,
+          "description": "Start experiment (ready \u2192 running)",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 200",
+          "passed": true,
+          "duration_ms": 15.28787612915039,
+          "error": null
+        },
+        {
+          "number": 3,
+          "description": "Pause experiment (running \u2192 paused)",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 200",
+          "passed": true,
+          "duration_ms": 12.957334518432617,
+          "error": null
+        },
+        {
+          "number": 4,
+          "description": "Resume experiment (paused \u2192 running)",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 200",
+          "passed": true,
+          "duration_ms": 15.764951705932617,
+          "error": null
+        },
+        {
+          "number": 5,
+          "description": "Complete experiment (running \u2192 completed)",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 200",
+          "passed": true,
+          "duration_ms": 13.188838958740234,
+          "error": null
+        }
+      ],
+      "category": "Core Domain Models",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-DOMAIN-007": {
+      "name": "Participant (Primate) Management",
+      "objective": "Validate Participant (Primate) Management functionality in Core Domain Models",
+      "passed": true,
+      "duration_seconds": 0.01283574104309082,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Participant registration",
+          "expected": "Step should complete successfully",
+          "actual": "ID: True, Species: rhesus_macaque",
+          "passed": true,
+          "duration_ms": 12.64810562133789,
+          "error": null
+        }
+      ],
+      "category": "Core Domain Models",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-DOMAIN-008": {
+      "name": "Participant Welfare Checks",
+      "objective": "Validate Participant Welfare Checks functionality in Core Domain Models",
+      "passed": true,
+      "duration_seconds": 0.0280911922454834,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Record welfare check",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 200",
+          "passed": true,
+          "duration_ms": 17.169713973999023,
+          "error": null
+        }
+      ],
+      "category": "Core Domain Models",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-DOMAIN-009": {
+      "name": "Task Definition Creation",
+      "objective": "Validate Task Definition Creation functionality in Core Domain Models",
+      "passed": true,
+      "duration_seconds": 0.028841018676757812,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Task definition creation",
+          "expected": "Step should complete successfully",
+          "actual": "ID: True, Version: 1.0.0",
+          "passed": true,
+          "duration_ms": 28.621673583984375,
+          "error": null
+        }
+      ],
+      "category": "Core Domain Models",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-DOMAIN-010": {
+      "name": "Task Execution",
+      "objective": "Validate Task Execution functionality in Core Domain Models",
+      "passed": true,
+      "duration_seconds": 0.016442060470581055,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Task execution started",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 201",
+          "passed": true,
+          "duration_ms": 16.257047653198242,
+          "error": null
+        }
+      ],
+      "category": "Core Domain Models",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-DOMAIN-011": {
+      "name": "Data Collection",
+      "objective": "Validate Data Collection functionality in Core Domain Models",
+      "passed": true,
+      "duration_seconds": 0.0708620548248291,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Store trial data",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 200",
+          "passed": true,
+          "duration_ms": 13.646125793457031,
+          "error": null
+        }
+      ],
+      "category": "Core Domain Models",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-DOMAIN-012": {
+      "name": "Multi-Tenancy Isolation",
+      "objective": "Validate Multi-Tenancy Isolation functionality in Core Domain Models",
+      "passed": true,
+      "duration_seconds": 0.2115781307220459,
+      "steps": [
+        {
+          "number": 1,
+          "description": "User A creates device",
+          "expected": "Step should complete successfully",
+          "actual": "Device ID: 5e8538ba-c0fe-4aa2-9b03-71795676ba5a",
+          "passed": true,
+          "duration_ms": 17.776966094970703,
+          "error": null
+        },
+        {
+          "number": 2,
+          "description": "User B can access User A's device (same org)",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 200 (expecting 200 for same org access)",
+          "passed": true,
+          "duration_ms": 10.162830352783203,
+          "error": null
+        }
+      ],
+      "category": "Core Domain Models",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-DOMAIN-013": {
+      "name": "Soft Delete",
+      "objective": "Validate Soft Delete functionality in Core Domain Models",
+      "passed": true,
+      "duration_seconds": 0.03170299530029297,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Delete device (soft delete)",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 204",
+          "passed": true,
+          "duration_ms": 11.195898056030273,
+          "error": null
+        },
+        {
+          "number": 2,
+          "description": "GET returns 404 for deleted device",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 404",
+          "passed": true,
+          "duration_ms": 8.533239364624023,
+          "error": null
+        }
+      ],
+      "category": "Core Domain Models",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-DOMAIN-014": {
+      "name": "Pagination and Filtering",
+      "objective": "Validate Pagination and Filtering functionality in Core Domain Models",
+      "passed": false,
+      "duration_seconds": 0.02548503875732422,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Pagination works",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 200",
+          "passed": false,
+          "duration_ms": 14.521121978759766,
+          "error": null
+        },
+        {
+          "number": 2,
+          "description": "Filtering works",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 200",
+          "passed": true,
+          "duration_ms": 10.69498062133789,
+          "error": null
+        }
+      ],
+      "category": "Core Domain Models",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-DOMAIN-015": {
+      "name": "Audit Trail",
+      "objective": "Validate Audit Trail functionality in Core Domain Models",
+      "passed": true,
+      "duration_seconds": 0.021828174591064453,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Audit trail fields present",
+          "expected": "Step should complete successfully",
+          "actual": "created_at: True, updated_at: True",
+          "passed": true,
+          "duration_ms": 9.550809860229492,
+          "error": null
+        }
+      ],
+      "category": "Core Domain Models",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    }
+  }
+}

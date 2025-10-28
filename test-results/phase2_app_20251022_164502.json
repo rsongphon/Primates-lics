@@ -1,0 +1,208 @@
+{
+  "timestamp": "2025-10-22T16:45:03.349184",
+  "duration_seconds": 0.31,
+  "summary": {
+    "total_tests": 5,
+    "passed_tests": 5,
+    "failed_tests": 0,
+    "skipped_tests": 0,
+    "success_rate": 100.0
+  },
+  "test_cases": {
+    "TC-APP-001": {
+      "name": "FastAPI Server Startup",
+      "objective": "Validate FastAPI Server Startup functionality in Application Foundation",
+      "passed": true,
+      "duration_seconds": 0.02388310432434082,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Backend health check",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 200, Response: {'status': 'healthy', 'timestamp': '2025-10-22T09:45:03.068768+00:00', 'service': 'LICS Backend'}",
+          "passed": true,
+          "duration_ms": 7.278919219970703,
+          "error": null
+        },
+        {
+          "number": 2,
+          "description": "Swagger UI accessible",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 200",
+          "passed": true,
+          "duration_ms": 2.7599334716796875,
+          "error": null
+        },
+        {
+          "number": 3,
+          "description": "OpenAPI schema available",
+          "expected": "Step should complete successfully",
+          "actual": "Passed",
+          "passed": true,
+          "duration_ms": 10.100841522216797,
+          "error": null
+        }
+      ],
+      "category": "Application Foundation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-APP-002": {
+      "name": "Database Connection",
+      "objective": "Validate Database Connection functionality in Application Foundation",
+      "passed": true,
+      "duration_seconds": 0.15666794776916504,
+      "steps": [
+        {
+          "number": 1,
+          "description": "PostgreSQL connection",
+          "expected": "Step should complete successfully",
+          "actual": "Passed",
+          "passed": true,
+          "duration_ms": 34.893035888671875,
+          "error": null
+        },
+        {
+          "number": 2,
+          "description": "TimescaleDB extension check",
+          "expected": "Step should complete successfully",
+          "actual": "Extension found: True",
+          "passed": true,
+          "duration_ms": 29.047727584838867,
+          "error": null
+        },
+        {
+          "number": 3,
+          "description": "Database health endpoint",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 200",
+          "passed": true,
+          "duration_ms": 86.9748592376709,
+          "error": null
+        }
+      ],
+      "category": "Application Foundation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-APP-003": {
+      "name": "Health Check Endpoints",
+      "objective": "Validate Health Check Endpoints functionality in Application Foundation",
+      "passed": true,
+      "duration_seconds": 0.09435701370239258,
+      "steps": [
+        {
+          "number": 1,
+          "description": "/api/v1/health endpoint",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 200",
+          "passed": true,
+          "duration_ms": 2.337932586669922,
+          "error": null
+        },
+        {
+          "number": 2,
+          "description": "/api/v1/health/database endpoint",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 200",
+          "passed": true,
+          "duration_ms": 81.8781852722168,
+          "error": null
+        },
+        {
+          "number": 3,
+          "description": "/api/v1/health/redis endpoint",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 200",
+          "passed": true,
+          "duration_ms": 9.845972061157227,
+          "error": null
+        }
+      ],
+      "category": "Application Foundation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-APP-004": {
+      "name": "API Versioning",
+      "objective": "Validate API Versioning functionality in Application Foundation",
+      "passed": true,
+      "duration_seconds": 0.0076220035552978516,
+      "steps": [
+        {
+          "number": 1,
+          "description": "API versioning structure",
+          "expected": "Step should complete successfully",
+          "actual": "Version in schema: True, All paths v1: True",
+          "passed": true,
+          "duration_ms": 7.360935211181641,
+          "error": null
+        }
+      ],
+      "category": "Application Foundation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-APP-005": {
+      "name": "Repository Pattern Implementation",
+      "objective": "Validate Repository Pattern Implementation functionality in Application Foundation",
+      "passed": true,
+      "duration_seconds": 0.0005488395690917969,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Repository files existence",
+          "expected": "Step should complete successfully",
+          "actual": "All files exist: base.py, domain.py, __init__.py",
+          "passed": true,
+          "duration_ms": 0.08821487426757812,
+          "error": null
+        },
+        {
+          "number": 2,
+          "description": "BaseRepository implementation",
+          "expected": "Step should complete successfully",
+          "actual": "BaseRepository with 6 CRUD methods found",
+          "passed": true,
+          "duration_ms": 0.1590251922607422,
+          "error": null
+        },
+        {
+          "number": 3,
+          "description": "Domain repositories implementation",
+          "expected": "Step should complete successfully",
+          "actual": "6 domain repositories extend BaseRepository",
+          "passed": true,
+          "duration_ms": 0.09083747863769531,
+          "error": null
+        },
+        {
+          "number": 4,
+          "description": "Repository exports validation",
+          "expected": "Step should complete successfully",
+          "actual": "All repositories properly exported in __all__",
+          "passed": true,
+          "duration_ms": 0.05698204040527344,
+          "error": null
+        },
+        {
+          "number": 5,
+          "description": "Services using repositories",
+          "expected": "Step should complete successfully",
+          "actual": "Services properly use 6 repositories",
+          "passed": true,
+          "duration_ms": 0.08511543273925781,
+          "error": null
+        }
+      ],
+      "category": "Application Foundation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    }
+  }
+}

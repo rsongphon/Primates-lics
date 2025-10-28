@@ -1,0 +1,12 @@
+{
+  "timestamp": "2025-10-22T17:00:18.578912",
+  "duration_seconds": 0.03,
+  "summary": {
+    "total_tests": 0,
+    "passed_tests": 0,
+    "failed_tests": 0,
+    "skipped_tests": 0,
+    "success_rate": 0
+  },
+  "test_cases": {}
+}

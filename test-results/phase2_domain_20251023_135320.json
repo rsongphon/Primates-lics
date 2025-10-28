@@ -1,0 +1,237 @@
+{
+  "timestamp": "2025-10-23T13:53:22.231862",
+  "duration_seconds": 1.15,
+  "summary": {
+    "total_tests": 15,
+    "passed_tests": 0,
+    "failed_tests": 13,
+    "skipped_tests": 2,
+    "success_rate": 0.0
+  },
+  "test_cases": {
+    "TC-DOMAIN-001": {
+      "name": "Organization CRUD",
+      "objective": "Validate Organization CRUD functionality in Core Domain Models",
+      "passed": false,
+      "duration_seconds": 0.4221320152282715,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Create organization",
+          "expected": "Step should complete successfully",
+          "actual": "Failed",
+          "passed": false,
+          "duration_ms": 122.37906455993652,
+          "error": "Status: 400, {\"error\":{\"code\":\"HTTP_ERROR\",\"message\":\"(sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.UndefinedColumnError'>: column \\\"created_by\\\" of relation \\\"organizations\\\" does not exist\\n[SQL: INSERT INTO organizations (name, description, settings, max_users, max_devices, is_active, id, created_at, updated_at, created_by, updated_by, deleted_at, version) VALUES ($1::VARCHAR, $2::VARCHAR, $3::JSON, $4::INTEGER, $5::INTEGER, $6::BOOLEAN, $7::UUID, $8::TIMESTAMP WITH TIME ZONE, $9::TIMESTAMP WITH TIME ZONE, $10::UUID, $11::UUID, $12::TIMESTAMP WITH TIME ZONE, $13::INTEGER)]\\n[parameters: ('Test Org 1761202401', 'CRUD test organization', '{\\\"max_devices\\\": 100}', None, None, True, UUID('3b1f3bc7-1a61-49c3-bee0-e06b2cc9448b'), datetime.datetime(2025, 10, 23, 6, 53, 21, 514055, tzinfo=datetime.timezone.utc), datetime.datetime(2025, 10, 23, 6, 53, 21, 514057, tzinfo=datetime.timezone.utc), None, None, None, 1)]\\n(Background on this error at: https://sqlalche.me/e/20/f405)\",\"trace_id\":\"b97723a3-c2d4-4dd9-9a31-e38e86aa76ee\"}}"
+        }
+      ],
+      "category": "Core Domain Models",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-DOMAIN-002": {
+      "name": "Device Registration",
+      "objective": "Validate Device Registration functionality in Core Domain Models",
+      "passed": false,
+      "duration_seconds": 0.06511616706848145,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Device registration",
+          "expected": "Step should complete successfully",
+          "actual": "Failed",
+          "passed": false,
+          "duration_ms": 64.79907035827637,
+          "error": "Status: 400, {\"error\":{\"code\":\"HTTP_ERROR\",\"message\":\"(sqlalchemy.dialects.postgresql.asyncpg.Error) <class 'asyncpg.exceptions.InvalidTextRepresentationError'>: invalid input value for enum devicetype: \\\"raspberry_pi\\\"\\n[SQL: INSERT INTO devices (name, description, device_type, serial_number, mac_address, ip_address, status, is_active, location, hardware_config, software_config, capabilities, last_heartbeat_at, last_maintenance_at, next_maintenance_at, firmware_version, agent_version, uptime_hours, cpu_usage_percent, memory_usage_percent, disk_usage_percent, temperature_celsius, id, created_at, updated_at, deleted_at, created_by, updated_by, version, organization_id) VALUES ($1::VARCHAR, $2::VARCHAR, $3::devicetype, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR, $7::devicestatus, $8::BOOLEAN, $9::VARCHAR, $10::JSON, $11::JSON, $12::JSON, $13::TIMESTAMP WITH TIME ZONE, $14::TIMESTAMP WITH TIME ZONE, $15::TIMESTAMP WITH TIME ZONE, $16::VARCHAR, $17::VARCHAR, $18::FLOAT, $19::FLOAT, $20::FLOAT, $21::FLOAT, $22::FLOAT, $23::UUID, $24::TIMESTAMP WITH TIME ZONE, $25::TIMESTAMP WITH TIME ZONE, $26::TIMESTAMP WITH TIME ZONE, $27::UUID, $28::UUID, $29::INTEGER, $30::UUID)]\\n[parameters: ('Lab Cage 1761202401', None, 'raspberry_pi', None, None, None, 'OFFLINE', True, None, 'null', 'null', '{\\\"camera\\\": true, \\\"rfid_reader\\\": true, \\\"feeder\\\": true}', datetime.datetime(2025, 10, 23, 6, 53, 21, 580469, tzinfo=datetime.timezone.utc), None, None, None, None, None, None, None, None, None, UUID('35d7f2e0-ce06-4211-bd29-f86f7f38f69d'), datetime.datetime(2025, 10, 23, 6, 53, 21, 581547, tzinfo=datetime.timezone.utc), datetime.datetime(2025, 10, 23, 6, 53, 21, 581549, tzinfo=datetime.timezone.utc), None, None, None, 1, UUID('00000000-0000-0000-0000-000000000001'))]\\n(Background on this error at: https://sqlalche.me/e/20/dbapi)\",\"trace_id\":\"527d0e43-1eac-4fd1-85c0-6d555f5dbde9\"}}"
+        }
+      ],
+      "category": "Core Domain Models",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-DOMAIN-003": {
+      "name": "Device Status Updates",
+      "objective": "Validate Device Status Updates functionality in Core Domain Models",
+      "passed": false,
+      "duration_seconds": 0.05095314979553223,
+      "steps": [],
+      "category": "Core Domain Models",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": "Failed to create test device"
+    },
+    "TC-DOMAIN-004": {
+      "name": "Device Telemetry",
+      "objective": "Validate Device Telemetry functionality in Core Domain Models",
+      "passed": false,
+      "duration_seconds": 0.022794008255004883,
+      "steps": [],
+      "category": "Core Domain Models",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": "Failed to create test device"
+    },
+    "TC-DOMAIN-005": {
+      "name": "Experiment Creation",
+      "objective": "Validate Experiment Creation functionality in Core Domain Models",
+      "passed": false,
+      "duration_seconds": 8.821487426757812e-06,
+      "steps": [],
+      "category": "Core Domain Models",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": "'Phase2TestRunner' object has no attribute 'user_id'"
+    },
+    "TC-DOMAIN-006": {
+      "name": "Experiment Lifecycle",
+      "objective": "Validate Experiment Lifecycle functionality in Core Domain Models",
+      "passed": false,
+      "duration_seconds": 0.020891904830932617,
+      "steps": [],
+      "category": "Core Domain Models",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": "Failed to create test experiment"
+    },
+    "TC-DOMAIN-007": {
+      "name": "Participant (Primate) Management",
+      "objective": "Validate Participant (Primate) Management functionality in Core Domain Models",
+      "passed": false,
+      "duration_seconds": 0.01465606689453125,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Participant registration",
+          "expected": "Step should complete successfully",
+          "actual": "Failed",
+          "passed": false,
+          "duration_ms": 14.405012130737305,
+          "error": "Status: 500, {\"error\":{\"code\":\"INTERNAL_SERVER_ERROR\",\"message\":\"An unexpected error occurred\",\"trace_id\":\"c639aca5-b80a-4761-8114-447650cbb700\"}}"
+        }
+      ],
+      "category": "Core Domain Models",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-DOMAIN-008": {
+      "name": "Participant Welfare Checks",
+      "objective": "Validate Participant Welfare Checks functionality in Core Domain Models",
+      "passed": false,
+      "duration_seconds": 0.014979124069213867,
+      "steps": [],
+      "category": "Core Domain Models",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": "Failed to create test participant"
+    },
+    "TC-DOMAIN-009": {
+      "name": "Task Definition Creation",
+      "objective": "Validate Task Definition Creation functionality in Core Domain Models",
+      "passed": false,
+      "duration_seconds": 0.02129817008972168,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Task definition creation",
+          "expected": "Step should complete successfully",
+          "actual": "Failed",
+          "passed": false,
+          "duration_ms": 21.027088165283203,
+          "error": "Status: 400, {\"error\":{\"code\":\"HTTP_ERROR\",\"message\":\"Field 'task_definition' is required\",\"trace_id\":\"61ef418e-cf73-41c0-8653-2cf50d3bead3\"}}"
+        }
+      ],
+      "category": "Core Domain Models",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-DOMAIN-010": {
+      "name": "Task Execution",
+      "objective": "Validate Task Execution functionality in Core Domain Models",
+      "passed": false,
+      "duration_seconds": 2.1457672119140625e-06,
+      "steps": [],
+      "category": "Core Domain Models",
+      "skipped": true,
+      "skip_reason": "No test task ID available",
+      "error_message": null
+    },
+    "TC-DOMAIN-011": {
+      "name": "Data Collection",
+      "objective": "Validate Data Collection functionality in Core Domain Models",
+      "passed": false,
+      "duration_seconds": 9.5367431640625e-07,
+      "steps": [],
+      "category": "Core Domain Models",
+      "skipped": true,
+      "skip_reason": "No test experiment ID available",
+      "error_message": null
+    },
+    "TC-DOMAIN-012": {
+      "name": "Multi-Tenancy Isolation",
+      "objective": "Validate Multi-Tenancy Isolation functionality in Core Domain Models",
+      "passed": false,
+      "duration_seconds": 0.09274005889892578,
+      "steps": [],
+      "category": "Core Domain Models",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": "Device creation failed"
+    },
+    "TC-DOMAIN-013": {
+      "name": "Soft Delete",
+      "objective": "Validate Soft Delete functionality in Core Domain Models",
+      "passed": false,
+      "duration_seconds": 0.020117998123168945,
+      "steps": [],
+      "category": "Core Domain Models",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": "Failed to create test device"
+    },
+    "TC-DOMAIN-014": {
+      "name": "Pagination and Filtering",
+      "objective": "Validate Pagination and Filtering functionality in Core Domain Models",
+      "passed": false,
+      "duration_seconds": 0.22408699989318848,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Pagination works",
+          "expected": "Step should complete successfully",
+          "actual": "Failed",
+          "passed": false,
+          "duration_ms": 34.22808647155762,
+          "error": "Status: 500"
+        },
+        {
+          "number": 2,
+          "description": "Filtering works",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 500",
+          "passed": false,
+          "duration_ms": 189.3630027770996,
+          "error": null
+        }
+      ],
+      "category": "Core Domain Models",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-DOMAIN-015": {
+      "name": "Audit Trail",
+      "objective": "Validate Audit Trail functionality in Core Domain Models",
+      "passed": false,
+      "duration_seconds": 0.16008806228637695,
+      "steps": [],
+      "category": "Core Domain Models",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": "Failed to create test device"
+    }
+  }
+}

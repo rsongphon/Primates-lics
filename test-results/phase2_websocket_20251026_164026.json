@@ -1,0 +1,442 @@
+{
+  "timestamp": "2025-10-26T16:40:27.447319",
+  "duration_seconds": 0.85,
+  "summary": {
+    "total_tests": 20,
+    "passed_tests": 14,
+    "failed_tests": 6,
+    "skipped_tests": 12,
+    "success_rate": 70.0
+  },
+  "test_cases": {
+    "TC-WS-001": {
+      "name": "WebSocket Connection",
+      "objective": "Validate WebSocket Connection functionality in WebSocket and Real-time Features",
+      "passed": true,
+      "duration_seconds": 0.0307309627532959,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Connect to Socket.IO server",
+          "expected": "Step should complete successfully",
+          "actual": "Connected to ws://localhost:8001/socket.io",
+          "passed": true,
+          "duration_ms": 30.195951461791992,
+          "error": null
+        }
+      ],
+      "category": "WebSocket and Real-time Features",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-WS-002": {
+      "name": "WebSocket Authentication",
+      "objective": "Validate WebSocket Authentication functionality in WebSocket and Real-time Features",
+      "passed": true,
+      "duration_seconds": 0.15988397598266602,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Connection without token rejected",
+          "expected": "Step should complete successfully",
+          "actual": "No token: rejected=False",
+          "passed": true,
+          "duration_ms": 5.814790725708008,
+          "error": null
+        },
+        {
+          "number": 2,
+          "description": "Connection with valid token accepted",
+          "expected": "Step should complete successfully",
+          "actual": "Valid token connection successful",
+          "passed": true,
+          "duration_ms": 4.462003707885742,
+          "error": null
+        }
+      ],
+      "category": "WebSocket and Real-time Features",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-WS-003": {
+      "name": "Room Subscription - Device",
+      "objective": "Validate Room Subscription - Device functionality in WebSocket and Real-time Features",
+      "passed": false,
+      "duration_seconds": 0.16618919372558594,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Subscribe to device room",
+          "expected": "Step should complete successfully",
+          "actual": "Failed",
+          "passed": false,
+          "duration_ms": 0.09584426879882812,
+          "error": "Subscription failed: AsyncClient.connect() got an unexpected keyword argument 'timeout'"
+        }
+      ],
+      "category": "WebSocket and Real-time Features",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-WS-004": {
+      "name": "Room Subscription - Experiment",
+      "objective": "Validate Room Subscription - Experiment functionality in WebSocket and Real-time Features",
+      "passed": false,
+      "duration_seconds": 0.05460405349731445,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Subscribe to experiment room",
+          "expected": "Step should complete successfully",
+          "actual": "Failed",
+          "passed": false,
+          "duration_ms": 21.685123443603516,
+          "error": "Subscription failed: BaseEventLoop.create_connection() got an unexpected keyword argument 'extra_headers'"
+        }
+      ],
+      "category": "WebSocket and Real-time Features",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-WS-005": {
+      "name": "Room Subscription - Organization",
+      "objective": "Validate Room Subscription - Organization functionality in WebSocket and Real-time Features",
+      "passed": false,
+      "duration_seconds": 0.03160595893859863,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Subscribe to organization room",
+          "expected": "Step should complete successfully",
+          "actual": "Failed",
+          "passed": false,
+          "duration_ms": 0.10228157043457031,
+          "error": "Subscription failed: BaseEventLoop.create_connection() got an unexpected keyword argument 'extra_headers'"
+        }
+      ],
+      "category": "WebSocket and Real-time Features",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-WS-006": {
+      "name": "Device Telemetry Events",
+      "objective": "Validate Device Telemetry Events functionality in WebSocket and Real-time Features",
+      "passed": true,
+      "duration_seconds": 0.01533198356628418,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Device telemetry events (requires active device)",
+          "expected": "Step should complete successfully",
+          "actual": "Test skipped: Requires active device sending telemetry",
+          "passed": true,
+          "duration_ms": 0.00095367431640625,
+          "error": null
+        }
+      ],
+      "category": "WebSocket and Real-time Features",
+      "skipped": true,
+      "skip_reason": "Requires active device sending telemetry data",
+      "error_message": null
+    },
+    "TC-WS-007": {
+      "name": "Device Status Events",
+      "objective": "Validate Device Status Events functionality in WebSocket and Real-time Features",
+      "passed": true,
+      "duration_seconds": 0.06535601615905762,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Device status change events",
+          "expected": "Step should complete successfully",
+          "actual": "Test skipped: Requires active WebSocket connection",
+          "passed": true,
+          "duration_ms": 0.003814697265625,
+          "error": null
+        }
+      ],
+      "category": "WebSocket and Real-time Features",
+      "skipped": true,
+      "skip_reason": "Requires active WebSocket connection and status changes",
+      "error_message": null
+    },
+    "TC-WS-008": {
+      "name": "Device Heartbeat Events",
+      "objective": "Validate Device Heartbeat Events functionality in WebSocket and Real-time Features",
+      "passed": true,
+      "duration_seconds": 0.019288063049316406,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Device heartbeat events",
+          "expected": "Step should complete successfully",
+          "actual": "Test skipped: Requires active heartbeat transmission",
+          "passed": true,
+          "duration_ms": 0.00095367431640625,
+          "error": null
+        }
+      ],
+      "category": "WebSocket and Real-time Features",
+      "skipped": true,
+      "skip_reason": "Requires active device sending heartbeats",
+      "error_message": null
+    },
+    "TC-WS-009": {
+      "name": "Experiment State Change Events",
+      "objective": "Validate Experiment State Change Events functionality in WebSocket and Real-time Features",
+      "passed": true,
+      "duration_seconds": 0.02983403205871582,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Experiment state change events",
+          "expected": "Step should complete successfully",
+          "actual": "Test skipped: Requires active WebSocket subscription",
+          "passed": true,
+          "duration_ms": 0.0,
+          "error": null
+        }
+      ],
+      "category": "WebSocket and Real-time Features",
+      "skipped": true,
+      "skip_reason": "Requires active WebSocket subscription and state changes",
+      "error_message": null
+    },
+    "TC-WS-010": {
+      "name": "Experiment Progress Events",
+      "objective": "Validate Experiment Progress Events functionality in WebSocket and Real-time Features",
+      "passed": true,
+      "duration_seconds": 0.013206720352172852,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Experiment progress events",
+          "expected": "Step should complete successfully",
+          "actual": "Test skipped: Requires active experiment with trial data",
+          "passed": true,
+          "duration_ms": 0.0,
+          "error": null
+        }
+      ],
+      "category": "WebSocket and Real-time Features",
+      "skipped": true,
+      "skip_reason": "Requires active experiment submitting trial data",
+      "error_message": null
+    },
+    "TC-WS-011": {
+      "name": "Experiment Data Collected Events",
+      "objective": "Validate Experiment Data Collected Events functionality in WebSocket and Real-time Features",
+      "passed": true,
+      "duration_seconds": 0.011427879333496094,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Experiment data collected events",
+          "expected": "Step should complete successfully",
+          "actual": "Test skipped: Requires active data collection",
+          "passed": true,
+          "duration_ms": 0.00095367431640625,
+          "error": null
+        }
+      ],
+      "category": "WebSocket and Real-time Features",
+      "skipped": true,
+      "skip_reason": "Requires active data collection events",
+      "error_message": null
+    },
+    "TC-WS-012": {
+      "name": "Task Execution Started Events",
+      "objective": "Validate Task Execution Started Events functionality in WebSocket and Real-time Features",
+      "passed": true,
+      "duration_seconds": 4.0531158447265625e-06,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Task execution started events",
+          "expected": "Step should complete successfully",
+          "actual": "Test skipped: Requires active task execution",
+          "passed": true,
+          "duration_ms": 0.0011920928955078125,
+          "error": null
+        }
+      ],
+      "category": "WebSocket and Real-time Features",
+      "skipped": true,
+      "skip_reason": "Requires active task execution",
+      "error_message": null
+    },
+    "TC-WS-013": {
+      "name": "Task Execution Progress Events",
+      "objective": "Validate Task Execution Progress Events functionality in WebSocket and Real-time Features",
+      "passed": true,
+      "duration_seconds": 2.1457672119140625e-06,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Task execution progress events",
+          "expected": "Step should complete successfully",
+          "actual": "Test skipped: Requires active task with progress updates",
+          "passed": true,
+          "duration_ms": 0.0,
+          "error": null
+        }
+      ],
+      "category": "WebSocket and Real-time Features",
+      "skipped": true,
+      "skip_reason": "Requires active task sending progress updates",
+      "error_message": null
+    },
+    "TC-WS-014": {
+      "name": "Task Execution Completed Events",
+      "objective": "Validate Task Execution Completed Events functionality in WebSocket and Real-time Features",
+      "passed": true,
+      "duration_seconds": 1.9073486328125e-06,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Task execution completed events",
+          "expected": "Step should complete successfully",
+          "actual": "Test skipped: Requires task completion",
+          "passed": true,
+          "duration_ms": 0.0,
+          "error": null
+        }
+      ],
+      "category": "WebSocket and Real-time Features",
+      "skipped": true,
+      "skip_reason": "Requires task completion events",
+      "error_message": null
+    },
+    "TC-WS-015": {
+      "name": "Notification Events - User",
+      "objective": "Validate Notification Events - User functionality in WebSocket and Real-time Features",
+      "passed": true,
+      "duration_seconds": 1.0967254638671875e-05,
+      "steps": [
+        {
+          "number": 1,
+          "description": "User notification events",
+          "expected": "Step should complete successfully",
+          "actual": "Test skipped: Requires notification triggering",
+          "passed": true,
+          "duration_ms": 0.0,
+          "error": null
+        }
+      ],
+      "category": "WebSocket and Real-time Features",
+      "skipped": true,
+      "skip_reason": "Requires notification triggering mechanism",
+      "error_message": null
+    },
+    "TC-WS-016": {
+      "name": "Notification Events - Organization",
+      "objective": "Validate Notification Events - Organization functionality in WebSocket and Real-time Features",
+      "passed": true,
+      "duration_seconds": 2.86102294921875e-06,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Organization notification events",
+          "expected": "Step should complete successfully",
+          "actual": "Test skipped: Requires admin notification sending",
+          "passed": true,
+          "duration_ms": 0.0,
+          "error": null
+        }
+      ],
+      "category": "WebSocket and Real-time Features",
+      "skipped": true,
+      "skip_reason": "Requires admin notification sending capability",
+      "error_message": null
+    },
+    "TC-WS-017": {
+      "name": "WebSocket Reconnection",
+      "objective": "Validate WebSocket Reconnection functionality in WebSocket and Real-time Features",
+      "passed": false,
+      "duration_seconds": 0.00015807151794433594,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Reconnection after disconnect",
+          "expected": "Step should complete successfully",
+          "actual": "Failed",
+          "passed": false,
+          "duration_ms": 0.15115737915039062,
+          "error": "Reconnection failed: BaseEventLoop.create_connection() got an unexpected keyword argument 'extra_headers'"
+        }
+      ],
+      "category": "WebSocket and Real-time Features",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-WS-018": {
+      "name": "WebSocket Permission Check",
+      "objective": "Validate WebSocket Permission Check functionality in WebSocket and Real-time Features",
+      "passed": true,
+      "duration_seconds": 2.1457672119140625e-06,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Permission check for private rooms",
+          "expected": "Step should complete successfully",
+          "actual": "Test skipped: Requires multi-user setup",
+          "passed": true,
+          "duration_ms": 0.0011920928955078125,
+          "error": null
+        }
+      ],
+      "category": "WebSocket and Real-time Features",
+      "skipped": true,
+      "skip_reason": "Requires multi-user setup to test cross-user permissions",
+      "error_message": null
+    },
+    "TC-WS-019": {
+      "name": "Multiple Connections",
+      "objective": "Validate Multiple Connections functionality in WebSocket and Real-time Features",
+      "passed": false,
+      "duration_seconds": 8.869171142578125e-05,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Multiple connections from same user",
+          "expected": "Step should complete successfully",
+          "actual": "Failed",
+          "passed": false,
+          "duration_ms": 0.08296966552734375,
+          "error": "Multiple connections failed: BaseEventLoop.create_connection() got an unexpected keyword argument 'extra_headers'"
+        }
+      ],
+      "category": "WebSocket and Real-time Features",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-WS-020": {
+      "name": "WebSocket Disconnect",
+      "objective": "Validate WebSocket Disconnect functionality in WebSocket and Real-time Features",
+      "passed": false,
+      "duration_seconds": 9.489059448242188e-05,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Graceful disconnect",
+          "expected": "Step should complete successfully",
+          "actual": "Failed",
+          "passed": false,
+          "duration_ms": 0.08916854858398438,
+          "error": "Disconnect failed: BaseEventLoop.create_connection() got an unexpected keyword argument 'extra_headers'"
+        }
+      ],
+      "category": "WebSocket and Real-time Features",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    }
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "timestamp": "2025-10-26T16:39:13.550019",
+  "duration_seconds": 0.39,
+  "summary": {
+    "total_tests": 1,
+    "passed_tests": 0,
+    "failed_tests": 1,
+    "skipped_tests": 0,
+    "success_rate": 0.0
+  },
+  "test_cases": {
+    "TC-WS-002": {
+      "name": "WebSocket Authentication",
+      "objective": "Validate WebSocket Authentication functionality in WebSocket and Real-time Features",
+      "passed": false,
+      "duration_seconds": 0.273223876953125,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Connection without token rejected",
+          "expected": "Step should complete successfully",
+          "actual": "No token: rejected=False",
+          "passed": true,
+          "duration_ms": 17.04096794128418,
+          "error": null
+        },
+        {
+          "number": 2,
+          "description": "Connection with valid token accepted",
+          "expected": "Step should complete successfully",
+          "actual": "Failed",
+          "passed": false,
+          "duration_ms": 0.04696846008300781,
+          "error": "Valid token rejected: AsyncClient.connect() got an unexpected keyword argument 'timeout'"
+        }
+      ],
+      "category": "WebSocket and Real-time Features",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    }
+  }
+}

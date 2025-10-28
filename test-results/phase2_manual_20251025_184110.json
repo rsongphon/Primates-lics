@@ -1,0 +1,34 @@
+{
+  "timestamp": "2025-10-25T18:41:10.359006",
+  "duration_seconds": 0.41,
+  "summary": {
+    "total_tests": 1,
+    "passed_tests": 0,
+    "failed_tests": 1,
+    "skipped_tests": 0,
+    "success_rate": 0.0
+  },
+  "test_cases": {
+    "TC-API-020": {
+      "name": "Tasks API - Create",
+      "objective": "Validate Tasks API - Create functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.3110346794128418,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Create task with definition",
+          "expected": "Step should complete successfully",
+          "actual": "Failed",
+          "passed": false,
+          "duration_ms": 110.8090877532959,
+          "error": "Status: 400, Response: {\"error\":{\"code\":\"HTTP_ERROR\",\"message\":\"(sqlalchemy.dialects.postgresql.asyncpg.IntegrityError) <class 'asyncpg.exceptions.NotNullViolationError'>: null value in column \\\"author_id\\\" of relation \\\"tasks\\\" violates not-null constraint\\nDETAIL:  Failing row contains (Test Task 1761392470, null, cognitive, 1.0.0, null, f, f, {\\\"nodes\\\": [{\\\"id\\\": \\\"start\\\", \\\"type\\\": \\\"start\\\", \\\"config\\\": {}}, {\\\"id\\\"..., null, null, null, null, null, null, f, null, 0, null, 0, 4b41e66b-4b2f-4174-b506-26c46318404a, 2025-10-25 11:41:10.349703+00, 2025-10-25 11:41:10.349705+00, null, a9c794de-5d44-49f6-8454-dddb27e1f6fb, null, 00000000-0000-0000-0000-000000000001).\\n[SQL: INSERT INTO tasks (name, description, category, version, author_id, is_template, is_public, definition, parameters_schema, default_parameters, required_capabilities, supported_device_types, estimated_duration_minutes, max_execution_time_minutes, is_validated, validation_notes, usage_count, rating_average, rating_count, id, created_at, updated_at, deleted_at, created_by, updated_by, organization_id) VALUES ($1::VARCHAR, $2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::UUID, $6::BOOLEAN, $7::BOOLEAN, $8::JSON, $9::JSON, $10::JSON, $11::JSON, $12::JSON, $13::FLOAT, $14::FLOAT, $15::BOOLEAN, $16::VARCHAR, $17::INTEGER, $18::FLOAT, $19::INTEGER, $20::UUID, $21::TIMESTAMP WITH TIME ZONE, $22::TIMESTAMP WITH TIME ZONE, $23::TIMESTAMP WITH TIME ZONE, $24::UUID, $25::UUID, $26::UUID)]\\n[parameters: ('Test Task 1761392470', None, 'cognitive', '1.0.0', None, False, False, '{\\\"nodes\\\": [{\\\"id\\\": \\\"start\\\", \\\"type\\\": \\\"start\\\", \\\"config\\\": {}}, {\\\"id\\\": \\\"stimulus\\\", \\\"type\\\": \\\"stimulus\\\", \\\"config\\\": {}}, {\\\"id\\\": \\\"end\\\", \\\"type\\\": \\\"end\\\", \\\"config\\\": {}}], \\\"edges\\\": [{\\\"id\\\": \\\"edge_1\\\", \\\"source\\\": \\\"start\\\", \\\"target\\\": \\\"stimulus\\\"}, {\\\"id\\\": \\\"edge_2\\\", \\\"source\\\": \\\"stimulus\\\", \\\"target\\\": \\\"end\\\"}]}', 'null', 'null', 'null', 'null', None, None, False, None, 0, None, 0, UUID('4b41e66b-4b2f-4174-b506-26c46318404a'), datetime.datetime(2025, 10, 25, 11, 41, 10, 349703, tzinfo=datetime.timezone.utc), datetime.datetime(2025, 10, 25, 11, 41, 10, 349705, tzinfo=datetime.timezone.utc), None, UUID('a9c794de-5d44-49f6-8454-dddb27e1f6fb'), None, UUID('00000000-0000-0000-0000-000000000001'))]\\n(Background on this error at: https://sqlalche.me/e/20/gkpj)\",\"trace_id\":\"2269dcba-560f-4bf7-ba73-26b3bed28f8d\"}}"
+        }
+      ],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    }
+  }
+}

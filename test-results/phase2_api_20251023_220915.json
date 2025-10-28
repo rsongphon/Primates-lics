@@ -1,0 +1,652 @@
+{
+  "timestamp": "2025-10-23T22:09:18.824160",
+  "duration_seconds": 2.86,
+  "summary": {
+    "total_tests": 40,
+    "passed_tests": 7,
+    "failed_tests": 33,
+    "skipped_tests": 1,
+    "success_rate": 17.5
+  },
+  "test_cases": {
+    "TC-API-001": {
+      "name": "Organizations API - List",
+      "objective": "Validate Organizations API - List functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.38905763626098633,
+      "steps": [
+        {
+          "number": 1,
+          "description": "List organizations with pagination",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 200, Has pagination: False",
+          "passed": false,
+          "duration_ms": 174.20601844787598,
+          "error": null
+        }
+      ],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-API-002": {
+      "name": "Organizations API - Statistics",
+      "objective": "Validate Organizations API - Statistics functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.09198999404907227,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Get organization statistics",
+          "expected": "Step should complete successfully",
+          "actual": "Failed",
+          "passed": false,
+          "duration_ms": 31.33106231689453,
+          "error": "Status: 404"
+        }
+      ],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-API-003": {
+      "name": "Devices API - List with Filters",
+      "objective": "Validate Devices API - List with Filters functionality in RESTful API Implementation",
+      "passed": true,
+      "duration_seconds": 0.16425681114196777,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Filter devices by status",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 200",
+          "passed": true,
+          "duration_ms": 84.32888984680176,
+          "error": null
+        },
+        {
+          "number": 2,
+          "description": "Filter devices by type",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 200",
+          "passed": true,
+          "duration_ms": 78.93109321594238,
+          "error": null
+        }
+      ],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-API-004": {
+      "name": "Devices API - Create",
+      "objective": "Validate Devices API - Create functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.04697084426879883,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Create device with 201 status",
+          "expected": "Step should complete successfully",
+          "actual": "Failed",
+          "passed": false,
+          "duration_ms": 46.95296287536621,
+          "error": "Device creation failed"
+        }
+      ],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-API-005": {
+      "name": "Devices API - Update",
+      "objective": "Validate Devices API - Update functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.04237103462219238,
+      "steps": [],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": "Failed to create device for update test"
+    },
+    "TC-API-006": {
+      "name": "Devices API - Delete",
+      "objective": "Validate Devices API - Delete functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.02097487449645996,
+      "steps": [],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": "Failed to create device for delete test"
+    },
+    "TC-API-007": {
+      "name": "Devices API - Heartbeat",
+      "objective": "Validate Devices API - Heartbeat functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.02674579620361328,
+      "steps": [],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": "Failed to create device for heartbeat test"
+    },
+    "TC-API-008": {
+      "name": "Devices API - Telemetry Collection",
+      "objective": "Validate Devices API - Telemetry Collection functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.01842498779296875,
+      "steps": [],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": "Failed to create device for telemetry test"
+    },
+    "TC-API-009": {
+      "name": "Devices API - Get Telemetry",
+      "objective": "Validate Devices API - Get Telemetry functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.022803306579589844,
+      "steps": [],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": "Failed to create device for telemetry query test"
+    },
+    "TC-API-010": {
+      "name": "Experiments API - List",
+      "objective": "Validate Experiments API - List functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.035506248474121094,
+      "steps": [
+        {
+          "number": 1,
+          "description": "List all accessible experiments",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 500",
+          "passed": false,
+          "duration_ms": 35.28118133544922,
+          "error": null
+        }
+      ],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-API-011": {
+      "name": "Experiments API - Create",
+      "objective": "Validate Experiments API - Create functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.151932954788208,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Create experiment with initial state 'draft'",
+          "expected": "Step should complete successfully",
+          "actual": "Failed",
+          "passed": false,
+          "duration_ms": 151.92604064941406,
+          "error": "Experiment creation failed"
+        }
+      ],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-API-012": {
+      "name": "Experiments API - Start",
+      "objective": "Validate Experiments API - Start functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.13268804550170898,
+      "steps": [],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": "Failed to create experiment"
+    },
+    "TC-API-013": {
+      "name": "Experiments API - Pause",
+      "objective": "Validate Experiments API - Pause functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.02587294578552246,
+      "steps": [],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": "Failed to create experiment"
+    },
+    "TC-API-014": {
+      "name": "Experiments API - Resume",
+      "objective": "Validate Experiments API - Resume functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.020271778106689453,
+      "steps": [],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": "Failed to create experiment"
+    },
+    "TC-API-015": {
+      "name": "Experiments API - Complete",
+      "objective": "Validate Experiments API - Complete functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.01955413818359375,
+      "steps": [],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": "Failed to create experiment"
+    },
+    "TC-API-016": {
+      "name": "Experiments API - Cancel",
+      "objective": "Validate Experiments API - Cancel functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.023072004318237305,
+      "steps": [],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": "Failed to create experiment"
+    },
+    "TC-API-017": {
+      "name": "Experiments API - Participant Assignment",
+      "objective": "Validate Experiments API - Participant Assignment functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.06528401374816895,
+      "steps": [],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": "Failed to create experiment or participant"
+    },
+    "TC-API-018": {
+      "name": "Experiments API - Data Collection",
+      "objective": "Validate Experiments API - Data Collection functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.02780318260192871,
+      "steps": [],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": "Failed to create experiment"
+    },
+    "TC-API-019": {
+      "name": "Tasks API - List",
+      "objective": "Validate Tasks API - List functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.028087139129638672,
+      "steps": [
+        {
+          "number": 1,
+          "description": "List all accessible tasks",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 500",
+          "passed": false,
+          "duration_ms": 27.791976928710938,
+          "error": null
+        }
+      ],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-API-020": {
+      "name": "Tasks API - Create",
+      "objective": "Validate Tasks API - Create functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.16728496551513672,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Create task with definition",
+          "expected": "Step should complete successfully",
+          "actual": "Failed",
+          "passed": false,
+          "duration_ms": 166.98598861694336,
+          "error": "Status: 422"
+        }
+      ],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-API-021": {
+      "name": "Tasks API - Update",
+      "objective": "Validate Tasks API - Update functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.324160099029541,
+      "steps": [],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": "Failed to create task for update test"
+    },
+    "TC-API-022": {
+      "name": "Tasks API - Publish",
+      "objective": "Validate Tasks API - Publish functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.049852848052978516,
+      "steps": [],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": "Failed to create task for publish test"
+    },
+    "TC-API-023": {
+      "name": "Tasks API - Clone",
+      "objective": "Validate Tasks API - Clone functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.03927493095397949,
+      "steps": [],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": "Failed to create task for clone test"
+    },
+    "TC-API-024": {
+      "name": "Tasks API - Execute",
+      "objective": "Validate Tasks API - Execute functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.09241318702697754,
+      "steps": [],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": "Failed to create prerequisites for task execution"
+    },
+    "TC-API-025": {
+      "name": "Tasks API - Execution History",
+      "objective": "Validate Tasks API - Execution History functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.02289414405822754,
+      "steps": [],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": "Failed to create task for execution history test"
+    },
+    "TC-API-026": {
+      "name": "Participants API - List",
+      "objective": "Validate Participants API - List functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.07360696792602539,
+      "steps": [
+        {
+          "number": 1,
+          "description": "List all primates",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 500",
+          "passed": false,
+          "duration_ms": 73.32372665405273,
+          "error": null
+        }
+      ],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-API-027": {
+      "name": "Participants API - Create",
+      "objective": "Validate Participants API - Create functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.1371462345123291,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Register primate with unique RFID",
+          "expected": "Step should complete successfully",
+          "actual": "Failed",
+          "passed": false,
+          "duration_ms": 137.14027404785156,
+          "error": "Participant creation failed"
+        }
+      ],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-API-028": {
+      "name": "Participants API - Update",
+      "objective": "Validate Participants API - Update functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.10101604461669922,
+      "steps": [],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": "Failed to create participant for update test"
+    },
+    "TC-API-029": {
+      "name": "Participants API - Welfare Check",
+      "objective": "Validate Participants API - Welfare Check functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.018131017684936523,
+      "steps": [],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": "Failed to create participant for welfare check test"
+    },
+    "TC-API-030": {
+      "name": "Participants API - Experiment History",
+      "objective": "Validate Participants API - Experiment History functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.03021693229675293,
+      "steps": [],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": "Failed to create participant for experiment history test"
+    },
+    "TC-API-031": {
+      "name": "Participants API - Session Limits",
+      "objective": "Validate Participants API - Session Limits functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.016360998153686523,
+      "steps": [],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": "Failed to create participant"
+    },
+    "TC-API-032": {
+      "name": "API Error Handling - 400 Bad Request",
+      "objective": "Validate API Error Handling - 400 Bad Request functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.025658130645751953,
+      "steps": [
+        {
+          "number": 1,
+          "description": "400 Bad Request with validation errors",
+          "expected": "Step should complete successfully",
+          "actual": "Failed",
+          "passed": false,
+          "duration_ms": 25.431156158447266,
+          "error": "Expected 400, got 422"
+        }
+      ],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-API-033": {
+      "name": "API Error Handling - 401 Unauthorized",
+      "objective": "Validate API Error Handling - 401 Unauthorized functionality in RESTful API Implementation",
+      "passed": true,
+      "duration_seconds": 0.00261688232421875,
+      "steps": [
+        {
+          "number": 1,
+          "description": "401 Unauthorized for missing token",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 401",
+          "passed": true,
+          "duration_ms": 2.524852752685547,
+          "error": null
+        }
+      ],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-API-034": {
+      "name": "API Error Handling - 403 Forbidden",
+      "objective": "Validate API Error Handling - 403 Forbidden functionality in RESTful API Implementation",
+      "passed": true,
+      "duration_seconds": 0.015162944793701172,
+      "steps": [
+        {
+          "number": 1,
+          "description": "403 Forbidden for insufficient permissions",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 403",
+          "passed": true,
+          "duration_ms": 15.011072158813477,
+          "error": null
+        }
+      ],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-API-035": {
+      "name": "API Error Handling - 404 Not Found",
+      "objective": "Validate API Error Handling - 404 Not Found functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.05584907531738281,
+      "steps": [
+        {
+          "number": 1,
+          "description": "404 Not Found for non-existent resource",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 500",
+          "passed": false,
+          "duration_ms": 55.504798889160156,
+          "error": null
+        }
+      ],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-API-036": {
+      "name": "API Error Handling - 422 Unprocessable Entity",
+      "objective": "Validate API Error Handling - 422 Unprocessable Entity functionality in RESTful API Implementation",
+      "passed": true,
+      "duration_seconds": 0.14235711097717285,
+      "steps": [
+        {
+          "number": 1,
+          "description": "422 Unprocessable Entity for validation errors",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 422",
+          "passed": true,
+          "duration_ms": 141.92628860473633,
+          "error": null
+        }
+      ],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-API-037": {
+      "name": "API Error Handling - 500 Internal Server Error",
+      "objective": "Validate API Error Handling - 500 Internal Server Error functionality in RESTful API Implementation",
+      "passed": true,
+      "duration_seconds": 4.0531158447265625e-06,
+      "steps": [
+        {
+          "number": 1,
+          "description": "500 handling (requires server error trigger)",
+          "expected": "Step should complete successfully",
+          "actual": "Test skipped: Cannot safely trigger 500 error",
+          "passed": true,
+          "duration_ms": 0.0011920928955078125,
+          "error": null
+        }
+      ],
+      "category": "RESTful API Implementation",
+      "skipped": true,
+      "skip_reason": "Cannot safely trigger 500 error in automated test",
+      "error_message": null
+    },
+    "TC-API-038": {
+      "name": "API Rate Limiting",
+      "objective": "Validate API Rate Limiting functionality in RESTful API Implementation",
+      "passed": true,
+      "duration_seconds": 0.13475728034973145,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Rate limiting returns 429 after threshold",
+          "expected": "Step should complete successfully",
+          "actual": "Rate limited: False",
+          "passed": true,
+          "duration_ms": 134.74607467651367,
+          "error": null
+        }
+      ],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-API-039": {
+      "name": "API CORS Headers",
+      "objective": "Validate API CORS Headers functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.0042040348052978516,
+      "steps": [
+        {
+          "number": 1,
+          "description": "CORS headers present in OPTIONS response",
+          "expected": "Step should complete successfully",
+          "actual": "Has CORS: False",
+          "passed": false,
+          "duration_ms": 3.944873809814453,
+          "error": null
+        }
+      ],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-API-040": {
+      "name": "API Performance",
+      "objective": "Validate API Performance functionality in RESTful API Implementation",
+      "passed": true,
+      "duration_seconds": 0.027926921844482422,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Average response time < 200ms",
+          "expected": "Step should complete successfully",
+          "actual": "Avg: 1.4ms (Target: <200ms)",
+          "passed": true,
+          "duration_ms": 27.914047241210938,
+          "error": null
+        }
+      ],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    }
+  }
+}

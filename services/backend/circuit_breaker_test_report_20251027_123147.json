@@ -1,0 +1,12 @@
+{
+  "summary": {
+    "tests_run": 0,
+    "tests_passed": 0,
+    "success_rate": 0.0,
+    "duration": 0.313490629196167
+  },
+  "details": [
+    "Setup failed: cannot import name 'postgresql_breaker' from 'app.core.circuit_breaker' (/app/app/core/circuit_breaker.py)"
+  ],
+  "timestamp": "2025-10-27T12:31:47.516596+00:00"
+}

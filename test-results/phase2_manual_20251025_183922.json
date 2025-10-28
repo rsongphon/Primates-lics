@@ -1,0 +1,34 @@
+{
+  "timestamp": "2025-10-25T18:39:22.961470",
+  "duration_seconds": 0.45,
+  "summary": {
+    "total_tests": 1,
+    "passed_tests": 0,
+    "failed_tests": 1,
+    "skipped_tests": 0,
+    "success_rate": 0.0
+  },
+  "test_cases": {
+    "TC-API-020": {
+      "name": "Tasks API - Create",
+      "objective": "Validate Tasks API - Create functionality in RESTful API Implementation",
+      "passed": false,
+      "duration_seconds": 0.3422579765319824,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Create task with definition",
+          "expected": "Step should complete successfully",
+          "actual": "Failed",
+          "passed": false,
+          "duration_ms": 115.46492576599121,
+          "error": "Status: 400, Response: {\"error\":{\"code\":\"HTTP_ERROR\",\"message\":\"'task_definition' is an invalid keyword argument for Task\",\"trace_id\":\"dd17817f-ec28-48ab-8df9-6ba9a9a8b238\"}}"
+        }
+      ],
+      "category": "RESTful API Implementation",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    }
+  }
+}

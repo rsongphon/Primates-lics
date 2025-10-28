@@ -1,0 +1,34 @@
+{
+  "timestamp": "2025-10-27T11:55:19.699626",
+  "duration_seconds": 0.37,
+  "summary": {
+    "total_tests": 1,
+    "passed_tests": 1,
+    "failed_tests": 0,
+    "skipped_tests": 0,
+    "success_rate": 100.0
+  },
+  "test_cases": {
+    "TC-AUTH-005": {
+      "name": "Token Refresh",
+      "objective": "Validate Token Refresh functionality in Authentication & Authorization",
+      "passed": true,
+      "duration_seconds": 0.18348288536071777,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Token refresh",
+          "expected": "Step should complete successfully",
+          "actual": "New access: True, New refresh: True, Different: True",
+          "passed": true,
+          "duration_ms": 35.009145736694336,
+          "error": null
+        }
+      ],
+      "category": "Authentication & Authorization",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    }
+  }
+}

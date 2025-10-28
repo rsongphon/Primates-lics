@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase 2 - Backend Core Development Test Execution Report</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            margin: 0 0 10px 0;
+        }
+        .status-badge {
+            background: #dc3545;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            display: inline-block;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .section {
+            background: white;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .test-case {
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin: 15px 0;
+            background: #f8f9fa;
+        }
+        .test-case.passed {
+            border-left-color: #28a745;
+        }
+        .test-case.failed {
+            border-left-color: #dc3545;
+        }
+        .test-case h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        .test-steps {
+            margin-top: 10px;
+        }
+        .step {
+            padding: 8px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 4px;
+        }
+        .step.passed {
+            border-left: 3px solid #28a745;
+        }
+        .step.failed {
+            border-left: 3px solid #dc3545;
+            background: #fee;
+        }
+        .error-message {
+            color: #dc3545;
+            font-size: 13px;
+            margin-top: 5px;
+            padding: 5px;
+            background: #fff;
+            border-radius: 3px;
+        }
+        .icon {
+            display: inline-block;
+            width: 20px;
+            text-align: center;
+        }
+        .passed-icon { color: #28a745; }
+        .failed-icon { color: #dc3545; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #667eea;
+            color: white;
+        }
+        tr:hover {
+            background: #f5f5f5;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Phase 2 - Backend Core Development Test Execution Report</h1>
+        <p>Generated: 2025-10-25 17:51:01</p>
+        <div class="status-badge">FAILED</div>
+    </div>
+
+    <div class="section">
+        <h2>Executive Summary</h2>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value">25.0%</div>
+                <div class="stat-label">Success Rate</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">10/40</div>
+                <div class="stat-label">Tests Passed</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">5.4s</div>
+                <div class="stat-label">Execution Time</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">30</div>
+                <div class="stat-label">Failed Tests</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>System Configuration</h2>
+        <table>
+            <tr><th>Property</th><th>Value</th></tr>
+            <tr><td>Operating System</td><td>Darwin 24.6.0</td></tr>
+            <tr><td>Docker Version</td><td>Docker version 28.3.2, build 578ccf6</td></tr>
+            <tr><td>Available RAM</td><td>8.0 GB</td></tr>
+            <tr><td>Available Disk</td><td>116.44 GB</td></tr>
+            <tr><td>Hostname</td><td>BEACONs-MacBook-Air.local</td></tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>Application Foundation</h2>
+
+    </div>
+
+    <div class="section">
+        <h2>Authentication & Authorization</h2>
+
+    </div>
+
+    <div class="section">
+        <h2>Core Domain Models</h2>
+
+    </div>
+
+    <div class="section">
+        <h2>RESTful API Implementation</h2>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-API-001: Organizations API - List</h3>
+            <p><strong>Objective:</strong> Validate Organizations API - List functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.37s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step failed">
+                    <span class="icon failed-icon">❌</span>
+                    <strong>Step 1:</strong> List organizations with pagination
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Status: 200, Has pagination: False</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-API-002: Organizations API - Statistics</h3>
+            <p><strong>Objective:</strong> Validate Organizations API - Statistics functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.03s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step failed">
+                    <span class="icon failed-icon">❌</span>
+                    <strong>Step 1:</strong> Get organization statistics
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Failed</small>
+
+                    <div class="error-message">⚠️ Error: Status: 403</div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case passed">
+            <h3><span class="icon passed-icon">✅</span> TC-API-003: Devices API - List with Filters</h3>
+            <p><strong>Objective:</strong> Validate Devices API - List with Filters functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.09s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step passed">
+                    <span class="icon passed-icon">✅</span>
+                    <strong>Step 1:</strong> Filter devices by status
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Status: 200</small>
+
+                </div>
+
+                <div class="step passed">
+                    <span class="icon passed-icon">✅</span>
+                    <strong>Step 2:</strong> Filter devices by type
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Status: 200</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case passed">
+            <h3><span class="icon passed-icon">✅</span> TC-API-004: Devices API - Create</h3>
+            <p><strong>Objective:</strong> Validate Devices API - Create functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.02s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step passed">
+                    <span class="icon passed-icon">✅</span>
+                    <strong>Step 1:</strong> Create device with 201 status
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Device created: 346efa7c-36c4-4a79-bcec-3335ef5a0abb</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-API-005: Devices API - Update</h3>
+            <p><strong>Objective:</strong> Validate Devices API - Update functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.02s</p>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-API-006: Devices API - Delete</h3>
+            <p><strong>Objective:</strong> Validate Devices API - Delete functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.02s</p>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-API-007: Devices API - Heartbeat</h3>
+            <p><strong>Objective:</strong> Validate Devices API - Heartbeat functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.03s</p>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-API-008: Devices API - Telemetry Collection</h3>
+            <p><strong>Objective:</strong> Validate Devices API - Telemetry Collection functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.02s</p>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-API-009: Devices API - Get Telemetry</h3>
+            <p><strong>Objective:</strong> Validate Devices API - Get Telemetry functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.02s</p>
+
+        </div>
+
+        <div class="test-case passed">
+            <h3><span class="icon passed-icon">✅</span> TC-API-010: Experiments API - List</h3>
+            <p><strong>Objective:</strong> Validate Experiments API - List functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.04s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step passed">
+                    <span class="icon passed-icon">✅</span>
+                    <strong>Step 1:</strong> List all accessible experiments
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Status: 200</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-API-011: Experiments API - Create</h3>
+            <p><strong>Objective:</strong> Validate Experiments API - Create functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.01s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step failed">
+                    <span class="icon failed-icon">❌</span>
+                    <strong>Step 1:</strong> Create experiment with initial state 'draft'
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Failed</small>
+
+                    <div class="error-message">⚠️ Error: Experiment creation failed</div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-API-012: Experiments API - Start</h3>
+            <p><strong>Objective:</strong> Validate Experiments API - Start functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.01s</p>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-API-013: Experiments API - Pause</h3>
+            <p><strong>Objective:</strong> Validate Experiments API - Pause functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.01s</p>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-API-014: Experiments API - Resume</h3>
+            <p><strong>Objective:</strong> Validate Experiments API - Resume functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.02s</p>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-API-015: Experiments API - Complete</h3>
+            <p><strong>Objective:</strong> Validate Experiments API - Complete functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.01s</p>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-API-016: Experiments API - Cancel</h3>
+            <p><strong>Objective:</strong> Validate Experiments API - Cancel functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.01s</p>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-API-017: Experiments API - Participant Assignment</h3>
+            <p><strong>Objective:</strong> Validate Experiments API - Participant Assignment functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.03s</p>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-API-018: Experiments API - Data Collection</h3>
+            <p><strong>Objective:</strong> Validate Experiments API - Data Collection functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.01s</p>
+
+        </div>
+
+        <div class="test-case passed">
+            <h3><span class="icon passed-icon">✅</span> TC-API-019: Tasks API - List</h3>
+            <p><strong>Objective:</strong> Validate Tasks API - List functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.01s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step passed">
+                    <span class="icon passed-icon">✅</span>
+                    <strong>Step 1:</strong> List all accessible tasks
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Status: 200</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-API-020: Tasks API - Create</h3>
+            <p><strong>Objective:</strong> Validate Tasks API - Create functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.01s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step failed">
+                    <span class="icon failed-icon">❌</span>
+                    <strong>Step 1:</strong> Create task with definition
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Failed</small>
+
+                    <div class="error-message">⚠️ Error: Status: 422</div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-API-021: Tasks API - Update</h3>
+            <p><strong>Objective:</strong> Validate Tasks API - Update functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.01s</p>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-API-022: Tasks API - Publish</h3>
+            <p><strong>Objective:</strong> Validate Tasks API - Publish functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.01s</p>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-API-023: Tasks API - Clone</h3>
+            <p><strong>Objective:</strong> Validate Tasks API - Clone functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.01s</p>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-API-024: Tasks API - Execute</h3>
+            <p><strong>Objective:</strong> Validate Tasks API - Execute functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.04s</p>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-API-025: Tasks API - Execution History</h3>
+            <p><strong>Objective:</strong> Validate Tasks API - Execution History functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.01s</p>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-API-026: Participants API - List</h3>
+            <p><strong>Objective:</strong> Validate Participants API - List functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.02s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step failed">
+                    <span class="icon failed-icon">❌</span>
+                    <strong>Step 1:</strong> List all primates
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Status: 500</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-API-027: Participants API - Create</h3>
+            <p><strong>Objective:</strong> Validate Participants API - Create functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.15s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step failed">
+                    <span class="icon failed-icon">❌</span>
+                    <strong>Step 1:</strong> Register primate with unique RFID
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Failed</small>
+
+                    <div class="error-message">⚠️ Error: Participant creation failed</div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-API-028: Participants API - Update</h3>
+            <p><strong>Objective:</strong> Validate Participants API - Update functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.14s</p>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-API-029: Participants API - Welfare Check</h3>
+            <p><strong>Objective:</strong> Validate Participants API - Welfare Check functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.02s</p>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-API-030: Participants API - Experiment History</h3>
+            <p><strong>Objective:</strong> Validate Participants API - Experiment History functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.02s</p>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-API-031: Participants API - Session Limits</h3>
+            <p><strong>Objective:</strong> Validate Participants API - Session Limits functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.02s</p>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-API-032: API Error Handling - 422 Validation (was 400)</h3>
+            <p><strong>Objective:</strong> Validate API Error Handling - 422 Validation (was 400) functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.01s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step failed">
+                    <span class="icon failed-icon">❌</span>
+                    <strong>Step 1:</strong> 422 Unprocessable Entity with validation errors
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Status: 422, Has error: False</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case passed">
+            <h3><span class="icon passed-icon">✅</span> TC-API-033: API Error Handling - 401 Unauthorized</h3>
+            <p><strong>Objective:</strong> Validate API Error Handling - 401 Unauthorized functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.00s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step passed">
+                    <span class="icon passed-icon">✅</span>
+                    <strong>Step 1:</strong> 401 Unauthorized for missing token
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Status: 401</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case passed">
+            <h3><span class="icon passed-icon">✅</span> TC-API-034: API Error Handling - 403 Forbidden</h3>
+            <p><strong>Objective:</strong> Validate API Error Handling - 403 Forbidden functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.02s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step passed">
+                    <span class="icon passed-icon">✅</span>
+                    <strong>Step 1:</strong> 403 Forbidden for insufficient permissions
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Status: 403</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-API-035: API Error Handling - 404 Not Found</h3>
+            <p><strong>Objective:</strong> Validate API Error Handling - 404 Not Found functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.05s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step failed">
+                    <span class="icon failed-icon">❌</span>
+                    <strong>Step 1:</strong> 404 Not Found for non-existent resource
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Status: 500</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case passed">
+            <h3><span class="icon passed-icon">✅</span> TC-API-036: API Error Handling - 422 Unprocessable Entity</h3>
+            <p><strong>Objective:</strong> Validate API Error Handling - 422 Unprocessable Entity functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.10s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step passed">
+                    <span class="icon passed-icon">✅</span>
+                    <strong>Step 1:</strong> 422 Unprocessable Entity for validation errors
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Status: 422</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case passed">
+            <h3><span class="icon passed-icon">✅</span> TC-API-037: API Error Handling - 500 Internal Server Error</h3>
+            <p><strong>Objective:</strong> Validate API Error Handling - 500 Internal Server Error functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.00s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step passed">
+                    <span class="icon passed-icon">✅</span>
+                    <strong>Step 1:</strong> 500 handling (requires server error trigger)
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Test skipped: Cannot safely trigger 500 error</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case passed">
+            <h3><span class="icon passed-icon">✅</span> TC-API-038: API Rate Limiting</h3>
+            <p><strong>Objective:</strong> Validate API Rate Limiting functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 2.88s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step passed">
+                    <span class="icon passed-icon">✅</span>
+                    <strong>Step 1:</strong> Rate limiting returns 429 after threshold
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Rate limited: False</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-API-039: API CORS Headers</h3>
+            <p><strong>Objective:</strong> Validate API CORS Headers functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.00s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step failed">
+                    <span class="icon failed-icon">❌</span>
+                    <strong>Step 1:</strong> CORS headers present in OPTIONS response
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Has CORS: False</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case passed">
+            <h3><span class="icon passed-icon">✅</span> TC-API-040: API Performance</h3>
+            <p><strong>Objective:</strong> Validate API Performance functionality in RESTful API Implementation</p>
+            <p><strong>Duration:</strong> 0.96s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step passed">
+                    <span class="icon passed-icon">✅</span>
+                    <strong>Step 1:</strong> Average response time < 200ms
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Avg: 47.8ms (Target: <200ms)</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="section">
+        <h2>WebSocket and Real-time Features</h2>
+
+    </div>
+
+    <div class="section">
+        <h2>Background Tasks and Scheduling</h2>
+
+    </div>
+
+    <div class="section">
+        <h2>Recommendations</h2>
+
+        <p style="color: #dc3545; font-weight: bold;">❌ Critical failures detected (30 tests failed). Critical issues must be fixed before proceeding.</p>
+        <ul>
+            <li>Review Docker container logs for errors</li>
+            <li>Check service configurations</li>
+            <li>Verify network connectivity</li>
+            <li>Ensure sufficient system resources</li>
+        </ul>
+
+    </div>
+</body>
+</html>

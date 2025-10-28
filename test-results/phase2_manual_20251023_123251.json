@@ -1,0 +1,34 @@
+{
+  "timestamp": "2025-10-23T12:32:51.426137",
+  "duration_seconds": 0.42,
+  "summary": {
+    "total_tests": 1,
+    "passed_tests": 0,
+    "failed_tests": 1,
+    "skipped_tests": 0,
+    "success_rate": 0.0
+  },
+  "test_cases": {
+    "TC-DOMAIN-001": {
+      "name": "Organization CRUD",
+      "objective": "Validate Organization CRUD functionality in Core Domain Models",
+      "passed": false,
+      "duration_seconds": 0.3864777088165283,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Create organization",
+          "expected": "Step should complete successfully",
+          "actual": "Failed",
+          "passed": false,
+          "duration_ms": 132.97629356384277,
+          "error": "Status: 400, {\"error\":{\"code\":\"HTTP_ERROR\",\"message\":\"'Organization' object has no attribute 'created_by'\",\"trace_id\":\"906a8791-d31a-464f-99ec-c9538959fe93\"}}"
+        }
+      ],
+      "category": "Core Domain Models",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    }
+  }
+}

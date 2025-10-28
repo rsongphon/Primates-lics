@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase 2 - Backend Core Development Test Execution Report</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            margin: 0 0 10px 0;
+        }
+        .status-badge {
+            background: #dc3545;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            display: inline-block;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .section {
+            background: white;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .test-case {
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin: 15px 0;
+            background: #f8f9fa;
+        }
+        .test-case.passed {
+            border-left-color: #28a745;
+        }
+        .test-case.failed {
+            border-left-color: #dc3545;
+        }
+        .test-case h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        .test-steps {
+            margin-top: 10px;
+        }
+        .step {
+            padding: 8px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 4px;
+        }
+        .step.passed {
+            border-left: 3px solid #28a745;
+        }
+        .step.failed {
+            border-left: 3px solid #dc3545;
+            background: #fee;
+        }
+        .error-message {
+            color: #dc3545;
+            font-size: 13px;
+            margin-top: 5px;
+            padding: 5px;
+            background: #fff;
+            border-radius: 3px;
+        }
+        .icon {
+            display: inline-block;
+            width: 20px;
+            text-align: center;
+        }
+        .passed-icon { color: #28a745; }
+        .failed-icon { color: #dc3545; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #667eea;
+            color: white;
+        }
+        tr:hover {
+            background: #f5f5f5;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Phase 2 - Backend Core Development Test Execution Report</h1>
+        <p>Generated: 2025-10-23 12:57:07</p>
+        <div class="status-badge">FAILED</div>
+    </div>
+
+    <div class="section">
+        <h2>Executive Summary</h2>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value">6.7%</div>
+                <div class="stat-label">Success Rate</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">1/15</div>
+                <div class="stat-label">Tests Passed</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">1.1s</div>
+                <div class="stat-label">Execution Time</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">12</div>
+                <div class="stat-label">Failed Tests</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>System Configuration</h2>
+        <table>
+            <tr><th>Property</th><th>Value</th></tr>
+            <tr><td>Operating System</td><td>Darwin 24.6.0</td></tr>
+            <tr><td>Docker Version</td><td>Docker version 28.3.2, build 578ccf6</td></tr>
+            <tr><td>Available RAM</td><td>8.0 GB</td></tr>
+            <tr><td>Available Disk</td><td>114.06 GB</td></tr>
+            <tr><td>Hostname</td><td>BEACONs-MacBook-Air.local</td></tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>Application Foundation</h2>
+
+    </div>
+
+    <div class="section">
+        <h2>Authentication & Authorization</h2>
+
+    </div>
+
+    <div class="section">
+        <h2>Core Domain Models</h2>
+
+        <div class="test-case passed">
+            <h3><span class="icon passed-icon">✅</span> TC-DOMAIN-001: Organization CRUD</h3>
+            <p><strong>Objective:</strong> Validate Organization CRUD functionality in Core Domain Models</p>
+            <p><strong>Duration:</strong> 0.35s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step passed">
+                    <span class="icon passed-icon">✅</span>
+                    <strong>Step 1:</strong> Create organization
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Created org ID: 8396aaa4-e54b-465b-9d65-326edc9ae9da</small>
+
+                </div>
+
+                <div class="step passed">
+                    <span class="icon passed-icon">✅</span>
+                    <strong>Step 2:</strong> List organizations
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Found in list: True</small>
+
+                </div>
+
+                <div class="step passed">
+                    <span class="icon passed-icon">✅</span>
+                    <strong>Step 3:</strong> Get single organization
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Name matches: True</small>
+
+                </div>
+
+                <div class="step passed">
+                    <span class="icon passed-icon">✅</span>
+                    <strong>Step 4:</strong> Update organization
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Name updated: True</small>
+
+                </div>
+
+                <div class="step passed">
+                    <span class="icon passed-icon">✅</span>
+                    <strong>Step 5:</strong> Delete organization
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Status: 204</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-DOMAIN-002: Device Registration</h3>
+            <p><strong>Objective:</strong> Validate Device Registration functionality in Core Domain Models</p>
+            <p><strong>Duration:</strong> 0.02s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step failed">
+                    <span class="icon failed-icon">❌</span>
+                    <strong>Step 1:</strong> Device registration
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Failed</small>
+
+                    <div class="error-message">⚠️ Error: Status: 400, {"error":{"code":"HTTP_ERROR","message":"DeviceRepository.__init__() takes 2 positional arguments but 3 were given","trace_id":"1350b405-486b-4add-bb0f-4afa9e325fe0"}}</div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-DOMAIN-003: Device Status Updates</h3>
+            <p><strong>Objective:</strong> Validate Device Status Updates functionality in Core Domain Models</p>
+            <p><strong>Duration:</strong> 0.02s</p>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-DOMAIN-004: Device Telemetry</h3>
+            <p><strong>Objective:</strong> Validate Device Telemetry functionality in Core Domain Models</p>
+            <p><strong>Duration:</strong> 0.02s</p>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-DOMAIN-005: Experiment Creation</h3>
+            <p><strong>Objective:</strong> Validate Experiment Creation functionality in Core Domain Models</p>
+            <p><strong>Duration:</strong> 0.01s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step failed">
+                    <span class="icon failed-icon">❌</span>
+                    <strong>Step 1:</strong> Experiment creation
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Failed</small>
+
+                    <div class="error-message">⚠️ Error: Status: 422, {"error":{"code":"VALIDATION_ERROR","message":"Request validation failed","details":{"validation_errors":[{"field":"body -> experiment_type","message":"Field required","type":"missing"},{"field":"body -> principal_investigator_id","message":"Field required","type":"missing"}]},"trace_id":"ffc385ca-be4b-4cf0-891b-7aa68205e527"}}</div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-DOMAIN-006: Experiment Lifecycle</h3>
+            <p><strong>Objective:</strong> Validate Experiment Lifecycle functionality in Core Domain Models</p>
+            <p><strong>Duration:</strong> 0.01s</p>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-DOMAIN-007: Participant (Primate) Management</h3>
+            <p><strong>Objective:</strong> Validate Participant (Primate) Management functionality in Core Domain Models</p>
+            <p><strong>Duration:</strong> 0.02s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step failed">
+                    <span class="icon failed-icon">❌</span>
+                    <strong>Step 1:</strong> Participant registration
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Failed</small>
+
+                    <div class="error-message">⚠️ Error: Status: 500, {"error":{"code":"INTERNAL_SERVER_ERROR","message":"An unexpected error occurred","trace_id":"6c8b775f-0330-4dd2-a193-8b19219e6c8e"}}</div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-DOMAIN-008: Participant Welfare Checks</h3>
+            <p><strong>Objective:</strong> Validate Participant Welfare Checks functionality in Core Domain Models</p>
+            <p><strong>Duration:</strong> 0.02s</p>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-DOMAIN-009: Task Definition Creation</h3>
+            <p><strong>Objective:</strong> Validate Task Definition Creation functionality in Core Domain Models</p>
+            <p><strong>Duration:</strong> 0.01s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step failed">
+                    <span class="icon failed-icon">❌</span>
+                    <strong>Step 1:</strong> Task definition creation
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Failed</small>
+
+                    <div class="error-message">⚠️ Error: Status: 422, {"error":{"code":"VALIDATION_ERROR","message":"Request validation failed","details":{"validation_errors":[{"field":"body -> definition","message":"Value error, Task must have an end node","type":"value_error"}]},"trace_id":"da8af3c5-7ec7-4f24-9579-9a72235fa84f"}}</div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-DOMAIN-010: Task Execution</h3>
+            <p><strong>Objective:</strong> Validate Task Execution functionality in Core Domain Models</p>
+            <p><strong>Duration:</strong> 0.00s</p>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-DOMAIN-011: Data Collection</h3>
+            <p><strong>Objective:</strong> Validate Data Collection functionality in Core Domain Models</p>
+            <p><strong>Duration:</strong> 0.00s</p>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-DOMAIN-012: Multi-Tenancy Isolation</h3>
+            <p><strong>Objective:</strong> Validate Multi-Tenancy Isolation functionality in Core Domain Models</p>
+            <p><strong>Duration:</strong> 0.25s</p>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-DOMAIN-013: Soft Delete</h3>
+            <p><strong>Objective:</strong> Validate Soft Delete functionality in Core Domain Models</p>
+            <p><strong>Duration:</strong> 0.05s</p>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-DOMAIN-014: Pagination and Filtering</h3>
+            <p><strong>Objective:</strong> Validate Pagination and Filtering functionality in Core Domain Models</p>
+            <p><strong>Duration:</strong> 0.17s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step failed">
+                    <span class="icon failed-icon">❌</span>
+                    <strong>Step 1:</strong> Pagination works
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Failed</small>
+
+                    <div class="error-message">⚠️ Error: Status: 500</div>
+
+                </div>
+
+                <div class="step failed">
+                    <span class="icon failed-icon">❌</span>
+                    <strong>Step 2:</strong> Filtering works
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Status: 500</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-DOMAIN-015: Audit Trail</h3>
+            <p><strong>Objective:</strong> Validate Audit Trail functionality in Core Domain Models</p>
+            <p><strong>Duration:</strong> 0.17s</p>
+
+        </div>
+
+    </div>
+
+    <div class="section">
+        <h2>RESTful API Implementation</h2>
+
+    </div>
+
+    <div class="section">
+        <h2>WebSocket and Real-time Features</h2>
+
+    </div>
+
+    <div class="section">
+        <h2>Background Tasks and Scheduling</h2>
+
+    </div>
+
+    <div class="section">
+        <h2>Recommendations</h2>
+
+        <p style="color: #dc3545; font-weight: bold;">❌ Critical failures detected (12 tests failed). Critical issues must be fixed before proceeding.</p>
+        <ul>
+            <li>Review Docker container logs for errors</li>
+            <li>Check service configurations</li>
+            <li>Verify network connectivity</li>
+            <li>Ensure sufficient system resources</li>
+        </ul>
+
+    </div>
+</body>
+</html>

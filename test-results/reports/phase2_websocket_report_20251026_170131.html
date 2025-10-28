@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phase 2 - Backend Core Development Test Execution Report</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .header h1 {
+            margin: 0 0 10px 0;
+        }
+        .status-badge {
+            background: #dc3545;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            display: inline-block;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .section {
+            background: white;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .section h2 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #667eea;
+        }
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .test-case {
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin: 15px 0;
+            background: #f8f9fa;
+        }
+        .test-case.passed {
+            border-left-color: #28a745;
+        }
+        .test-case.failed {
+            border-left-color: #dc3545;
+        }
+        .test-case h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+        }
+        .test-steps {
+            margin-top: 10px;
+        }
+        .step {
+            padding: 8px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 4px;
+        }
+        .step.passed {
+            border-left: 3px solid #28a745;
+        }
+        .step.failed {
+            border-left: 3px solid #dc3545;
+            background: #fee;
+        }
+        .error-message {
+            color: #dc3545;
+            font-size: 13px;
+            margin-top: 5px;
+            padding: 5px;
+            background: #fff;
+            border-radius: 3px;
+        }
+        .icon {
+            display: inline-block;
+            width: 20px;
+            text-align: center;
+        }
+        .passed-icon { color: #28a745; }
+        .failed-icon { color: #dc3545; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #667eea;
+            color: white;
+        }
+        tr:hover {
+            background: #f5f5f5;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Phase 2 - Backend Core Development Test Execution Report</h1>
+        <p>Generated: 2025-10-26 17:01:31</p>
+        <div class="status-badge">FAILED</div>
+    </div>
+
+    <div class="section">
+        <h2>Executive Summary</h2>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value">70.0%</div>
+                <div class="stat-label">Success Rate</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">14/20</div>
+                <div class="stat-label">Tests Passed</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">0.5s</div>
+                <div class="stat-label">Execution Time</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">6</div>
+                <div class="stat-label">Failed Tests</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>System Configuration</h2>
+        <table>
+            <tr><th>Property</th><th>Value</th></tr>
+            <tr><td>Operating System</td><td>Darwin 24.6.0</td></tr>
+            <tr><td>Docker Version</td><td>Docker version 28.3.2, build 578ccf6</td></tr>
+            <tr><td>Available RAM</td><td>8.0 GB</td></tr>
+            <tr><td>Available Disk</td><td>110.82 GB</td></tr>
+            <tr><td>Hostname</td><td>BEACONs-MacBook-Air.local</td></tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>Application Foundation</h2>
+
+    </div>
+
+    <div class="section">
+        <h2>Authentication & Authorization</h2>
+
+    </div>
+
+    <div class="section">
+        <h2>Core Domain Models</h2>
+
+    </div>
+
+    <div class="section">
+        <h2>RESTful API Implementation</h2>
+
+    </div>
+
+    <div class="section">
+        <h2>WebSocket and Real-time Features</h2>
+
+        <div class="test-case passed">
+            <h3><span class="icon passed-icon">✅</span> TC-WS-001: WebSocket Connection</h3>
+            <p><strong>Objective:</strong> Validate WebSocket Connection functionality in WebSocket and Real-time Features</p>
+            <p><strong>Duration:</strong> 0.03s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step passed">
+                    <span class="icon passed-icon">✅</span>
+                    <strong>Step 1:</strong> Connect to Socket.IO server
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Connected to ws://localhost:8001/socket.io</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case passed">
+            <h3><span class="icon passed-icon">✅</span> TC-WS-002: WebSocket Authentication</h3>
+            <p><strong>Objective:</strong> Validate WebSocket Authentication functionality in WebSocket and Real-time Features</p>
+            <p><strong>Duration:</strong> 0.17s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step passed">
+                    <span class="icon passed-icon">✅</span>
+                    <strong>Step 1:</strong> Connection without token rejected
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> No token: rejected=False</small>
+
+                </div>
+
+                <div class="step passed">
+                    <span class="icon passed-icon">✅</span>
+                    <strong>Step 2:</strong> Connection with valid token accepted
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Valid token connection successful</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-WS-003: Room Subscription - Device</h3>
+            <p><strong>Objective:</strong> Validate Room Subscription - Device functionality in WebSocket and Real-time Features</p>
+            <p><strong>Duration:</strong> 0.03s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step failed">
+                    <span class="icon failed-icon">❌</span>
+                    <strong>Step 1:</strong> Subscribe to device room
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Failed</small>
+
+                    <div class="error-message">⚠️ Error: Subscription failed: /devices is not a connected namespace.</div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-WS-004: Room Subscription - Experiment</h3>
+            <p><strong>Objective:</strong> Validate Room Subscription - Experiment functionality in WebSocket and Real-time Features</p>
+            <p><strong>Duration:</strong> 0.02s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step failed">
+                    <span class="icon failed-icon">❌</span>
+                    <strong>Step 1:</strong> Subscribe to experiment room
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Failed</small>
+
+                    <div class="error-message">⚠️ Error: Subscription failed: /experiments is not a connected namespace.</div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-WS-005: Room Subscription - Organization</h3>
+            <p><strong>Objective:</strong> Validate Room Subscription - Organization functionality in WebSocket and Real-time Features</p>
+            <p><strong>Duration:</strong> 0.02s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step failed">
+                    <span class="icon failed-icon">❌</span>
+                    <strong>Step 1:</strong> Subscribe to organization room
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Failed</small>
+
+                    <div class="error-message">⚠️ Error: Subscription failed: /notifications is not a connected namespace.</div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case passed">
+            <h3><span class="icon passed-icon">✅</span> TC-WS-006: Device Telemetry Events</h3>
+            <p><strong>Objective:</strong> Validate Device Telemetry Events functionality in WebSocket and Real-time Features</p>
+            <p><strong>Duration:</strong> 0.01s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step passed">
+                    <span class="icon passed-icon">✅</span>
+                    <strong>Step 1:</strong> Device telemetry events (requires active device)
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Test skipped: Requires active device sending telemetry</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case passed">
+            <h3><span class="icon passed-icon">✅</span> TC-WS-007: Device Status Events</h3>
+            <p><strong>Objective:</strong> Validate Device Status Events functionality in WebSocket and Real-time Features</p>
+            <p><strong>Duration:</strong> 0.02s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step passed">
+                    <span class="icon passed-icon">✅</span>
+                    <strong>Step 1:</strong> Device status change events
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Test skipped: Requires active WebSocket connection</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case passed">
+            <h3><span class="icon passed-icon">✅</span> TC-WS-008: Device Heartbeat Events</h3>
+            <p><strong>Objective:</strong> Validate Device Heartbeat Events functionality in WebSocket and Real-time Features</p>
+            <p><strong>Duration:</strong> 0.01s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step passed">
+                    <span class="icon passed-icon">✅</span>
+                    <strong>Step 1:</strong> Device heartbeat events
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Test skipped: Requires active heartbeat transmission</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case passed">
+            <h3><span class="icon passed-icon">✅</span> TC-WS-009: Experiment State Change Events</h3>
+            <p><strong>Objective:</strong> Validate Experiment State Change Events functionality in WebSocket and Real-time Features</p>
+            <p><strong>Duration:</strong> 0.02s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step passed">
+                    <span class="icon passed-icon">✅</span>
+                    <strong>Step 1:</strong> Experiment state change events
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Test skipped: Requires active WebSocket subscription</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case passed">
+            <h3><span class="icon passed-icon">✅</span> TC-WS-010: Experiment Progress Events</h3>
+            <p><strong>Objective:</strong> Validate Experiment Progress Events functionality in WebSocket and Real-time Features</p>
+            <p><strong>Duration:</strong> 0.02s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step passed">
+                    <span class="icon passed-icon">✅</span>
+                    <strong>Step 1:</strong> Experiment progress events
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Test skipped: Requires active experiment with trial data</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case passed">
+            <h3><span class="icon passed-icon">✅</span> TC-WS-011: Experiment Data Collected Events</h3>
+            <p><strong>Objective:</strong> Validate Experiment Data Collected Events functionality in WebSocket and Real-time Features</p>
+            <p><strong>Duration:</strong> 0.03s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step passed">
+                    <span class="icon passed-icon">✅</span>
+                    <strong>Step 1:</strong> Experiment data collected events
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Test skipped: Requires active data collection</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case passed">
+            <h3><span class="icon passed-icon">✅</span> TC-WS-012: Task Execution Started Events</h3>
+            <p><strong>Objective:</strong> Validate Task Execution Started Events functionality in WebSocket and Real-time Features</p>
+            <p><strong>Duration:</strong> 0.00s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step passed">
+                    <span class="icon passed-icon">✅</span>
+                    <strong>Step 1:</strong> Task execution started events
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Test skipped: Requires active task execution</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case passed">
+            <h3><span class="icon passed-icon">✅</span> TC-WS-013: Task Execution Progress Events</h3>
+            <p><strong>Objective:</strong> Validate Task Execution Progress Events functionality in WebSocket and Real-time Features</p>
+            <p><strong>Duration:</strong> 0.00s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step passed">
+                    <span class="icon passed-icon">✅</span>
+                    <strong>Step 1:</strong> Task execution progress events
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Test skipped: Requires active task with progress updates</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case passed">
+            <h3><span class="icon passed-icon">✅</span> TC-WS-014: Task Execution Completed Events</h3>
+            <p><strong>Objective:</strong> Validate Task Execution Completed Events functionality in WebSocket and Real-time Features</p>
+            <p><strong>Duration:</strong> 0.00s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step passed">
+                    <span class="icon passed-icon">✅</span>
+                    <strong>Step 1:</strong> Task execution completed events
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Test skipped: Requires task completion</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case passed">
+            <h3><span class="icon passed-icon">✅</span> TC-WS-015: Notification Events - User</h3>
+            <p><strong>Objective:</strong> Validate Notification Events - User functionality in WebSocket and Real-time Features</p>
+            <p><strong>Duration:</strong> 0.00s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step passed">
+                    <span class="icon passed-icon">✅</span>
+                    <strong>Step 1:</strong> User notification events
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Test skipped: Requires notification triggering</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case passed">
+            <h3><span class="icon passed-icon">✅</span> TC-WS-016: Notification Events - Organization</h3>
+            <p><strong>Objective:</strong> Validate Notification Events - Organization functionality in WebSocket and Real-time Features</p>
+            <p><strong>Duration:</strong> 0.00s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step passed">
+                    <span class="icon passed-icon">✅</span>
+                    <strong>Step 1:</strong> Organization notification events
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Test skipped: Requires admin notification sending</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-WS-017: WebSocket Reconnection</h3>
+            <p><strong>Objective:</strong> Validate WebSocket Reconnection functionality in WebSocket and Real-time Features</p>
+            <p><strong>Duration:</strong> 0.01s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step failed">
+                    <span class="icon failed-icon">❌</span>
+                    <strong>Step 1:</strong> Reconnection after disconnect
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Failed</small>
+
+                    <div class="error-message">⚠️ Error: Reconnection failed: BaseEventLoop.create_connection() got an unexpected keyword argument 'extra_headers'</div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case passed">
+            <h3><span class="icon passed-icon">✅</span> TC-WS-018: WebSocket Permission Check</h3>
+            <p><strong>Objective:</strong> Validate WebSocket Permission Check functionality in WebSocket and Real-time Features</p>
+            <p><strong>Duration:</strong> 0.00s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step passed">
+                    <span class="icon passed-icon">✅</span>
+                    <strong>Step 1:</strong> Permission check for private rooms
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Test skipped: Requires multi-user setup</small>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-WS-019: Multiple Connections</h3>
+            <p><strong>Objective:</strong> Validate Multiple Connections functionality in WebSocket and Real-time Features</p>
+            <p><strong>Duration:</strong> 0.00s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step failed">
+                    <span class="icon failed-icon">❌</span>
+                    <strong>Step 1:</strong> Multiple connections from same user
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Failed</small>
+
+                    <div class="error-message">⚠️ Error: Multiple connections failed: BaseEventLoop.create_connection() got an unexpected keyword argument 'extra_headers'</div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="test-case failed">
+            <h3><span class="icon failed-icon">❌</span> TC-WS-020: WebSocket Disconnect</h3>
+            <p><strong>Objective:</strong> Validate WebSocket Disconnect functionality in WebSocket and Real-time Features</p>
+            <p><strong>Duration:</strong> 0.00s</p>
+
+            <div class="test-steps">
+                <strong>Test Steps:</strong>
+
+                <div class="step failed">
+                    <span class="icon failed-icon">❌</span>
+                    <strong>Step 1:</strong> Graceful disconnect
+                    <br><small><strong>Expected:</strong> Step should complete successfully</small>
+                    <br><small><strong>Actual:</strong> Failed</small>
+
+                    <div class="error-message">⚠️ Error: Disconnect failed: BaseEventLoop.create_connection() got an unexpected keyword argument 'extra_headers'</div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="section">
+        <h2>Background Tasks and Scheduling</h2>
+
+    </div>
+
+    <div class="section">
+        <h2>Recommendations</h2>
+
+        <p style="color: #dc3545; font-weight: bold;">❌ Critical failures detected (6 tests failed). Critical issues must be fixed before proceeding.</p>
+        <ul>
+            <li>Review Docker container logs for errors</li>
+            <li>Check service configurations</li>
+            <li>Verify network connectivity</li>
+            <li>Ensure sufficient system resources</li>
+        </ul>
+
+    </div>
+</body>
+</html>

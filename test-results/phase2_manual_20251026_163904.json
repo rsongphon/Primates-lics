@@ -1,0 +1,34 @@
+{
+  "timestamp": "2025-10-26T16:39:04.270875",
+  "duration_seconds": 0.24,
+  "summary": {
+    "total_tests": 1,
+    "passed_tests": 1,
+    "failed_tests": 0,
+    "skipped_tests": 0,
+    "success_rate": 100.0
+  },
+  "test_cases": {
+    "TC-WS-001": {
+      "name": "WebSocket Connection",
+      "objective": "Validate WebSocket Connection functionality in WebSocket and Real-time Features",
+      "passed": true,
+      "duration_seconds": 0.09523415565490723,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Connect to Socket.IO server",
+          "expected": "Step should complete successfully",
+          "actual": "Connected to ws://localhost:8001/socket.io",
+          "passed": true,
+          "duration_ms": 94.72393989562988,
+          "error": null
+        }
+      ],
+      "category": "WebSocket and Real-time Features",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    }
+  }
+}

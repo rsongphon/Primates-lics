@@ -1,0 +1,34 @@
+{
+  "timestamp": "2025-10-26T16:35:31.462325",
+  "duration_seconds": 1.19,
+  "summary": {
+    "total_tests": 1,
+    "passed_tests": 0,
+    "failed_tests": 1,
+    "skipped_tests": 0,
+    "success_rate": 0.0
+  },
+  "test_cases": {
+    "TC-WS-001": {
+      "name": "WebSocket Connection",
+      "objective": "Validate WebSocket Connection functionality in WebSocket and Real-time Features",
+      "passed": false,
+      "duration_seconds": 1.0429317951202393,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Connect to Socket.IO server",
+          "expected": "Step should complete successfully",
+          "actual": "Failed",
+          "passed": false,
+          "duration_ms": 1042.8857803344727,
+          "error": "Connection failed: One or more namespaces failed to connect: "
+        }
+      ],
+      "category": "WebSocket and Real-time Features",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    }
+  }
+}

@@ -105,11 +105,11 @@ test: ## Run all tests
 
 test-frontend: ## Run frontend tests
 	@echo "$(YELLOW)Running frontend tests...$(NC)"
-	cd services/frontend && npm test
+	cd @tests && npx jest --config jest.config.js
 
 test-backend: ## Run backend tests
 	@echo "$(YELLOW)Running backend tests...$(NC)"
-	cd services/backend && pytest
+	cd @tests && pytest -c pytest.ini
 
 test-edge-agent: ## Run edge agent tests
 	@echo "$(YELLOW)Running edge agent tests...$(NC)"
@@ -118,12 +118,12 @@ test-edge-agent: ## Run edge agent tests
 test-coverage: ## Run tests with coverage report
 	@echo "$(YELLOW)Running tests with coverage...$(NC)"
 	cd services/frontend && npm run test:coverage
-	cd services/backend && pytest --cov=app --cov-report=html
+	cd @tests && pytest -c pytest.ini --cov=services/backend/app --cov-report=html
 	cd services/edge-agent && pytest --cov=src --cov-report=html
 
 test-integration: ## Run integration tests
 	@echo "$(YELLOW)Running integration tests...$(NC)"
-	pytest tests/integration/
+	cd @tests && pytest -c pytest.ini integration/
 
 test-e2e: ## Run end-to-end tests
 	@echo "$(YELLOW)Running E2E tests...$(NC)"
@@ -418,17 +418,24 @@ test-phase2-api: ## Run Phase 2 RESTful API tests (40 tests) with reports
 	RESULT_FILE="test-results/phase2_api_$${TIMESTAMP}.json"; \
 	REPORT_BASE="test-results/reports/phase2_api_report_$${TIMESTAMP}"; \
 	echo "$(YELLOW)Step 1/2: Running tests...$(NC)"; \
-	python3 tools/scripts/test-phase2-manual.py --category api --verbose --output $${RESULT_FILE} || true; \
-	echo ""; \
-	echo "$(YELLOW)Step 2/2: Generating test reports...$(NC)"; \
-	python3 tools/scripts/generate-test-report.py --input $${RESULT_FILE} --format both --output $${REPORT_BASE}.md; \
-	echo ""; \
-	echo "$(GREEN)✓ RESTful API tests completed$(NC)"; \
-	echo ""; \
-	echo "$(YELLOW)Generated Files:$(NC)"; \
-	echo "  📄 JSON:     $${RESULT_FILE}"; \
-	echo "  📝 Markdown: $${REPORT_BASE}.md"; \
-	echo "  🌐 HTML:     $${REPORT_BASE}.html"
+	python3 tools/scripts/test-phase2-manual.py --category api --verbose --output $${RESULT_FILE} && \
+	( \
+		echo ""; \
+		echo "$(YELLOW)Step 2/2: Generating test reports...$(NC)"; \
+		python3 tools/scripts/generate-test-report.py --input $${RESULT_FILE} --format both --output $${REPORT_BASE}.md; \
+		echo ""; \
+		echo "$(GREEN)✓ RESTful API tests completed$(NC)"; \
+		echo ""; \
+		echo "$(YELLOW)Generated Files:$(NC)"; \
+		echo "  📄 JSON:     $${RESULT_FILE}"; \
+		echo "  📝 Markdown: $${REPORT_BASE}.md"; \
+		echo "  🌐 HTML:     $${REPORT_BASE}.html" \
+	) || ( \
+		echo "$(RED)❌ Tests failed or backend not accessible$(NC)"; \
+		echo ""; \
+		echo "$(YELLOW)Note: Make sure the backend is running with: make dev-detached$(NC)"; \
+		echo "$(YELLOW)Or check backend status with: docker-compose -f docker-compose.dev.yml ps backend-dev$(NC)" \
+	)
 
 test-phase2-websocket: ## Run Phase 2 WebSocket tests (20 tests) with reports
 	@echo "$(YELLOW)Running WebSocket and Real-time Features tests (20 tests)...$(NC)"
@@ -437,17 +444,24 @@ test-phase2-websocket: ## Run Phase 2 WebSocket tests (20 tests) with reports
 	RESULT_FILE="test-results/phase2_websocket_$${TIMESTAMP}.json"; \
 	REPORT_BASE="test-results/reports/phase2_websocket_report_$${TIMESTAMP}"; \
 	echo "$(YELLOW)Step 1/2: Running tests...$(NC)"; \
-	python3 tools/scripts/test-phase2-manual.py --category websocket --verbose --output $${RESULT_FILE} || true; \
-	echo ""; \
-	echo "$(YELLOW)Step 2/2: Generating test reports...$(NC)"; \
-	python3 tools/scripts/generate-test-report.py --input $${RESULT_FILE} --format both --output $${REPORT_BASE}.md; \
-	echo ""; \
-	echo "$(GREEN)✓ WebSocket tests completed$(NC)"; \
-	echo ""; \
-	echo "$(YELLOW)Generated Files:$(NC)"; \
-	echo "  📄 JSON:     $${RESULT_FILE}"; \
-	echo "  📝 Markdown: $${REPORT_BASE}.md"; \
-	echo "  🌐 HTML:     $${REPORT_BASE}.html"
+	python3 tools/scripts/test-phase2-manual.py --category websocket --verbose --output $${RESULT_FILE} && \
+	( \
+		echo ""; \
+		echo "$(YELLOW)Step 2/2: Generating test reports...$(NC)"; \
+		python3 tools/scripts/generate-test-report.py --input $${RESULT_FILE} --format both --output $${REPORT_BASE}.md; \
+		echo ""; \
+		echo "$(GREEN)✓ WebSocket tests completed$(NC)"; \
+		echo ""; \
+		echo "$(YELLOW)Generated Files:$(NC)"; \
+		echo "  📄 JSON:     $${RESULT_FILE}"; \
+		echo "  📝 Markdown: $${REPORT_BASE}.md"; \
+		echo "  🌐 HTML:     $${REPORT_BASE}.html" \
+	) || ( \
+		echo "$(RED)❌ Tests failed or backend not accessible$(NC)"; \
+		echo ""; \
+		echo "$(YELLOW)Note: Make sure the backend is running with: make dev-detached$(NC)"; \
+		echo "$(YELLOW)Or check backend status with: docker-compose -f docker-compose.dev.yml ps backend-dev$(NC)" \
+	)
 
 test-phase2-celery: ## Run Phase 2 Background Tasks tests (25 tests) with reports
 	@echo "$(YELLOW)Running Background Tasks and Scheduling tests (25 tests)...$(NC)"
@@ -456,17 +470,24 @@ test-phase2-celery: ## Run Phase 2 Background Tasks tests (25 tests) with report
 	RESULT_FILE="test-results/phase2_celery_$${TIMESTAMP}.json"; \
 	REPORT_BASE="test-results/reports/phase2_celery_report_$${TIMESTAMP}"; \
 	echo "$(YELLOW)Step 1/2: Running tests...$(NC)"; \
-	python3 tools/scripts/test-phase2-manual.py --category celery --verbose --output $${RESULT_FILE} || true; \
-	echo ""; \
-	echo "$(YELLOW)Step 2/2: Generating test reports...$(NC)"; \
-	python3 tools/scripts/generate-test-report.py --input $${RESULT_FILE} --format both --output $${REPORT_BASE}.md; \
-	echo ""; \
-	echo "$(GREEN)✓ Background Tasks tests completed$(NC)"; \
-	echo ""; \
-	echo "$(YELLOW)Generated Files:$(NC)"; \
-	echo "  📄 JSON:     $${RESULT_FILE}"; \
-	echo "  📝 Markdown: $${REPORT_BASE}.md"; \
-	echo "  🌐 HTML:     $${REPORT_BASE}.html"
+	python3 tools/scripts/test-phase2-manual.py --category celery --verbose --output $${RESULT_FILE} && \
+	( \
+		echo ""; \
+		echo "$(YELLOW)Step 2/2: Generating test reports...$(NC)"; \
+		python3 tools/scripts/generate-test-report.py --input $${RESULT_FILE} --format both --output $${REPORT_BASE}.md; \
+		echo ""; \
+		echo "$(GREEN)✓ Background Tasks tests completed$(NC)"; \
+		echo ""; \
+		echo "$(YELLOW)Generated Files:$(NC)"; \
+		echo "  📄 JSON:     $${RESULT_FILE}"; \
+		echo "  📝 Markdown: $${REPORT_BASE}.md"; \
+		echo "  🌐 HTML:     $${REPORT_BASE}.html" \
+	) || ( \
+		echo "$(RED)❌ Tests failed or backend not accessible$(NC)"; \
+		echo ""; \
+		echo "$(YELLOW)Note: Make sure the backend is running with: make dev-detached$(NC)"; \
+		echo "$(YELLOW)Or check backend status with: docker-compose -f docker-compose.dev.yml ps backend-dev$(NC)" \
+	)
 
 ## Phase 2 Quick Validation
 test-phase2-quick: ## Run quick Phase 2 validation (core tests only) with verbose output
@@ -520,7 +541,7 @@ health-check-continuous: ## Run continuous health monitoring
 ## Performance Testing
 performance-test: ## Run performance tests with K6
 	@echo "$(YELLOW)Running performance tests...$(NC)"
-	k6 run tests/performance/api-load-test.js
+	k6 run @tests/performance/api-load-test.js
 	@echo "$(GREEN)✓ Performance testing completed$(NC)"
 
 performance-baseline: ## Establish performance baselines

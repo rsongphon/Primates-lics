@@ -1,0 +1,476 @@
+{
+  "timestamp": "2025-10-22T11:48:14.442952",
+  "duration_seconds": 3.56,
+  "summary": {
+    "total_tests": 20,
+    "passed_tests": 18,
+    "failed_tests": 0,
+    "skipped_tests": 2,
+    "success_rate": 90.0
+  },
+  "test_cases": {
+    "TC-AUTH-001": {
+      "name": "User Registration",
+      "objective": "Validate User Registration functionality in Authentication & Authorization",
+      "passed": true,
+      "duration_seconds": 0.27863287925720215,
+      "steps": [
+        {
+          "number": 1,
+          "description": "User registration",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 201, Has ID: True, Password excluded: True",
+          "passed": true,
+          "duration_ms": 278.3341407775879,
+          "error": null
+        }
+      ],
+      "category": "Authentication & Authorization",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-AUTH-002": {
+      "name": "User Login",
+      "objective": "Validate User Login functionality in Authentication & Authorization",
+      "passed": true,
+      "duration_seconds": 0.23388409614562988,
+      "steps": [
+        {
+          "number": 1,
+          "description": "User login",
+          "expected": "Step should complete successfully",
+          "actual": "Has access token: True, Has refresh: True, Bearer type: True",
+          "passed": true,
+          "duration_ms": 126.4040470123291,
+          "error": null
+        }
+      ],
+      "category": "Authentication & Authorization",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-AUTH-003": {
+      "name": "JWT Token Validation",
+      "objective": "Validate JWT Token Validation functionality in Authentication & Authorization",
+      "passed": true,
+      "duration_seconds": 0.0899510383605957,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Protected endpoint with valid token",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 200, Has user info: True",
+          "passed": true,
+          "duration_ms": 89.69688415527344,
+          "error": null
+        }
+      ],
+      "category": "Authentication & Authorization",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-AUTH-004": {
+      "name": "Invalid Token Handling",
+      "objective": "Validate Invalid Token Handling functionality in Authentication & Authorization",
+      "passed": true,
+      "duration_seconds": 0.004515886306762695,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Invalid token rejection",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 401, Has error message: True",
+          "passed": true,
+          "duration_ms": 4.29081916809082,
+          "error": null
+        }
+      ],
+      "category": "Authentication & Authorization",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-AUTH-005": {
+      "name": "Token Refresh",
+      "objective": "Validate Token Refresh functionality in Authentication & Authorization",
+      "passed": true,
+      "duration_seconds": 0.026486873626708984,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Token refresh",
+          "expected": "Step should complete successfully",
+          "actual": "New access: True, New refresh: True, Different: True",
+          "passed": true,
+          "duration_ms": 26.239871978759766,
+          "error": null
+        }
+      ],
+      "category": "Authentication & Authorization",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-AUTH-006": {
+      "name": "Password Change",
+      "objective": "Validate Password Change functionality in Authentication & Authorization",
+      "passed": true,
+      "duration_seconds": 0.6080048084259033,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Login with current password",
+          "expected": "Step should complete successfully",
+          "actual": "Passed",
+          "passed": true,
+          "duration_ms": 96.89116477966309,
+          "error": null
+        },
+        {
+          "number": 2,
+          "description": "Password change request",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 200",
+          "passed": true,
+          "duration_ms": 208.70709419250488,
+          "error": null
+        },
+        {
+          "number": 3,
+          "description": "Login with new password",
+          "expected": "Step should complete successfully",
+          "actual": "Passed",
+          "passed": true,
+          "duration_ms": 98.7710952758789,
+          "error": null
+        },
+        {
+          "number": 4,
+          "description": "Old password rejected",
+          "expected": "Step should complete successfully",
+          "actual": "Passed",
+          "passed": true,
+          "duration_ms": 97.81193733215332,
+          "error": null
+        }
+      ],
+      "category": "Authentication & Authorization",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-AUTH-007": {
+      "name": "Password Reset Request",
+      "objective": "Validate Password Reset Request functionality in Authentication & Authorization",
+      "passed": true,
+      "duration_seconds": 0.10679388046264648,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Password reset request",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 200, Check MailHog at http://localhost:8025",
+          "passed": true,
+          "duration_ms": 6.719827651977539,
+          "error": null
+        }
+      ],
+      "category": "Authentication & Authorization",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-AUTH-008": {
+      "name": "Password Reset Confirmation",
+      "objective": "Validate Password Reset Confirmation functionality in Authentication & Authorization",
+      "passed": false,
+      "duration_seconds": 0.0,
+      "steps": [],
+      "category": "Authentication & Authorization",
+      "skipped": true,
+      "skip_reason": "Requires reset token from email - manual verification needed",
+      "error_message": null
+    },
+    "TC-AUTH-009": {
+      "name": "RBAC - Role Creation",
+      "objective": "Validate RBAC - Role Creation functionality in Authentication & Authorization",
+      "passed": true,
+      "duration_seconds": 0.11518216133117676,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Role creation",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 201, Has ID: True",
+          "passed": true,
+          "duration_ms": 14.338016510009766,
+          "error": null
+        }
+      ],
+      "category": "Authentication & Authorization",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-AUTH-010": {
+      "name": "RBAC - Permission Assignment",
+      "objective": "Validate RBAC - Permission Assignment functionality in Authentication & Authorization",
+      "passed": true,
+      "duration_seconds": 0.10680294036865234,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Role assignment",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 200",
+          "passed": true,
+          "duration_ms": 12.38703727722168,
+          "error": null
+        }
+      ],
+      "category": "Authentication & Authorization",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-AUTH-011": {
+      "name": "RBAC - Permission Enforcement",
+      "objective": "Validate RBAC - Permission Enforcement functionality in Authentication & Authorization",
+      "passed": true,
+      "duration_seconds": 0.2297520637512207,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Permission enforcement",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 403 (expecting 403)",
+          "passed": true,
+          "duration_ms": 20.708799362182617,
+          "error": null
+        }
+      ],
+      "category": "Authentication & Authorization",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-AUTH-012": {
+      "name": "Multi-Factor Authentication Setup",
+      "objective": "Validate Multi-Factor Authentication Setup functionality in Authentication & Authorization",
+      "passed": true,
+      "duration_seconds": 0.018312931060791016,
+      "steps": [
+        {
+          "number": 1,
+          "description": "MFA setup",
+          "expected": "Step should complete successfully",
+          "actual": "Has secret: True, Has QR: True",
+          "passed": true,
+          "duration_ms": 18.112897872924805,
+          "error": null
+        }
+      ],
+      "category": "Authentication & Authorization",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-AUTH-013": {
+      "name": "MFA Login Flow",
+      "objective": "Validate MFA Login Flow functionality in Authentication & Authorization",
+      "passed": false,
+      "duration_seconds": 0.0,
+      "steps": [],
+      "category": "Authentication & Authorization",
+      "skipped": true,
+      "skip_reason": "Requires TOTP generation - manual verification needed",
+      "error_message": null
+    },
+    "TC-AUTH-014": {
+      "name": "Session Management",
+      "objective": "Validate Session Management functionality in Authentication & Authorization",
+      "passed": true,
+      "duration_seconds": 0.020190000534057617,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Get active sessions",
+          "expected": "Step should complete successfully",
+          "actual": "Response is list: True",
+          "passed": true,
+          "duration_ms": 19.96588706970215,
+          "error": null
+        }
+      ],
+      "category": "Authentication & Authorization",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-AUTH-015": {
+      "name": "User Profile Update",
+      "objective": "Validate User Profile Update functionality in Authentication & Authorization",
+      "passed": true,
+      "duration_seconds": 0.014695167541503906,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Profile update",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 200, Name updated: True",
+          "passed": true,
+          "duration_ms": 14.46390151977539,
+          "error": null
+        }
+      ],
+      "category": "Authentication & Authorization",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-AUTH-016": {
+      "name": "Email Verification",
+      "objective": "Validate Email Verification functionality in Authentication & Authorization",
+      "passed": true,
+      "duration_seconds": 0.19535374641418457,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Check email verification status",
+          "expected": "Step should complete successfully",
+          "actual": "Email verified: False",
+          "passed": true,
+          "duration_ms": 99.08199310302734,
+          "error": null
+        }
+      ],
+      "category": "Authentication & Authorization",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-AUTH-017": {
+      "name": "Account Lockout",
+      "objective": "Validate Account Lockout functionality in Authentication & Authorization",
+      "passed": true,
+      "duration_seconds": 0.5958731174468994,
+      "steps": [
+        {
+          "number": 1,
+          "description": "5 failed login attempts",
+          "expected": "Step should complete successfully",
+          "actual": "Passed",
+          "passed": true,
+          "duration_ms": 463.89198303222656,
+          "error": null
+        },
+        {
+          "number": 2,
+          "description": "Account locked after failed attempts",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 423",
+          "passed": true,
+          "duration_ms": 37.76216506958008,
+          "error": null
+        }
+      ],
+      "category": "Authentication & Authorization",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-AUTH-018": {
+      "name": "Logout",
+      "objective": "Validate Logout functionality in Authentication & Authorization",
+      "passed": true,
+      "duration_seconds": 0.3890700340270996,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Logout",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 200",
+          "passed": true,
+          "duration_ms": 27.564048767089844,
+          "error": null
+        },
+        {
+          "number": 2,
+          "description": "Token invalid after logout",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 401",
+          "passed": true,
+          "duration_ms": 21.431922912597656,
+          "error": null
+        }
+      ],
+      "category": "Authentication & Authorization",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-AUTH-019": {
+      "name": "Concurrent Sessions",
+      "objective": "Validate Concurrent Sessions functionality in Authentication & Authorization",
+      "passed": true,
+      "duration_seconds": 0.3785369396209717,
+      "steps": [
+        {
+          "number": 1,
+          "description": "Login from device A",
+          "expected": "Step should complete successfully",
+          "actual": "Passed",
+          "passed": true,
+          "duration_ms": 103.85608673095703,
+          "error": null
+        },
+        {
+          "number": 2,
+          "description": "Login from device B",
+          "expected": "Step should complete successfully",
+          "actual": "Tokens different: True",
+          "passed": true,
+          "duration_ms": 98.94990921020508,
+          "error": null
+        },
+        {
+          "number": 3,
+          "description": "Both sessions functional",
+          "expected": "Step should complete successfully",
+          "actual": "A works: True, B works: True",
+          "passed": true,
+          "duration_ms": 25.999784469604492,
+          "error": null
+        }
+      ],
+      "category": "Authentication & Authorization",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    },
+    "TC-AUTH-020": {
+      "name": "Admin User Management",
+      "objective": "Validate Admin User Management functionality in Authentication & Authorization",
+      "passed": true,
+      "duration_seconds": 0.13313913345336914,
+      "steps": [
+        {
+          "number": 1,
+          "description": "List all users (admin)",
+          "expected": "Step should complete successfully",
+          "actual": "Status: 200",
+          "passed": true,
+          "duration_ms": 33.13899040222168,
+          "error": null
+        }
+      ],
+      "category": "Authentication & Authorization",
+      "skipped": false,
+      "skip_reason": null,
+      "error_message": null
+    }
+  }
+}
